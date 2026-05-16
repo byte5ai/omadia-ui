@@ -2,7 +2,7 @@
 
 > A persistent canvas surface for the Omadia Agentic OS. The agent synthesises UI live the way it synthesises prose today — on a blank canvas, in the layout and composition that fit the user's task and preferences in the moment.
 
-Version 0.4 — adds 2D architecture (Client/Server × Tier 1/2/3), editor-class primitives, local operations catalog, multiple canvases, context-aware preferences, omadia-canvas-protocol versioning. Defers dynamic visual skinning (composition idioms instead). Cross-channel state marked as depends-on-omadia-core.
+Version 0.5 — adds forward-compatibility hooks for shared canvases (group-owned, multi-user collaboration as future v2+). v0.4 baseline: 2D architecture (Client/Server × Tier 1/2/3), editor-class primitives, local operations catalog, multiple canvases, context-aware preferences, omadia-canvas-protocol versioning. Defers dynamic visual skinning (composition idioms instead). Cross-channel state marked as depends-on-omadia-core.
 
 ---
 
@@ -207,11 +207,15 @@ Capability names in manifests are **versioned** (`canvasChatAgent@1`). Runtime s
 ```ts
 {
   canvasSessionId: string;
-  surfaceSeq: number;     // monotonic per canvasSessionId
-  treeRevision: number;   // version of the tree
+  surfaceSeq: number;        // transport-layer ordering, monotonic per canvasSessionId
+  treeRevision: RevisionId;  // opaque revision identifier of the tree
   // event-specific payload below
 }
 ```
+
+`treeRevision` is deliberately specified as an **opaque identifier**. In v1 it is implemented as a monotonic integer (single-writer model). In v2+ (shared canvases) it may become a Lamport timestamp, vector clock, or CRDT-style operation id — wire format unchanged. Patches reference revisions only by equality, never by arithmetic.
+
+The **channel plugin acts as the fan-out point** for surface events: in v1 it forwards 1:1 to a single connected client; in v2+ it multi-casts to all currently-connected members of a shared canvas. The event grammar itself is unchanged between v1 and v2 — fan-out is a channel-implementation detail, not a protocol concern.
 
 | Event | Causal fields | Carries | Purpose |
 |---|---|---|---|
@@ -352,6 +356,7 @@ Single Omadia UI Host App instance per user system. Within that instance:
 | `userId` | Across channels for the same human (best effort today; cross-channel merging on omadia Slice-2.5 roadmap) | Channel auth → `IncomingTurn.userRef` |
 | `conversationId` | Per channel-level chat thread | Channel-native |
 | `canvasSessionId` | Per persistent canvas surface | Tier-2 generated, stable across reconnects, persists across Host App restarts |
+| `canvasOwnership` | Per canvas — who owns / has access | Opaque structure; v1 always `{kind: "single-user", userId}`; v2+ can extend to `{kind: "group", groupId, members: userId[]}` without breaking the wire format |
 | `contextKey` | Per user-named or agent-inferred context (e.g. "default", "project-q1-closing", "private", "business") | Conversation or explicit user statement |
 
 **Scoping rules:**
@@ -446,7 +451,7 @@ The wire format between Tier 1 (Host App + Channel) and Tier 2 is versioned as *
 
 | Layer | Lives in | Backed by | Concurrency |
 |---|---|---|---|
-| **Active canvas state** (tree, style tokens, selections, pending dataRefs, current `treeRevision`) | Tier 2 | `memoryStore@1`, namespace `canvas-state/<tenantId>/<canvasSessionId>` | Tier-2 per-session mutex; store itself not concurrency-safe |
+| **Active canvas state** (tree, style tokens, selections, pending dataRefs, current `treeRevision`) | Tier 2 | `memoryStore@1`, namespace `canvas-state/<tenantId>/<canvasSessionId>` | Tier-2 per-session mutex (single-writer model, v1). v2+ shared canvases require CRDT-capable store or leader election — store-backend swap, no wire-format change |
 | **Data refs** (bulk rows behind `dataRef`) | Tier 2 datastore | thin scoped store inside the orchestrator plugin, signed-token addressable | Append-only with TTL |
 | **Render detail** (scroll, hover, accordion, unsubmitted inputs, brush buffer, audio cursor) | Tier 1 client, in memory | not persisted, lost on app close (acceptable) | single-client |
 | **User preferences** | `memoryStore@1`, namespace `ui-prefs/<tenantId>/<userId>/<contextKey>` | filesystem-backed; **context-aware** | low-frequency, same per-user mutex pattern |
@@ -467,6 +472,42 @@ Nothing. All changes additive, conditionally engaged via the `'canvas'` capabili
 - `IncomingTurn.tenantId` defaults to `"default"`.
 
 One smoke test per existing channel proves clean ignore. Migration risk negligible.
+
+---
+
+## Forward Compatibility: Shared Canvases (v2+)
+
+A planned future capability: multiple users collaborating on the same canvas, conceptually parallel to a Teams group. Omadia core already supports group conversations where memory entries are scoped to all users present at creation time; Omadia UI should be able to ride on that.
+
+**Not in scope for v1.** Not built, not implemented. But the v1 architecture has to leave room for it — refactors of identity, state, and event semantics are expensive once production users are on the system.
+
+### Hooks already in place (v1)
+
+| Hook | What it enables later |
+|---|---|
+| `canvasOwnership` as opaque structure (v1: `{kind: "single-user", userId}`) | Extends to `{kind: "group", groupId, members: userId[]}` without breaking the identity scheme |
+| `treeRevision` specified as opaque identifier (v1: integer) | Wire format unchanged when the implementation moves to Lamport clocks / CRDT op-ids |
+| Channel plugin as fan-out point | v2 multi-cast to all connected members is a channel-implementation detail, not a protocol change |
+| Memory-Scoping delegated to omadia core (we consume `memoryStore@1` / `crossChannelConversationMemory@1`) | Group memory comes for free when core delivers group-scope on those capabilities |
+| Single-instance Tier-2 assumption explicitly documented as v1 constraint | Multi-instance / CRDT store is a backend swap, expected, not a surprise |
+| Reserved future event family `presence_*` (separate from `surface_*`) | Awareness data (cursor positions, "X is editing this widget", selection highlights) lands in its own stream without overloading the tree-state events |
+| Local operations catalog routes through Tier 2 (not Tier 1 client direct) | Tier 2 stays the conflict-arbitration point when multiple members trigger operations simultaneously |
+
+### Decisions explicitly deferred (v2 work)
+
+- **Conflict resolution strategy**: CRDT (Figma-style), operational transformation (Google-Docs-style), or pessimistic locking (Miro-style per-element locks). Selection follows a survey of the field at v2 spike time, not now.
+- **Awareness UX**: cursor rendering, presence indicators, "X is editing this widget" affordances. UX work, follows once the data model is set.
+- **Permissions model**: view / comment / edit / admin per member. Depends on omadia core's group model — we consume what core provides.
+- **Branching / forking** of a shared canvas (e.g. "experiment offline, merge back"). Open question, likely v3+.
+
+### Things v1 must NOT do that would block v2
+
+- Hard-code `userId` into anything that should logically be "canvas owner". Use `canvasOwnership.userId` (single-user) instead, so the swap to group is a one-line extension.
+- Assume `treeRevision` is comparable with `<` or `>`. Use equality only.
+- Embed presence state into `surface_*` events. Keep tree mutation events clean.
+- Tie the per-session mutex to anything user-facing. It is an internal correctness mechanism, not part of the protocol.
+
+This section becomes the input for the v2 design phase. It is not a v1 deliverable.
 
 ---
 
