@@ -2,7 +2,7 @@
 
 > A persistent canvas surface for the Omadia Agentic OS. The agent synthesises UI live the way it synthesises prose today — on a blank canvas, in the layout and composition that fit the user's task and preferences in the moment.
 
-Version 0.6 — closes Codex review v3 findings: direct-gesture vs. routed-local-op split, canonical `DataRef` shape, concrete boot handshake, required fields on editor primitives, preview-vs-durable op classification, contextKey binding at canvas restore, sentinel mechanism clarification, server-assigned `surfaceSeq` (incl. shared-canvas correctness). v0.5 baseline: forward-compatibility hooks for shared canvases. v0.4 baseline: 2D architecture, editor primitives, local operations catalog, multiple canvases, context-aware preferences, omadia-canvas-protocol versioning.
+Version 0.7 — closes concept gaps surfaced by the walkthroughs: DataRef lifecycle (content-addressed, buffer ownership, GC), per-mutation mutex semantics, sub-agent cancellation, Tier-2 data cache between turns, external-effect action classification with confirmation pattern, `canvas-activate` action type, Tier-2 statelessness wrt active canvas, referential-continuity contract. v0.6 baseline: direct-gesture vs. routed-local-op split, canonical `DataRef` shape, concrete boot handshake, editor-primitive required fields, preview-vs-durable ops, contextKey per canvas, sentinel mechanism, server-assigned `surfaceSeq`. v0.5: forward-compat hooks for shared canvases. v0.4: 2D architecture, editor primitives, local ops catalog, multiple canvases, context-aware prefs, protocol versioning.
 
 ---
 
@@ -123,19 +123,30 @@ config:
   canvas_protocol_version: "1.0"
 ```
 
-**Per-session turn serialisation:** mutex per `canvasSessionId` to ensure single-writer-per-session semantics on the canvas-state store (which is filesystem-backed and not concurrency-safe by itself).
+**Per-mutation mutex** (refined from earlier "per-turn" wording): the mutex is **per `canvasSessionId`**, but it protects each individual state mutation, **not the whole turn**. Tier 2 holds the mutex only while reading + writing the canvas-state. While Tier 3 sub-agents run, the mutex is released so that other mutations (a user typing a follow-up, another sub-agent returning) can proceed without blocking on a long-running Tier-3 call. Concurrent sub-agent returns and incoming user turns serialise via repeated short mutex acquisitions, each producing exactly one revisioned patch.
+
+**Tier-2 is stateless wrt active canvas.** Each `IncomingTurn` carries its own `canvasSessionId`; Tier 2 never holds a "current canvas" variable. Background Tier-3 work for canvas A can emit updates even while the client displays canvas B — those updates simply land in canvas A's state and are visible when the user switches back. (Important for v2+ multi-user as well.)
 
 **What it does per turn:**
 
 1. Receives incoming turn from the canvas channel.
-2. Acquires the session mutex.
-3. Loads canvas state from `memoryStore@1` at `canvas-state/<tenantId>/<canvasSessionId>` and user preferences from `ui-prefs/<tenantId>/<userId>/<contextKey>` (context-aware, see Identity Model).
-4. Decides: **local action** (covered by Tier-1 operations catalog), **UI composition** (style or layout change), or **content-bound** (needs data from Tier 3).
+2. Acquires the session mutex briefly to load canvas state from `memoryStore@1` at `canvas-state/<tenantId>/<canvasSessionId>` (tree, selections, dataRef refs, `treeRevision`, `contextKey`) and user preferences from `ui-prefs/<tenantId>/<userId>/<contextKey>`. Releases the mutex.
+3. **Referential continuity contract**: every composition or patch synthesis decision uses the loaded state as truth. References like "of them", "this row", "the highlighted ones" resolve against the in-memory tree; Tier 2 never re-asks Tier 3 for data it already has in state or in the dataRef cache (see below).
+4. Decides: **local action** (Tier-1 catalog), **UI composition** (style/layout), or **content-bound** (needs new data from Tier 3).
 5. Local action → emit `surface_local_action` event to Tier 1.
-6. UI composition → small LLM call with UI Skill + current tree + prefs → emit `surface_snapshot` or `surface_patch`.
-7. Content-bound → delegate to `chatAgent@1`, sub-agents return structured data via sentinel envelope, Tier 2 composes primitive tree around the data, emit events.
-8. Write back updated canvas state (always); update user prefs (if the user adjusted them); increment `treeRevision`.
-9. Release the session mutex.
+6. UI composition → small LLM call with UI Skill + current tree + prefs → emit `surface_snapshot` (rare; only for fundamental restructure) or `surface_patch` (default, preserves user state).
+7. Content-bound → delegate to `chatAgent@1`. Sub-agents return structured data via sentinel envelope. Each return acquires the mutex briefly, mutates state, emits one revisioned patch, releases.
+8. **Update written incrementally**: each patch increments `treeRevision` by 1 under the mutex; canvas-state and user prefs are written through to `memoryStore@1` at the same time.
+
+### Per-canvas data cache (Tier-2 internal)
+
+Between turns, Tier 2 keeps a **per-`canvasSessionId` data cache** of structured payloads returned by Tier-3 sub-agents. Cache key: the `DataRef.id`. Backing: `memoryStore@1` under `canvas-state/<tenantId>/<canvasSessionId>/cache/<dataRefId>` with the same `expiresAt` as the corresponding signed token.
+
+Before any Tier-3 call, Tier 2 checks the cache. If the data is present and unexpired, the call is skipped and the existing dataRef is reused. This is what allows queries like "how big are they in revenue?" (Walkthrough 4 step 18) to be answered from the earlier web-search payload without a second sub-agent call.
+
+### Sub-agent cancellation (best-effort)
+
+When the user changes direction mid-flight (Walkthrough 4 step 9: "actually focus on their AI strategy first"), Tier 2 marks already-dispatched Tier-3 calls as obsolete. v1 uses **soft cancellation**: the Tier-3 call runs to completion (Omadia's tool API has no hard-cancel), but its return is dropped without state mutation and without patch emission. Tier 2 logs the cancellation for observability. Hard cancellation is a v2+ topic that depends on omadia-core support.
 
 ### The UI Skill
 
@@ -227,13 +238,29 @@ The **channel plugin acts as the fan-out point** for surface events: in v1 it fo
 
 ```ts
 type DataRef = {
-  id: string;             // canonical reference identifier
+  id: string;             // content-addressed identifier (see below)
   signedToken: string;    // HMAC signature (see Security Surface for input composition)
   expiresAt: string;      // ISO 8601 timestamp
 };
 ```
 
 This is the single shape. The cross-cutting `dataRef` trait carries a `DataRef`. The `surface_data_ref_created` event carries a `DataRef`. The `surface_data_ref_invalidated` event carries `{id: string, reason: string}`. No stringly-typed signed-string variant.
+
+### DataRef lifecycle
+
+| Aspect | v1.0 spec |
+|---|---|
+| **ID derivation** | Content-addressed: `id = "<kind>-<sha256(content)[:16]>"`, where `kind` is `"pixel"`, `"vector"`, `"audio"`, `"video"`, `"struct"`, etc. Same content → same id, dedup automatic |
+| **Buffer ownership — pixel/audio/video/vector** | Held by **Tier 1 client** in its render-detail layer (large binary buffers never leave the client unless explicitly uploaded for a Tier-3 op). Tier 2 holds only `{id, signedToken, expiresAt}` plus content metadata in canvas-state |
+| **Buffer ownership — structured payload from Tier 3** (Jira tickets, ERP rows, …) | Held by Tier 2 in the per-canvas data cache (see Tier 2). Server-fetchable via signed token for re-render or sub-agent re-use |
+| **Creation — Class B durable op** | Tier 1 computes the new buffer locally, hashes it, sends `IncomingTurn { action: { type: "buffer-mutated", target, newDataRef } }`. Tier 2 confirms via `surface_patch` referencing the new id; Tier 2 also emits `surface_data_ref_created` so the system knows the ref is now live |
+| **Creation — Tier-3 structured payload** | Sub-agent returns payload; Tier 2 hashes, places in cache under namespace `canvas-state/<…>/cache/<dataRefId>`, emits `surface_data_ref_created` |
+| **Reference from primitive** | The `dataRef` trait on a primitive holds `{id, signedToken, expiresAt}`; the client uses the token to fetch the buffer (if buffer lives server-side) or look up its local store (if buffer is client-held) |
+| **Invalidation** | (a) `expiresAt` reached → automatic; (b) explicit `surface_data_ref_invalidated` from Tier 2 when a durable op replaces the buffer or when the cache TTL fires |
+| **Garbage collection** | Tier 1: drops local buffer when no live primitive references it AND its expiry has passed. Tier 2: drops cache entry on TTL. Canvas-state retains only the metadata, not the bulk content |
+| **Cross-turn stability** | DataRefs survive across turns until invalidated. The next turn can reference them by id; Tier 2 looks up in cache, or the client fetches by token |
+
+The content-addressed id is what makes durable editing tractable: every "blur applied" produces a deterministic new id, the old one stays addressable until GC. Undo/redo (v2+) can navigate the id chain.
 
 | Event | Causal fields | Carries | Purpose |
 |---|---|---|---|
@@ -242,7 +269,7 @@ This is the single shape. The cross-cutting `dataRef` trait carries a `DataRef`.
 | `surface_data_ref_created` | `revision: N` | `DataRef + {schema, sizeHint}` | Bulk data available behind signed reference (canonical shape, see above) |
 | `surface_data_ref_invalidated` | `revision: N` | `{id, reason}` | Reference expired / changed |
 | `surface_action_result` | `forActionId, basedOnRevision: N` | `{status, message?, followUpPatch?}` | Result of a user-triggered action |
-| `surface_local_action` | `revision: N`, `effect: 'preview' \| 'durable'` | `{operation, params, target}` | Tier 2 instructs Tier 1 to execute a catalog operation. `effect: 'preview'` does **not** mutate `treeRevision` (transient visual, undo-able locally). `effect: 'durable'` is always followed by a `surface_patch` from Tier 2 that mutates `treeRevision` — so the durable result is reflected in canvas state and (in v2+) visible to all members |
+| `surface_local_action` | `revision: N`, `effect: 'preview' \| 'durable'` | `{operation, params, target}` | Tier 2 instructs Tier 1 to execute a catalog operation. `effect: 'preview'` does **not** mutate `treeRevision` (transient visual, undo-able locally). `effect: 'durable'` is always followed by a `surface_patch` from Tier 2 that mutates `treeRevision` — so the durable result is reflected in canvas state and (in v2+) visible to all members. Durable ops on buffer-backed primitives (canvas-region, media, vector-path) trigger Tier 1 to report the new content-addressed `DataRef` back to Tier 2 via the next `IncomingTurn` |
 | `surface_error` | `revision: N` | `{severity, message, scope}` | Render-side validation / dataRef denied / catalog op unknown / protocol mismatch |
 
 **Client rules:**
@@ -373,6 +400,21 @@ Single Omadia UI Host App instance per user system. Within that instance:
 
 **Fullscreen mode** = Win-3-in-DOS analogy: overlays the host OS entirely, Omadia UI is the workspace. **Windowed mode** = lives alongside other apps in the host OS.
 
+### Canvas activation as an explicit action
+
+Canvas switching is local (Class A) for the visual response, but the Host App **must** notify Tier 2 of the active canvas so the right state is loaded. The notification is an `IncomingTurn` carrying:
+
+```ts
+{
+  canvasSessionId: "<the-newly-active-canvas-id>",
+  action: { type: "canvas-activate", effect: "internal" }
+}
+```
+
+Tier 2's response: load canvas-state + user prefs for the named session, emit `surface_snapshot` to restore the persisted tree. New canvases are bootstrapped the same way — Host App sends `canvas-activate` with a freshly generated `canvasSessionId`; Tier 2 finds no state, treats it as a blank canvas, emits an empty `surface_snapshot` with `producesRevision: 0`.
+
+The Host App may also send `canvas-deactivate` (`{type: "canvas-deactivate", effect: "local"}`) when closing a canvas tab — Tier 2 finalises any pending cache/mutex state. Background Tier-3 work for a deactivated canvas continues; results just land in the persisted state without an immediate client emission.
+
 ---
 
 ## Identity Model
@@ -419,7 +461,45 @@ Single Omadia UI Host App instance per user system. Within that instance:
 | LLM-injected `action` payloads could trick Tier 2 | Action types whitelisted per-primitive in schema; unknown types dropped. Handlers map to declared semantic operations only |
 | Renderer rendering arbitrary JSON | Whitelist parser at Tier 1: unknown primitive type → reject. Unknown trait → reject or strip |
 | `surface_local_action` could trigger arbitrary local code | Operations catalog is closed: only catalog-listed operations execute. Unknown op → `surface_error` |
+| External-effect actions (email send, file delete, payment, …) fired without user awareness | **Action-effect classification** (see below) makes external-effect intent declarable; Tier 2 enforces a confirmation modal before invoking such a tool |
 | Server-secret leak | Rotating secret (24h lifetime), short-lived `dataRef` (≤ secret lifetime), graceful rotation (next-secret accepted alongside current for one rotation period) |
+
+### Action-effect classification + confirmation contract
+
+Every action declared on a primitive (via the `action` trait) carries an **`effect` classification**:
+
+| Effect | Meaning | Tier-2 behaviour |
+|---|---|---|
+| `local` | Tier-1 catalog op (Class B). No external side effects | Tier 2 emits `surface_local_action` directly |
+| `internal` | Reversible work via Tier 3 (data fetch, recompute, transient note, …) | Tier 2 calls the tool, emits patch with result |
+| `external-effect` | Non-reversible effect outside the system (email send, file delete, payment, calendar invite, public publish, …) | **Tier 2 MUST emit a confirmation modal first** (see pattern below). The original tool call happens only after the user emits the `confirm-<actionType>` action |
+
+**Standard confirmation pattern** (Tier 2 emits this on first contact with an `external-effect` action):
+
+```jsonc
+surface_patch {
+  basedOnRevision: N, producesRevision: N+1,
+  patches: [
+    add pane: {
+      kind: "modal",
+      container: {
+        heading: "<agent-authored short title>",
+        text: "<agent-authored explanation of what will happen, irreversible aspects, recipient/target identifiers>",
+        toolbar: {
+          children: [
+            { button: { label: "Cancel", action: { type: "cancel-modal", effect: "local" } } },
+            { button: { label: "<verb, e.g. Send>", action: { type: "confirm-<actionType>", effect: "internal", payload: <original action payload> } } }
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+The `external-effect` action's payload travels through the confirmation modal; on confirm, Tier 2 receives `confirm-<actionType>` and now executes the actual tool. If the user clicks Cancel, the modal is removed via patch and nothing else happens. The original `external-effect` action **never directly invokes its tool** — only its confirmation gate does.
+
+This pattern is shared-canvas-safe by construction: in v2+ multi-user canvases, the modal becomes visible to all members, but only the originating user (per `canvasOwnership` and presence) sees the confirm/cancel buttons as actionable.
 
 ---
 
