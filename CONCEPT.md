@@ -2,7 +2,7 @@
 
 > A persistent canvas surface for the Omadia Agentic OS. The agent synthesises UI live the way it synthesises prose today — on a blank canvas, in the layout and composition that fit the user's task and preferences in the moment.
 
-Version 0.5 — adds forward-compatibility hooks for shared canvases (group-owned, multi-user collaboration as future v2+). v0.4 baseline: 2D architecture (Client/Server × Tier 1/2/3), editor-class primitives, local operations catalog, multiple canvases, context-aware preferences, omadia-canvas-protocol versioning. Defers dynamic visual skinning (composition idioms instead). Cross-channel state marked as depends-on-omadia-core.
+Version 0.6 — closes Codex review v3 findings: direct-gesture vs. routed-local-op split, canonical `DataRef` shape, concrete boot handshake, required fields on editor primitives, preview-vs-durable op classification, contextKey binding at canvas restore, sentinel mechanism clarification, server-assigned `surfaceSeq` (incl. shared-canvas correctness). v0.5 baseline: forward-compatibility hooks for shared canvases. v0.4 baseline: 2D architecture, editor primitives, local operations catalog, multiple canvases, context-aware preferences, omadia-canvas-protocol versioning.
 
 ---
 
@@ -53,12 +53,16 @@ flowchart TB
   ORCH -.->|"surface_local_action<br/>(blur, brush, curves, …)<br/>via surface stream"| HOST
 ```
 
-**Latency paths:**
+**Latency paths** — four distinct classes; the split between Class A and Class B is load-bearing:
 
-1. **Local interaction** (scroll, hover, drag, brush stroke, simple filter) — Tier 1 Client only. No server call, no tokens, <16ms.
-2. **Local-routed action** ("apply blur to selection") — Tier 2 decides "local op", emits `surface_local_action` to Tier 1 Client. Sub-second.
-3. **UI composition** ("change to dashboard layout") — Tier 1 → Channel → Tier 2 → back. Sub-second.
-4. **Content request** ("which of them are on vacation?") — full chain Tier 1 → Channel → Tier 2 → Tier 3 → Tier 2 → Tier 1. Seconds+. Tier 1 stays responsive throughout (skeleton states; the rest of the canvas keeps working).
+| Class | Trigger | Path | Latency |
+|---|---|---|---|
+| **A — Direct Tier-1 gesture** | scroll, hover, drag, brush stroke, pinch-zoom, pane move/resize, click on a tool-mode toggle, accordion open/close, local form typing pre-submit | Tier 1 Client only — no server contact, no tokens | <16ms (60fps target) |
+| **B — Tier-2-routed local op** | semantic command from the agent or user that resolves to a catalog operation: "apply blur to selection", "normalize this audio", "crop to selection" | Tier 1 → Channel → Tier 2 → `surface_local_action` back to Tier 1 → Tier 1 executes from local catalog | sub-second |
+| **C — UI composition** | "change to dashboard layout", "show me this as a kanban", style/layout preference change | Tier 1 → Channel → Tier 2 → tree mutation back | sub-second |
+| **D — Content request** | "which of them are on vacation?", "regenerate this background with AI", "fetch the Q1 invoices from ERP" | Tier 1 → Channel → Tier 2 → Tier 3 → Tier 2 → Tier 1 | seconds+; Tier 1 shows skeletons, rest of canvas stays responsive |
+
+**Class A vs Class B is the most-violated boundary in early implementations.** A direct gesture (the user dragging the brush across pixels) is Class A — it must never round-trip the server. Triggering a named operation from a semantic intent (the agent applying that brush stroke after a user prompt, or the user clicking a "Blur Selection" button) is Class B — Tier 2 decides which operation, Tier 1 executes from its local catalog. The first Tier-1 implementation must encode this split.
 
 ---
 
@@ -168,7 +172,7 @@ Existing omadia agents/tools/integrations, unchanged in interface. New optional 
 }
 ```
 
-Mirrors the existing sentinel pattern (`_pendingUserChoice`, `_pendingSlotCard`, `_pendingRoutineList`). Classic channels render `prose` and ignore the rest.
+Mirrors the existing **JSON-parsed sentinel** pattern (`_pendingUserChoice`, `_pendingRoutineList` — parsed by the orchestrator via `JSON.parse` of the tool result content; see `orchestrator.ts:514+`). `_pendingSlotCard` follows a separate path (direct drain from a built-in tool state), but for tools and sub-agents emitting canvas-aware payloads the **JSON-sentinel-parse mechanism is canonical** — that is what `_pendingCanvasTree` and `_pendingStructuredPayload` use. Classic channels render `prose` and ignore the rest.
 
 **Tools with editor-class operations** (e.g. `apply_ai_background_removal`, `transcribe_audio`, `extract_subjects_from_image`) live here — anything that takes time, calls an external service, or invokes an AI model. Standard editor operations (blur, brush, curves, …) live in the Tier-1 local catalog, not here.
 
@@ -207,25 +211,39 @@ Capability names in manifests are **versioned** (`canvasChatAgent@1`). Runtime s
 ```ts
 {
   canvasSessionId: string;
-  surfaceSeq: number;        // transport-layer ordering, monotonic per canvasSessionId
+  surfaceSeq: number;        // server-assigned, monotonic per canvasSessionId
   treeRevision: RevisionId;  // opaque revision identifier of the tree
   // event-specific payload below
 }
 ```
 
-`treeRevision` is deliberately specified as an **opaque identifier**. In v1 it is implemented as a monotonic integer (single-writer model). In v2+ (shared canvases) it may become a Lamport timestamp, vector clock, or CRDT-style operation id — wire format unchanged. Patches reference revisions only by equality, never by arithmetic.
+`treeRevision` is deliberately specified as an **opaque identifier**. v1 implementation is a monotonic integer (single-writer model); v2+ (shared canvases) may use Lamport timestamps, vector clocks, or CRDT op-ids — wire format unchanged. Patches reference revisions by equality only, never by arithmetic.
+
+`surfaceSeq` is **server-assigned** by the channel plugin / Tier 2. Clients may attach a separate `clientSeq` to outbound user actions for round-trip mapping, but it is never authoritative.
 
 The **channel plugin acts as the fan-out point** for surface events: in v1 it forwards 1:1 to a single connected client; in v2+ it multi-casts to all currently-connected members of a shared canvas. The event grammar itself is unchanged between v1 and v2 — fan-out is a channel-implementation detail, not a protocol concern.
 
+### Canonical `DataRef` shape (used in every trait and event that references bulk data)
+
+```ts
+type DataRef = {
+  id: string;             // canonical reference identifier
+  signedToken: string;    // HMAC signature (see Security Surface for input composition)
+  expiresAt: string;      // ISO 8601 timestamp
+};
+```
+
+This is the single shape. The cross-cutting `dataRef` trait carries a `DataRef`. The `surface_data_ref_created` event carries a `DataRef`. The `surface_data_ref_invalidated` event carries `{id: string, reason: string}`. No stringly-typed signed-string variant.
+
 | Event | Causal fields | Carries | Purpose |
 |---|---|---|---|
-| `surface_snapshot` | `producesRevision: N` | full primitive tree | Initial render / full replace; starts new revision |
-| `surface_patch` | `basedOnRevision: N`, `producesRevision: N+1` | tree-path-targeted mutations | Incremental update; client rejects if `basedOnRevision` mismatches |
-| `surface_data_ref_created` | `revision: N` | `{dataRefId, schema, sizeHint, signedToken, expiresAt}` | Bulk data available behind signed reference |
-| `surface_data_ref_invalidated` | `revision: N` | `{dataRefId, reason}` | Reference expired / changed |
+| `surface_snapshot` | `producesRevision: N` | full primitive tree + active `omadia-canvas-protocol` + ops-catalog version | Initial render / full replace; starts new revision |
+| `surface_patch` | `basedOnRevision: N`, `producesRevision: N+1` | tree-path-targeted mutations | Incremental update; client rejects if `basedOnRevision` mismatches and requests snapshot |
+| `surface_data_ref_created` | `revision: N` | `DataRef + {schema, sizeHint}` | Bulk data available behind signed reference (canonical shape, see above) |
+| `surface_data_ref_invalidated` | `revision: N` | `{id, reason}` | Reference expired / changed |
 | `surface_action_result` | `forActionId, basedOnRevision: N` | `{status, message?, followUpPatch?}` | Result of a user-triggered action |
-| `surface_local_action` | `revision: N` | `{operation, params}` | Instructs Tier 1 to execute a local operation from its catalog (blur, brush, curves, …) — no server round-trip needed |
-| `surface_error` | `revision: N` | `{severity, message, scope}` | Render-side validation failure / dataRef denied / etc. |
+| `surface_local_action` | `revision: N`, `effect: 'preview' \| 'durable'` | `{operation, params, target}` | Tier 2 instructs Tier 1 to execute a catalog operation. `effect: 'preview'` does **not** mutate `treeRevision` (transient visual, undo-able locally). `effect: 'durable'` is always followed by a `surface_patch` from Tier 2 that mutates `treeRevision` — so the durable result is reflected in canvas state and (in v2+) visible to all members |
+| `surface_error` | `revision: N` | `{severity, message, scope}` | Render-side validation / dataRef denied / catalog op unknown / protocol mismatch |
 
 **Client rules:**
 
@@ -267,12 +285,12 @@ The **channel plugin acts as the fan-out point** for surface events: in v1 it fo
 
 ### Editor-class primitives
 
-| # | Primitive | Purpose |
-|---|---|---|
-| 21 | `media` | Audio/video with playback, scrubbing, volume; Tier 1 holds buffer |
-| 22 | `canvas-region` | Pixel-editor region (Photoshop-style); Tier 1 holds buffer as opaque local state |
-| 23 | `timeline` | Multi-track, frame/sample-precise time-axis (DaVinci, Logic, Premiere) |
-| 24 | `vector-path` | Pen-tool curves (Photoshop paths, audio EQ curves, etc.) |
+| # | Primitive | Purpose | Required props (v1.0) | Optional props |
+|---|---|---|---|---|
+| 21 | `media` | Audio/video with playback, scrubbing, volume; Tier 1 holds buffer | `mediaType: 'audio' \| 'video'`, `dataRef: DataRef`, `duration: ms` | `frameRate` (video), `resolution` (video), `sampleRate` (audio), `channels` (audio), `poster: DataRef` |
+| 22 | `canvas-region` | Pixel-editor region (Photoshop-style); Tier 1 holds buffer as opaque local state | `width: int`, `height: int`, `pixelFormat: 'rgba8' \| 'rgba16'` | `dataRef` (initial content), `colorSpace`, `dpi` |
+| 23 | `timeline` | Multi-track, frame/sample-precise time-axis (DaVinci, Logic, Premiere) | `tracks: Array<{id: string, kind: 'audio'\|'video'\|'marker'}>`, `timebase: {frameRate?: number, sampleRate?: number}` | `duration`, `playhead`, `loopRegion` |
+| 24 | `vector-path` | Pen-tool curves (Photoshop paths, audio EQ curves, etc.) | `points: Array<{x: number, y: number, ctrlIn?, ctrlOut?}>` | `closed: boolean`, `strokeStyle`, `fillStyle` |
 
 ### Cross-cutting traits
 
@@ -281,7 +299,7 @@ Every primitive optionally carries these:
 | Trait | Type | Purpose |
 |---|---|---|
 | `id` | string | Stable reference (patches, actions, selections) |
-| `dataRef` | string (HMAC-signed) | Reference to bulk data behind the primitive |
+| `dataRef` | `DataRef` (see canonical shape above) | Reference to bulk data behind the primitive |
 | `selection` | `"none" \| "single" \| "multi"` + `selected: id[]` | Selection state |
 | `loading` | `"none" \| "skeleton" \| "spinner"` | Loading hint |
 | `error` | `{message, severity}` \| null | Per-primitive error |
@@ -289,9 +307,9 @@ Every primitive optionally carries these:
 | `action` | `{type, payload}` | Click/submit/change binding |
 | `style` | restricted to theme tokens (`compact` / `spacious`, `accent` on/off, …) | Density and emphasis hints within the fixed Omadia theme |
 | `continuous-input` | boolean | High-frequency input (brush pressure, slider drag values) |
-| `selection-region` | shape descriptor | Lasso / rectangle / magic-wand result regions |
+| `selection-region` | shape descriptor (`{kind: 'rect'\|'lasso'\|'magic-wand', …}`) | Lasso / rectangle / magic-wand result regions |
 | `realtime-output` | boolean | Tier 1 may render at 60fps from local state |
-| `frame-precise-time` | `{frameRate, sampleRate?}` | Editor-grade time precision |
+| `frame-precise-time` | `{unit: 'frame'\|'sample'\|'ms', value: number}` (required when present) | Editor-grade time precision |
 
 **Spec format**: JSON tree, delivered as Anthropic tool-use argument (`canvas_render(tree)` or `canvas_patch(patches)`). Forced schema = reliable LLM output. Schema-versioned (see "UI Standard Versioning").
 
@@ -303,21 +321,30 @@ Every primitive optionally carries these:
 
 Tier 1 declares a catalog of operations it implements natively — deterministic, instant, no LLM needed. Tier 2 reads the catalog at capability handshake and routes actions accordingly.
 
-**v1.0 baseline catalog** (Host App must implement):
+**v1.0 baseline catalog** (Host App must implement). Each entry has an `effect` class:
 
-| Domain | Operations |
-|---|---|
-| **Pixel** (operates on `canvas-region`) | brush, erase, fill, blur, sharpen, levels, curves, crop, resize, rotate, flip |
-| **Vector** (operates on `vector-path`) | move, scale, rotate, smooth, bezier-edit |
-| **Audio** (operates on `media`/`timeline`) | trim, fade, normalize, gain, mute |
-| **Video** (operates on `media`/`timeline`) | trim, splice, speed, mute-track |
-| **Geometry** (operates on any pane/container) | move, rotate, scale, snap |
-| **Layer** (operates on `tree` with layer trait) | visibility, opacity, blend-mode, lock, reorder |
-| **Selection** | rectangle, lasso, magic-wand, invert, deselect |
+- **`preview`** — transient visual / audio modification, undo-able locally, does **not** change `treeRevision` or canvas state. Tier 1 keeps the preview in render-detail layer.
+- **`durable`** — modifies the underlying buffer / structure. Tier 2 follows the `surface_local_action` with a `surface_patch` that mutates `treeRevision` and persists in canvas state.
 
-**Mechanic**: Tier 2 emits `surface_local_action` with `{operation, params, target}`. Tier 1 looks up `operation` in its catalog and executes locally. If unknown, Tier 1 responds with `surface_error`, and Tier 2 falls back to a Tier-3 tool call.
+| Domain | Operations | Effect |
+|---|---|---|
+| **Pixel** (operates on `canvas-region`) | brush, erase, fill, blur, sharpen, levels, curves | `durable` |
+| **Pixel transforms** | crop, resize, rotate, flip | `durable` |
+| **Pixel preview** | preview-blur, preview-curves, preview-levels (for live filter dialogs) | `preview` |
+| **Vector** (operates on `vector-path`) | move, scale, rotate, smooth, bezier-edit | `durable` |
+| **Audio** (operates on `media`/`timeline`) | trim, fade, normalize, gain, mute | `durable` |
+| **Audio preview** | preview-gain, preview-eq, scrub | `preview` |
+| **Video** (operates on `media`/`timeline`) | trim, splice, speed, mute-track | `durable` |
+| **Video preview** | scrub, preview-speed | `preview` |
+| **Geometry** (operates on any pane/container) | move, rotate, scale, snap | `durable` |
+| **Layer** (operates on `tree` with layer trait) | visibility, opacity, blend-mode, lock, reorder | `durable` |
+| **Selection** | rectangle, lasso, magic-wand, invert, deselect | `durable` (selection is part of canvas state) |
 
-**Extension**: catalog versioning aligns with `omadia-canvas-protocol`. New operations require a minor protocol bump.
+**Mechanic**: Tier 2 emits `surface_local_action` with `{operation, params, target, effect}`. Tier 1 looks up `operation` in its catalog, verifies the declared `effect` matches, executes locally. If `operation` unknown or `effect` mismatched, Tier 1 responds with `surface_error`, Tier 2 falls back to a Tier-3 tool call.
+
+For **shared canvases (v2+)**: `preview` ops stay client-local per member; `durable` ops still follow the Tier-2-revision-then-patch pattern, so all members see the same authoritative state. The mechanic does not need changing — it is already shared-canvas-safe.
+
+**Extension**: catalog versioning aligns with `omadia-canvas-protocol`. New operations require a minor protocol bump. Catalog version is negotiated separately from protocol version at boot (see handshake).
 
 ---
 
@@ -357,7 +384,7 @@ Single Omadia UI Host App instance per user system. Within that instance:
 | `conversationId` | Per channel-level chat thread | Channel-native |
 | `canvasSessionId` | Per persistent canvas surface | Tier-2 generated, stable across reconnects, persists across Host App restarts |
 | `canvasOwnership` | Per canvas — who owns / has access | Opaque structure; v1 always `{kind: "single-user", userId}`; v2+ can extend to `{kind: "group", groupId, members: userId[]}` without breaking the wire format |
-| `contextKey` | Per user-named or agent-inferred context (e.g. "default", "project-q1-closing", "private", "business") | Conversation or explicit user statement |
+| `contextKey` | **Bound per canvas**: each `canvasSessionId` stores its own `contextKey` in canvas state, persisted across restores. Distinct canvases may run in different contexts simultaneously | Initially user-named or agent-inferred from conversation; mutable per turn |
 
 **Scoping rules:**
 
@@ -400,13 +427,54 @@ Single Omadia UI Host App instance per user system. Within that instance:
 
 The wire format between Tier 1 (Host App + Channel) and Tier 2 is versioned as **`omadia-canvas-protocol/1.0`** from day one.
 
-**Mechanic:**
+**Boot handshake (concrete):**
 
-- Host App declares supported protocol versions during capability handshake (`["1.0"]` initially).
-- Channel plugin declares the same in its manifest (`canvas_protocol_version: "1.0"`).
-- Tier 2 emits only trees in negotiated version.
-- Minor bumps (`1.1`, `1.2`) add primitives, traits, operations, events — additive only.
-- Major bumps (`2.0`) reserved for breaking changes (none expected in v1 lifecycle).
+The handshake is the **first message exchange** after WebSocket-open. It is server-initiated (the channel plugin sends first) — this avoids ambiguity about who has to know what.
+
+1. **Server → Client: `handshake_offer`**
+   ```ts
+   {
+     type: 'handshake_offer',
+     protocolVersions: string[],        // e.g. ["1.0"] — channel plugin manifest declares this
+     opsCatalogVersions: string[],      // e.g. ["1.0"] — Tier 2 publishes this
+     serverFeatures: string[],          // optional capabilities (telemetry, replay, …)
+     handshakeId: string                // for correlation
+   }
+   ```
+
+2. **Client → Server: `handshake_select`**
+   ```ts
+   {
+     type: 'handshake_select',
+     handshakeId: string,
+     protocolVersion: string,           // single chosen value from offer
+     opsCatalogVersion: string,         // single chosen value from offer
+     clientFeatures: string[],
+     localOperations: string[]          // catalog of operations this client actually implements
+   }
+   ```
+
+3. **Mismatch → Server: `handshake_error`**
+   ```ts
+   {
+     type: 'handshake_error',
+     handshakeId: string,
+     reason: 'protocol-version-unsupported' | 'ops-catalog-version-unsupported' | 'local-ops-incomplete',
+     supported: { protocolVersions, opsCatalogVersions }
+   }
+   ```
+   Client may downgrade and re-send `handshake_select` once. Second mismatch → connection closes.
+
+4. **Success → Server: `handshake_ack`** — connection enters the streaming phase, surface events flow normally.
+
+**Versioning policy:**
+
+- **Protocol** and **ops catalog** are versioned independently. Catalog may grow faster than protocol (more operations don't need wire-grammar changes).
+- **Minor bump** (`1.1`, `1.2`, …) = additive. Old clients ignore unknown fields/types/operations gracefully.
+- **Major bump** (`2.0`) = breaking. Reserved; not expected in v1 lifecycle.
+- Addition process: maintained by Omadia/Omadia UI developers; RFC + PR; documented in `docs/protocol/<version>.md`.
+
+**`localOperations` declaration in `handshake_select`** is the authoritative truth for what the connected Tier-1 client can do. Tier 2 reads it and routes Class-B actions accordingly: if the client claims `blur`, Tier 2 sends `surface_local_action(blur, …)`. If not, Tier 2 falls back to a Tier-3 tool. The Host App can ship a subset of the catalog and still work — composition idioms gracefully degrade.
 
 **Versioned components:**
 
@@ -506,6 +574,8 @@ A planned future capability: multiple users collaborating on the same canvas, co
 - Assume `treeRevision` is comparable with `<` or `>`. Use equality only.
 - Embed presence state into `surface_*` events. Keep tree mutation events clean.
 - Tie the per-session mutex to anything user-facing. It is an internal correctness mechanism, not part of the protocol.
+- Treat `surfaceSeq` as client-originated. It is server-assigned from v1, exactly so that v2 channel-side fan-out + multi-cast remains consistent.
+- Have `surface_local_action` with `effect: 'durable'` skip the Tier-2-revision-then-patch step. Even in v1, `durable` ops produce a revisioned patch — this is what makes them shared-canvas-safe by construction.
 
 This section becomes the input for the v2 design phase. It is not a v1 deliverable.
 
