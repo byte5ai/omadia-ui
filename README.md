@@ -27,6 +27,7 @@ Designed to be ready for the next 1–2 LLM generations without architectural re
 | [`CONCEPT.md`](CONCEPT.md) | Architecture, primitives, protocol, security, identity, SDK extension plan |
 | [`docs/architecture-3tier.svg`](docs/architecture-3tier.svg) | Visual three-tier architecture |
 | [`docs/walkthroughs.md`](docs/walkthroughs.md) | Use-case walkthroughs — multi-source comparison + editor micro-task |
+| [`docs/tech-stack.md`](docs/tech-stack.md) | Tech-stack decision for the Tier 1 Host App — Electron, with reasoning and spike plan |
 | `docs/protocol/1.0.md` | Protocol specification (written during spike — TBD) |
 
 ## Relationship to omadia core
@@ -39,10 +40,10 @@ One capability is marked **depends-on-core** (not part of this repo): `crossChan
 
 | Phase | State |
 |---|---|
-| Concept | Complete (v0.6, three Codex review rounds, implementation-ready) |
-| Tech stack decision (Tauri / Electron / native / Web-PWA) | Open |
+| Concept | Complete (v0.7, three Codex review rounds, implementation-ready) |
+| Tech stack decision | **Electron** — see [`docs/tech-stack.md`](docs/tech-stack.md) |
 | Implementation plan | Open |
-| Spike | Pending tech stack decision |
+| Spike | Skeleton drafted in [`docs/tech-stack.md`](docs/tech-stack.md); pending kickoff |
 
 ## License
 

@@ -70,7 +70,7 @@ flowchart TB
 
 ### Client: Canvas Host App (Omadia UI)
 
-The desktop application. Native (tech stack deliberately unspecified — Tauri/Electron/native/web-PWA decided at spike time).
+The desktop application. **Electron** for v1 — full reasoning, candidate comparison, risks, reversibility and the spike plan are in [`docs/tech-stack.md`](docs/tech-stack.md).
 
 **Responsibilities:**
 
