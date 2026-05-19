@@ -2,7 +2,7 @@
 
 > A persistent canvas surface for the Omadia Agentic OS. The agent synthesises UI live the way it synthesises prose today — on a blank canvas, in the layout and composition that fit the user's task and preferences in the moment.
 
-Version 0.7 — closes concept gaps surfaced by the walkthroughs: DataRef lifecycle (content-addressed, buffer ownership, GC), per-mutation mutex semantics, sub-agent cancellation, Tier-2 data cache between turns, external-effect action classification with confirmation pattern, `canvas-activate` action type, Tier-2 statelessness wrt active canvas, referential-continuity contract. v0.6 baseline: direct-gesture vs. routed-local-op split, canonical `DataRef` shape, concrete boot handshake, editor-primitive required fields, preview-vs-durable ops, contextKey per canvas, sentinel mechanism, server-assigned `surfaceSeq`. v0.5: forward-compat hooks for shared canvases. v0.4: 2D architecture, editor primitives, local ops catalog, multiple canvases, context-aware prefs, protocol versioning.
+Version 0.8 — material identity (Lume) named and locked; accent slot becomes user-bindable across three curated palettes (Petrol / Atelier / Lagoon, Lagoon default), bound via the existing context-aware prefs model. UI Skill gains a `palette-binding protocol`. Visual specification carved out to [`docs/visual-spec.md`](docs/visual-spec.md) v0.2. v0.7 baseline: DataRef lifecycle (content-addressed, buffer ownership, GC), per-mutation mutex semantics, sub-agent cancellation, Tier-2 data cache between turns, external-effect action classification with confirmation pattern, `canvas-activate` action type, Tier-2 statelessness wrt active canvas, referential-continuity contract. v0.6: direct-gesture vs. routed-local-op split, canonical `DataRef` shape, concrete boot handshake, editor-primitive required fields, preview-vs-durable ops, contextKey per canvas, sentinel mechanism, server-assigned `surfaceSeq`. v0.5: forward-compat hooks for shared canvases. v0.4: 2D architecture, editor primitives, local ops catalog, multiple canvases, context-aware prefs, protocol versioning.
 
 ---
 
@@ -161,6 +161,7 @@ Large system-prompt block, prompt-cached. Contains:
   - "Photoshop workspace" → `canvas-region` centre, `toolbar` left, `inspector` (`form` with context-binding) right, `tree` (layer stack) bottom-right.
 - **Composition heuristics**: when in doubt, prefer fewer panes and more containers; prefer table over many cards when data has uniform shape; align controls in toolbars.
 - **Style-negotiation protocol**: when the user expresses a layout preference, paraphrase the interpretation in one sentence, render the proposal, offer micro-corrections.
+- **Palette-binding protocol**: when the user expresses an accent-palette preference ("mach es wärmer", "switch to Lagoon", "petrol bitte", "I want something cooler"), bind one of the three curated Lume palettes (Petrol / Atelier / Lagoon — see [`docs/visual-spec.md`](docs/visual-spec.md) §2.5) to the `accent` token. Mechanic: write the chosen palette name to `ui-prefs/<tenantId>/<userId>/<contextKey>/accent`, emit a `surface_patch` that re-tints accent tokens, brief paraphrase of the change in prose ("Lagoon — lit water"). Never offer a Settings UI; the binding happens conversationally. The Skill never picks a palette unprompted.
 - **Consistency rule**: preserve structure across turns unless the user signals a change.
 - **Interaction model**: every user action arrives as a new turn — you receive the last tree and the action.
 - **Action-routing rule**: before calling Tier 3, check whether the action is in the Tier-1 local operations catalog. If yes, emit `surface_local_action` and skip Tier 3.
@@ -375,15 +376,27 @@ For **shared canvases (v2+)**: `preview` ops stay client-local per member; `dura
 
 ---
 
-## Style — single Omadia theme + composition idioms
+## Style — single material identity (Lume), user-bindable accent palette
 
-**No dynamic skinning in v1.** Omadia UI ships a single, designed-by-us theme — the "Omadia look", coherent across all 24 primitives. Visual variation across UI eras is **not** delivered.
+**No dynamic skinning in v1.** Omadia UI ships a single material identity — **Lume** (light-as-material). Era-skinning (Norton-Commander-as-visuals vs. Photoshop-as-visuals) is **not** delivered.
 
-**The agent can still receive era-style requests** ("zeig mir das im Norton-Commander-Stil") — but interprets them as **layout-composition hints**, not visual mimicry. The result is the requested layout (two panes with lists side by side) rendered in the Omadia theme. This is captured in the composition-idiom library in the UI Skill.
+**Within Lume, the accent slot is user-bindable** to one of three curated palettes:
 
-**`style` trait** stays on every primitive but in v1 only accepts **theme tokens** (`compact` / `spacious`, `accent` on/off, density levels, emphasis). Free-form style descriptions are clipped by the Tier-1 normaliser.
+| Palette | Story | Default |
+|---|---|---|
+| **Petrol** | computational ambient — cool steel-blue | — |
+| **Atelier** | studio warmth — burnt-amber | — |
+| **Lagoon** | lit water / bioluminescence — teal-cyan | ✓ |
 
-**Reversibility**: dynamic skinning can be re-introduced later additively — the `style` trait already exists, the Skill would gain era-knowledge sections, the normaliser would handle cross-era conflicts. No architecture change needed.
+This is **not** dynamic skinning. The material (Lume), the typography, the spacing, the composition idioms, the motion language are all single-source. Only the value bound to the `accent` token slot varies. The Skill never picks a palette — it references only the abstract token name. The user binds via conversational preference, and the binding persists in `memory://ui-prefs/<tenantId>/<userId>/<contextKey>/accent`. CONCEPT.md's existing context-aware prefs model carries it: a finance-canvas can bind Petrol while a creative-canvas binds Atelier. Default if unset: Lagoon.
+
+**The agent can still receive era-style requests** ("zeig mir das im Norton-Commander-Stil") — but interprets them as **layout-composition hints**, not visual mimicry. The result is the requested layout (two panes with lists side by side) rendered in the active Lume palette.
+
+**`style` trait** stays on every primitive but in v1 only accepts **theme tokens** (`compact` / `spacious`, `accent` on/off, density levels, emphasis, `center-glyph` for the donut-glow rule). Free-form style descriptions are clipped by the Tier-1 normaliser.
+
+**Visual specification:** see [`docs/visual-spec.md`](docs/visual-spec.md) v0.2 for the full Lume token model, palette values, implementation primitives (two-stop glow, donut glow, patch-condensation animation, surface gradient), per-primitive notes and the five composition idioms rendered in Lume.
+
+**Reversibility**: more palettes can be added additively; per-era visual skinning can be re-introduced later (the `style` trait already exists, the Skill would gain era-knowledge sections, the normaliser would handle cross-era conflicts) without an architecture change.
 
 ---
 
