@@ -1329,6 +1329,47 @@ the three-palette adoption. Carry-over and new questions:
    A reviewer might argue we should also retain the sweep bar (it's
    the smallest of the three, doesn't violate motion-reduction). Open.
 
+### Type-architecture questions (added in v0.3)
+
+9. **Prose-trigger heuristics for the Skill.** The "two+ sentences = prose,
+   single sentence may stay structural" rule is a starting point but
+   under-specified at the edges. Concrete cases that need codification:
+   single-sentence narration like Walkthrough-1 step 14 ("Three people
+   are under budget — Anna, Bernd, Cara") — narration or structural?
+   Confirmation modal bodies that mix narrative + warning ("Send PDF to
+   X? This email cannot be unsent.") — fully prose, or split? Bullet
+   lists embedded in prose mode — list items prose or structural?
+   Under-triggering means everything reads structural and we lose the
+   editorial gain; over-triggering means random sans/serif flapping.
+   Needs a Skill heuristic with worked examples before first ship.
+
+10. **Mixed registers within a single primitive.** The `style` trait
+    sits at the primitive level. If a prose-mode `text` primitive
+    contains inline code (`ticket-1234`, file paths, version strings),
+    does the renderer auto-switch those tokens to mono, or must the
+    Skill emit nested primitives? Decision affects Skill output shape
+    and renderer complexity. Recommendation pending: probably auto-
+    detect classic monospace contexts (backticked content, IDs matching
+    a regex), but the rule needs to be deterministic and documented.
+
+11. **Composition idiom × register mapping.** Each of the five idioms
+    has a natural typographic distribution. Wizard summary screens —
+    prose body, structural headings, structural form fields, no mono.
+    Norton-Commander — all mono (data-grid), no prose. Photoshop-workspace
+    inspector — all structural, no prose. Dashboard — structural for
+    KPIs, optional prose for narrative caption above. Spec should ship
+    an idiom-register table in §5 so implementers don't improvise.
+
+12. **Prose register × canvas-activate × palette swap performance.** When
+    the user switches between canvases with different palette bindings
+    *and* different prose content, the activate transition crossfades
+    both palette tokens and (in some cases) typographic content. CSS
+    variables make palette cross-fade near-free; the type families are
+    pre-loaded once per session, so font cost is zero per switch. Worth
+    verifying in the Tier-1 spike — particularly that variable-axis
+    rendering doesn't introduce repaint cost above 16ms on mid-range
+    hardware.
+
 ---
 
 ## 12. Changelog
