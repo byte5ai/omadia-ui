@@ -1,8 +1,22 @@
 # Omadia UI — Visual Specification
 
 > **Material: Lume — light-as-material.** Three user-bindable palettes
-> (Petrol · Atelier · Lagoon, Lagoon = default). Codex-review-ready in the
-> CONCEPT.md cadence.
+> (Petrol · Atelier · Lagoon, Lagoon = default). **Three-register typography**:
+> Geist (structural) · Source Serif 4 (prose) · Geist Mono (data/code).
+> Codex-review-ready in the CONCEPT.md cadence.
+
+Version 0.3 — **Editorial-mix typography adoption.** Three typographic
+registers replace the v0.2 sans+mono pair: Geist for structural UI, Source
+Serif 4 for agent prose (narration, analysis, summary), Geist Mono for data
+and code. Single-source variable-axis fonts, all OFL/MIT licensed.
+Prose-vs-structure register is set per text primitive via `style: "prose"`
+trait; default is structural. Type scale gains `type.prose.*` tokens. The
+Inter + JetBrains Mono pair (v0.2 baseline) is rejected as typographically
+indistinguishable from the SaaS-industry default — same "Startup Blue"
+problem the palette decision addressed. Fraunces tested in preview
+(Architecture D, characterful old-style-revival with SOFT axis) and rejected
+for productivity context: too heavy, too ornate, not fluid. Source Serif 4
+delivers the editorial register cleanly without character noise.
 
 Version 0.2 — **Lume material adoption.** Light-as-material thesis introduced;
 surface luminosity, accent-as-illumination, directional borders and soft corners
@@ -404,32 +418,148 @@ takes over there (error at L 0.45 hue 25 vs Atelier at L 0.57 hue 50 is
 clearly distinct in both lightness and chroma to daltonism-simulator passes
 of red-green and blue-yellow types).
 
-### 2.7 Typography
+### 2.7 Typography — three registers, three families
 
-Unchanged from v0.1. Inter for sans, JetBrains Mono for mono. Type scale,
-weights and letter-spacing as v0.1. Full rationale in v0.1 §1.3; brief
-restate here for self-containment.
+Lume ships three typographic registers, each from a different family, each
+variable-axis, all OFL or MIT licensed. The agent expresses different speech
+acts in different registers; the typography itself communicates *what kind of
+thing the user is reading*. Companion preview:
+[`./visual-spec-preview-type.html`](./visual-spec-preview-type.html) compares
+the chosen architecture against three alternatives (A · Inter+JBM, B · Geist
+only, D · Fraunces).
 
-**Families:** `Inter` (UI sans, variable axis), `JetBrains Mono` (data
-columns, code blocks, TUI-style layouts). System fallbacks per OS.
+#### Family choice
 
-**Scale (semantic, base 1rem = 16px):**
+| Register | Family | License | Use | Skill trigger |
+|---|---|---|---|---|
+| **Structural** | **Geist** (Vercel × Basement, 2023; variable-axis) | MIT, open-source | UI labels, headings, buttons, form fields, instructions, eyebrows, menubars | default — no opt-in needed |
+| **Prose** | **Source Serif 4** (Adobe; variable-axis with optical sizing) | OFL | Agent narration, analysis, summary, long-form explanation | `style: "prose"` on the `text` primitive |
+| **Data / Code** | **Geist Mono** (Vercel × Basement, 2023; sibling to Geist) | MIT, open-source | Numeric table cells, code blocks, terminal output, file paths, IDs | column kind `number \| currency \| code`, or explicit `style: "mono"` |
 
-| Token | Size | Line height | Weight | Letter-spacing | Role |
-|---|---|---|---|---|---|
-| `type.display` | 1.75rem | 1.20 | 600 | -0.01em | Welcome surfaces (rare) |
-| `type.heading.1` | 1.375rem | 1.25 | 600 | -0.005em | Canvas-level title |
-| `type.heading.2` | 1.125rem | 1.30 | 600 | 0 | Section heading |
-| `type.heading.3` | 0.9375rem | 1.35 | 600 | 0 | Sub-section |
-| `type.body` | 0.875rem | 1.50 | 400 | 0 | Default UI text |
-| `type.body.strong` | 0.875rem | 1.50 | 600 | 0 | Inline emphasis |
-| `type.body.compact` | 0.8125rem | 1.45 | 400 | 0 | Dense rows |
-| `type.caption` | 0.75rem | 1.40 | 400 | 0.005em | Labels |
-| `type.caption.strong` | 0.75rem | 1.40 | 600 | 0.02em | Uppercase eyebrows |
-| `type.mono.data` | 0.8125rem | 1.45 | 450 | 0 | Numeric cells, terminal |
-| `type.mono.code` | 0.8125rem | 1.55 | 400 | 0 | Code blocks |
+#### Family rationale (compressed)
 
-Weights used: 400, 450 (mono only), 600. No 300, no 500, no 700+.
+**Geist (structural).** Vercel commissioned Geist in 2023 specifically because
+existing UI sans (Inter, Söhne, Helvetica Now) weren't good enough for
+data-dense developer UIs. Swiss-design inspired, angular terminals, high
+x-height, short descenders, weight axis 100–900. Geist Sans and Geist Mono
+were designed as siblings — every weight aligns across the two families
+without ad-hoc visual matching. This eliminates the "the mono column reads
+heavier than the surrounding prose" miscalibration that Inter + JBM has.
+
+**Source Serif 4 (prose).** Adobe-developed transitional serif, OFL-licensed,
+with explicit `opsz` (8–60) optical-sizing axis tuned for body reading. The
+character is deliberately neutral — designed as a body face that doesn't
+compete with content. Lume's prose channel needs *authority*, not
+*personality*; an old-style-revival like Fraunces (tested as Architecture D
+in the preview) was rejected for productivity context — too heavy, too
+ornate, not fluid.
+
+**Geist Mono (data/code).** Family-matched to Geist Sans. Distinguishable
+0/O, 1/l/I; ligatures (`->`, `>=`, `!=`, `=>`) supported. Tabular figures by
+default. Weight 450 used for `type.mono.data` so digits hold their weight
+against gradient surface backgrounds (Lume surfaces have ~1.5% L gradient;
+the 450 weight is calibrated against this delta).
+
+#### Why not the v0.2 baseline (Inter + JetBrains Mono)
+
+The v0.2 sans+mono pair (Inter + JBM) is the same combination Linear, Notion
+(pre-Diatype), Vercel (pre-Geist) and most 2020-2024 productivity tools use.
+Functional, free, but typographically *identical to the SaaS industry
+default* — zero differentiation. With Lume as a distinct material and Lagoon
+as a distinct palette, falling back to the everyone-uses-it type pair would
+undermine the rest of the spec's distinctness claim. This is the same trade
+the palette section made when rejecting Startup-Blue territory.
+
+#### Why not other strong candidates
+
+- **Fraunces in the prose slot** (tested as Architecture D in the preview):
+  variable SOFT axis is genuinely Lume-coherent, but the old-style-revival
+  character is too heavy, ornate, and broad for productivity-tool prose.
+  Rejected on field-test feedback.
+- **Berkeley Mono** for code: excellent font, paid commercial license,
+  single-foundry dependency. Lock-in risk for an open-source-aligned project.
+- **Söhne + Tiempos** (Anthropic's pair): paid, beautiful, and architecturally
+  identical to our chosen approach. Rejected on cost.
+
+#### Type scale
+
+The structural register inherits v0.2's scale. The prose register uses a
+slightly larger body size to compensate for serif air — serif body text
+reads ~1px smaller than sans at the same metric weight, so we render it
+larger. Prose tokens carry a `.prose` suffix.
+
+| Token | Register | Size | Line height | Weight | Letter-spacing | Use |
+|---|---|---|---|---|---|---|
+| `type.display` | structural | 1.75rem (28px) | 1.20 | 600 | -0.01em | Rare top-level title |
+| `type.heading.1` | structural | 1.375rem (22px) | 1.25 | 600 | -0.005em | Canvas-level title |
+| `type.heading.2` | structural | 1.125rem (18px) | 1.30 | 600 | 0 | Section heading |
+| `type.heading.3` | structural | 0.9375rem (15px) | 1.35 | 600 | 0 | Sub-section |
+| `type.body` | structural | 0.875rem (14px) | 1.50 | 400 | 0 | Default UI text |
+| `type.body.strong` | structural | 0.875rem (14px) | 1.50 | 600 | 0 | Inline emphasis |
+| `type.body.compact` | structural | 0.8125rem (13px) | 1.45 | 400 | 0 | Dense rows |
+| `type.caption` | structural | 0.75rem (12px) | 1.40 | 400 | 0.005em | Labels |
+| `type.caption.strong` | structural | 0.75rem (12px) | 1.40 | 600 | 0.02em | Uppercase eyebrows |
+| **`type.prose`** | **prose** | **1rem (16px)** | **1.65** | **400** | **0** | **Agent narration, analysis, summary** |
+| **`type.prose.strong`** | **prose** | **1rem (16px)** | **1.65** | **600** | **0** | **Emphasis within prose** |
+| **`type.prose.compact`** | **prose** | **0.9375rem (15px)** | **1.55** | **400** | **0** | **Inline prose in dense context** |
+| **`type.prose.heading`** | **prose** | **1.25rem (20px)** | **1.40** | **600** | **0** | **Title of a prose-mode pane (rare)** |
+| `type.mono.data` | mono | 0.8125rem (13px) | 1.45 | 450 | 0 | Numeric cells, IDs |
+| `type.mono.code` | mono | 0.8125rem (13px) | 1.55 | 400 | 0 | Code blocks |
+
+Headings always stay structural — they are structural elements even when
+introducing a prose-mode pane. The `type.prose.heading` token covers the rare
+case of an end-to-end prose pane (primarily Walkthrough-4-style live-research
+panes).
+
+Weights used: 400, 450 (mono only), 500 (Geist optional emphasis), 600. No
+300, no 700+.
+
+#### Variable-axis usage
+
+- **Geist** — weight axis 400, 500, 600. No slant. `font-variation-settings`
+  not needed; weight via CSS `font-weight`.
+- **Source Serif 4** — weight axis 400, 600. `font-optical-sizing: auto`
+  enables the 8–60 `opsz` axis automatically per font-size. Renderers without
+  optical-sizing support fall back to weight only — degradation is graceful.
+- **Geist Mono** — weight axis 400, 450, 600. `font-feature-settings: 'tnum'`
+  for tabular figures.
+
+#### Font loading
+
+- Variable files only — one file per family, ~80–120 KB each subsetted to
+  Latin + numerics + needed glyphs + ligatures.
+- Total payload: ~280–360 KB across all three families subsetted.
+- Strategy: preload `Geist` for FCP; defer `Geist Mono` and `Source Serif 4`.
+  `font-display: swap` so the page renders immediately and re-renders to the
+  chosen architecture when fonts arrive.
+
+#### Fallback chains
+
+```
+--font-sans:  'Geist',           system-ui, -apple-system, 'Segoe UI', sans-serif;
+--font-mono:  'Geist Mono',      ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+--font-serif: 'Source Serif 4',  Charter, 'Iowan Old Style', Georgia, serif;
+```
+
+Fallbacks are chosen per-platform-strongest: macOS gets Charter for serif
+(beautiful native body face); Windows gets Georgia (the strongest native
+serif); Linux falls through to generic. Sans and mono fall through to native
+system fonts.
+
+#### Prose-vs-structure protocol (cross-ref CONCEPT.md UI Skill)
+
+The agent declares which register a `text` primitive belongs to via the
+`style` trait:
+
+| Trait value | Register | When the agent emits this |
+|---|---|---|
+| (omitted) | structural | Default — labels, captions, instructions, eyebrows, inline UI text, headings |
+| `style: "prose"` | prose | Multi-sentence narration, analysis, summary, explanation, long-form response |
+| `style: "mono"` | mono | Code, terminal output, file paths, IDs, dense ID/version strings inline |
+
+The CONCEPT.md UI Skill carries the trigger rules (when to emit `style:
+"prose"`). The renderer maps the trait to the typographic family without
+further negotiation.
 
 ### 2.8 Spacing
 
@@ -1203,7 +1333,18 @@ the three-palette adoption. Carry-over and new questions:
 
 ## 12. Changelog
 
-- **v0.2 (this document)** — Lume material adoption. Light-as-material
+- **v0.3 (this document)** — Three-register typography adoption. Geist
+  (structural) + Source Serif 4 (prose) + Geist Mono (data/code) replace
+  the v0.2 Inter + JetBrains Mono baseline. Type scale gains
+  `type.prose.*` tokens. The `style: "prose"` trait on `text` primitives
+  routes to the serif register; default remains structural. Companion
+  preview at `./visual-spec-preview-type.html` (Architecture C —
+  recommended path). Open question 1 (donut-glow refinement) carries over.
+  New open questions in §11: prose-mode trigger calibration, font-loading
+  budget under offline-first scenarios, prose-register-in-walkthrough-4
+  density.
+
+- **v0.2** — Lume material adoption. Light-as-material
   thesis introduced; surface luminosity, accent-as-illumination,
   directional borders, soft corners formalised. Three user-bindable
   palettes (Petrol, Atelier, Lagoon — Lagoon default) replace the
