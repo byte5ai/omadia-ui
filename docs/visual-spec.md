@@ -1,1572 +1,1221 @@
 # Omadia UI — Visual Specification
 
-> The single shipped Omadia theme. Tokens, per-primitive visuals, composition idioms,
-> motion language. Precise enough that two independent implementers produce the same
-> result.
+> **Material: Lume — light-as-material.** Three user-bindable palettes
+> (Petrol · Atelier · Lagoon, Lagoon = default). Codex-review-ready in the
+> CONCEPT.md cadence.
 
-Version 0.1 — first draft, written against [`../CONCEPT.md`](../CONCEPT.md) v0.7,
-[`./walkthroughs.md`](./walkthroughs.md), [`./tech-stack.md`](./tech-stack.md).
-Codex-review-ready in the CONCEPT.md cadence (2–3 review rounds expected before
-implementation freeze).
+Version 0.2 — **Lume material adoption.** Light-as-material thesis introduced;
+surface luminosity, accent-as-illumination, directional borders and soft corners
+formalised as the four Lume forces. Three curated palettes replace v0.1's
+single-accent slot; the choice is user-bindable per `contextKey`, set
+conversationally (no Settings screen). Radius scale shifted one stop softer
+(editor surfaces stay at 0). Two-stop glow primitive replaces v0.1's single
+accent-subtle tint. Patch-apply changes from fade-in to condensation. Token
+model gains `accent-glow-core` for the inner light source. Companion previews
+at [`./visual-spec-preview.html`](./visual-spec-preview.html) (flat v0.1
+baseline) and [`./visual-spec-preview-lume.html`](./visual-spec-preview-lume.html)
+(this material).
+
+Earlier — v0.1: first draft, written against CONCEPT.md v0.7 and walkthroughs.md;
+flat tokens, single-accent choice, restraint baseline. Superseded by this
+document; preview retained for material-comparison purposes.
 
 ---
 
 ## 0. How to read this document
 
-- All values are **semantic tokens**, never raw `#hex`. Implementers consume them
-  through a `tokens` module; raw values appear in **exactly one** place — the token
-  definitions in §1. Anything that reaches for a hex code outside §1 is a bug.
-- Tables are the primary format. ASCII wireframes appear where layout matters more
-  than pixel-precise visuals. Pixel mockups for `canvas-region`, `timeline`, `media`
-  are explicitly out of scope (§7).
-- Rationale blocks appear under headings prefixed **"Rationale —"**. They document
-  the alternatives that were weighed; reviewers should challenge the rationale, not
-  just the choice.
-- The spec is normative for v1. Forward-compat notes (e.g. shared-canvas presence
-  surfaces) are advisory.
+- All values are **semantic tokens**. Implementers consume them through a
+  `tokens` module; raw values appear in exactly one place — the token
+  definitions in §2.
+- Tokens are expressed in **OKLCH** as the source of truth; the token-build
+  step generates sRGB hex for renderers that can't consume OKLCH. Both forms
+  appear in this document so reviewers can validate visually.
+- Lume-specific implementation recipes (the CSS for two-stop glow, donut glow,
+  patch-condensation animation) live in §3 as a single normative block.
+  Per-primitive sections in §4 reference §3 rather than redefining them.
+- ASCII wireframes and tables are the primary illustration formats.
+  Pixel-level visuals live in the Lume preview HTML, not in this Markdown.
+- **Rationale —** blocks document alternatives that were weighed. Reviewers
+  should attack the rationale, not just the choice.
 
 ### Non-negotiable constraints inherited from CONCEPT.md
 
-1. **Single shipped theme.** No skinning, no era mimicry. Era references resolve to
-   layout idioms, not visuals.
-2. **macOS-first.** Windows next, Linux power-user subset. macOS rendering quality
-   is the bar.
-3. **Data-dominant typography.** Data has visual weight; chrome recedes. Hierarchy
-   is typographic, not chromatic.
-4. **One accent slot.** No status-pill salad (rot/grün/gelb verboten).
-5. **Skeletons, no spinners** for loading (single documented exception in §5).
+1. **Single material identity.** Lume is the material. No era-skinning.
+   Era references resolve to layout idioms (Norton Commander, Photoshop
+   workspace, …), never to visual mimicry.
+2. **macOS-first.** Windows next, Linux power-user subset. The macOS
+   rendering quality is the bar.
+3. **Data-dominant typography.** Data carries weight; chrome recedes.
+   Hierarchy is typographic plus light-driven, never via heavy chrome.
+4. **One accent slot.** Three curated palettes bind to the same slot; the
+   slot itself is single. No status-pill salad.
+5. **Skeletons, no spinners** for loading (one documented exception in §7.3).
 6. **Keyboard-first.** Visible focus, ⌘K palette, full arrow-key reach.
-7. **Editor-class first-class.** `canvas-region`, `timeline`, `media`, `vector-path`
-   must render credibly in the same theme that renders a table.
+7. **Editor-class first-class.** `canvas-region`, `timeline`, `media`,
+   `vector-path` render credibly in the same material that renders a table —
+   while keeping a sharp, opaque boundary marking where Lume stops.
 
 ### Reference apps (orientation, never mimicry)
 
-- **Linear** — typography rigour, density, focus rings, command palette UX.
-- **Things 3** — restraint, generous whitespace, single soft accent.
-- **Raycast** — Spotlight idiom; compact result lists; mono-leaning utility feel.
-- **Apple Design Resources (latest)** — native macOS rhythm, control shape, motion.
-- **Notion (light mode)** — typographic hierarchy, content-dominant pages.
-- **Tremor** — restrained, on-brand charts; muted palette discipline.
-- **shadcn-ui** — component composability and token discipline.
+- **Apple's design lineage** — Aqua, iOS 7 frosted glass, visionOS spatial
+  glass, Liquid Glass (2025). Lume is influenced by, not derived from, this
+  lineage. We adopt light-as-material; we reject refraction, blur-everywhere,
+  and specular-highlights-on-every-chrome (the Linear "ProKit" lesson for
+  productivity-grade UIs).
+- **Linear** — typography rigour, density, command palette UX, ProKit
+  philosophy.
+- **Things 3** — restraint, generous whitespace.
+- **Raycast** — Spotlight idiom, compact result lists.
+- **Tremor** — chart restraint.
+- **shadcn-ui** — token discipline and composability.
 
-**Explicitly NOT references:** Confluence, Microsoft Teams, JIRA Cloud (enterprise
-clutter), Figma sidebars (too many panels), Slack (single-conversation paradigm).
+**Explicitly NOT references:** Confluence, Microsoft Teams, JIRA Cloud, Figma
+sidebars, Slack.
 
 ---
 
-## 1. Design Tokens
-
-All colour tokens are expressed in **OKLCH** with `L C h`. OKLCH is chosen over HSL
-because:
-
-- Perceptual L: same `L` value reads at the same lightness across hues. HSL fails
-  here — `hsl(60 100% 50%)` (yellow) is visually much lighter than
-  `hsl(240 100% 50%)` (blue) at the same `L`.
-- Wide-gamut friendly. Display-P3 on modern Macs renders Omadia's accent at higher
-  chroma than sRGB without re-authoring tokens.
-- Trivially convertible to sRGB hex for legacy renderers. Conversion lives in the
-  token-build step, not in product code.
-
-If a renderer can't consume OKLCH directly (older CSS engines, native Cocoa drawing
-APIs without colour-space conversion), the token-build step emits a parallel sRGB
-hex map. **OKLCH is the source of truth, sRGB hex is generated.**
-
-### 1.1 Colour — Light mode
-
-#### Background hierarchy
-
-| Token                | OKLCH               | sRGB approx | Use                                              |
-|----------------------|---------------------|-------------|--------------------------------------------------|
-| `bg.canvas`          | `0.99 0.002 250`    | `#FCFCFD`   | Workspace background (the agent's "blank page")  |
-| `bg.surface`         | `0.985 0.003 250`   | `#FAFAFC`   | Primary content surface inside containers        |
-| `bg.surface.raised`  | `1.00 0 0`          | `#FFFFFF`   | Card-like raised surfaces, popovers, inputs      |
-| `bg.surface.sunken`  | `0.97 0.004 250`    | `#F4F4F7`   | Code blocks, table cell hover, secondary panels  |
-| `bg.modal.overlay`   | `0.20 0.01 250 / 0.40` | rgba(black,0.40) | Scrim behind modal panes                  |
-| `bg.modal.surface`   | `1.00 0 0`          | `#FFFFFF`   | Modal pane interior                              |
-
-#### Text hierarchy
-
-| Token              | OKLCH              | sRGB approx | Use                                        |
-|--------------------|--------------------|-------------|--------------------------------------------|
-| `text.primary`     | `0.22 0.01 250`    | `#1B1D24`   | Headings, body, data values                |
-| `text.secondary`   | `0.45 0.01 250`    | `#5B5F6B`   | Labels, captions, axis ticks               |
-| `text.tertiary`    | `0.62 0.01 250`    | `#8D9099`   | Hints, placeholders, low-priority metadata |
-| `text.disabled`    | `0.78 0.005 250`   | `#BFC1C6`   | Disabled controls                          |
-| `text.inverse`     | `0.99 0.002 250`   | `#FCFCFD`   | Text on accent or dark surfaces            |
-| `text.accent`      | `0.55 0.16 235`    | `#0F7AB8`   | Links, accent-emphasised values            |
-
-#### Border
-
-| Token              | OKLCH              | sRGB approx | Use                                              |
-|--------------------|--------------------|-------------|--------------------------------------------------|
-| `border.subtle`    | `0.93 0.004 250`   | `#E6E7EB`   | Default container, table cell, divider           |
-| `border.default`   | `0.88 0.005 250`   | `#D6D7DB`   | Input borders, button outlines                   |
-| `border.strong`    | `0.72 0.008 250`   | `#A4A6AC`   | Pressed state, prominent edges                   |
-| `border.focus`     | `0.55 0.16 235`    | `#0F7AB8`   | Focus ring (= accent)                            |
-
-#### Accent (the single slot)
-
-| Token               | OKLCH              | sRGB approx | Use                                              |
-|---------------------|--------------------|-------------|--------------------------------------------------|
-| `accent`            | `0.55 0.16 235`    | `#0F7AB8`   | Primary actions, focus rings, selection edges    |
-| `accent.hover`      | `0.50 0.17 235`    | `#0C6CA8`   | Hover state for accent fills                     |
-| `accent.active`     | `0.45 0.17 235`    | `#0A5E94`   | Pressed state for accent fills                   |
-| `accent.subtle`     | `0.96 0.025 235`   | `#E5F0F8`   | Selected row tint, accent background wash        |
-| `accent.subtle.hover` | `0.93 0.035 235` | `#D6E7F2`   | Hover over already-selected accent-subtle rows   |
-
-#### Semantic states (intentionally muted — see Rationale)
-
-| Token               | OKLCH              | sRGB approx | Use                                              |
-|---------------------|--------------------|-------------|--------------------------------------------------|
-| `state.loading`     | `0.90 0.008 250`   | `#DCDEE3`   | Skeleton fill base                               |
-| `state.loading.hi`  | `0.96 0.004 250`   | `#EFEFF2`   | Skeleton pulse highlight                         |
-| `state.error.fg`    | `0.45 0.12 25`     | `#A8443B`   | Error text — never used as a pill background     |
-| `state.error.edge`  | `0.55 0.14 25`     | `#C45A50`   | Error border on a field (1px, not a block fill)  |
-| `state.success.fg`  | `0.42 0.10 150`    | `#3F7A55`   | Confirmation text — text only, no green pill     |
-| `state.warning.fg`  | `0.50 0.09 80`     | `#8C6A1F`   | Warning text — text only, no yellow pill         |
-
-**Rationale — semantic states as text-only, never as filled pills.** Three reasons:
-
-1. CONCEPT.md forbids the status-pill salad by name. Implementers reading the
-   constraint will reflexively reach for a red badge — we make that impossible by
-   not shipping `bg.error` / `bg.success` / `bg.warning` tokens.
-2. In a data-dominant UI, the row, the value, the column header carry the meaning.
-   "AcmeInsure overdue" is louder when "overdue" sits next to "AcmeInsure" in body
-   text than when a tomato badge floats next to it.
-3. Single accent already covers "this thing is selected / focused / actionable".
-   That is what users scan for. Adding more colour categories competes with the
-   accent and dilutes it.
-
-Where a state needs visual weight (an error on a form field, a failed sub-agent),
-the affordance is: **1px coloured border + inline message in coloured text**. No
-filled pill, no large filled block. See §4.13 `form` and §5.3 error patterns.
-
-#### Rationale — single accent: the colour choice
-
-Candidates considered, with single-line summary:
-
-| Candidate                         | OKLCH approx     | Why                                                | Why not                                                                  |
-|-----------------------------------|------------------|----------------------------------------------------|--------------------------------------------------------------------------|
-| Linear indigo (`#5E6AD2`-ish)     | `0.55 0.17 280` | Familiar, signals "modern productivity"           | Too close to Linear's brand; we don't want to read as a Linear clone     |
-| Things sky-blue                   | `0.65 0.15 240` | Calm, soft                                         | Reads as "consumer app", not enough gravity for editor workloads         |
-| Raycast bright red                | `0.60 0.21 25`  | Distinctive, energetic                             | Red as accent collides with `state.error.*`; same-channel ambiguity      |
-| **Selected — petrol/steel-blue** | `0.55 0.16 235` | Cool, slightly desaturated; signals "synthesised, live, on-canvas"; clearly not Linear; reads well in dark mode at higher chroma; mathematically separable from any error-red usage | — |
-| Warm copper                       | `0.62 0.13 60`  | Differentiated from every reference app           | Risk: too "branded", drifts toward designer-app aesthetic                |
-
-The selected accent (`#0F7AB8` ≈ OKLCH `0.55 0.16 235`) is a desaturated
-petrol/steel-blue at 235°. Cool enough to recede when used as a row tint, saturated
-enough to anchor focus rings and primary CTAs. Distinct from every reference app
-listed; distinct from `state.error.*` (25°) by 210° on the hue circle, so colour-
-blindness simulators don't merge them.
-
-### 1.2 Colour — Dark mode
-
-Same semantic structure, OKLCH-flipped. The relationship between tokens is preserved
-(e.g. `text.primary` stays the most prominent text token).
-
-#### Background hierarchy
-
-| Token                | OKLCH               | sRGB approx | Use                                              |
-|----------------------|---------------------|-------------|--------------------------------------------------|
-| `bg.canvas`          | `0.16 0.01 250`     | `#1F2127`   | Workspace background                             |
-| `bg.surface`         | `0.19 0.01 250`     | `#262830`   | Primary content surface                          |
-| `bg.surface.raised`  | `0.22 0.012 250`    | `#2C2F38`   | Raised surfaces, popovers, inputs                |
-| `bg.surface.sunken`  | `0.14 0.01 250`     | `#1A1C22`   | Sunken (code, hover, secondary)                  |
-| `bg.modal.overlay`   | `0.05 0.005 250 / 0.60` | rgba(black,0.60) | Modal scrim                              |
-| `bg.modal.surface`   | `0.22 0.012 250`    | `#2C2F38`   | Modal pane interior                              |
-
-#### Text hierarchy
-
-| Token              | OKLCH              | sRGB approx | Use                                        |
-|--------------------|--------------------|-------------|--------------------------------------------|
-| `text.primary`     | `0.96 0.005 250`   | `#EEEFF3`   | Headings, body, data values                |
-| `text.secondary`   | `0.75 0.008 250`   | `#B6B9C3`   | Labels, captions                           |
-| `text.tertiary`    | `0.58 0.008 250`   | `#888B95`   | Hints, placeholders                        |
-| `text.disabled`    | `0.38 0.008 250`   | `#525561`   | Disabled                                   |
-| `text.inverse`     | `0.16 0.01 250`    | `#1F2127`   | Text on accent / inverse                   |
-| `text.accent`      | `0.72 0.13 235`    | `#52B0E2`   | Links, accent-emphasised values            |
-
-#### Border
-
-| Token              | OKLCH              | sRGB approx | Use                                              |
-|--------------------|--------------------|-------------|--------------------------------------------------|
-| `border.subtle`    | `0.27 0.012 250`   | `#363944`   | Default container edges                          |
-| `border.default`   | `0.34 0.013 250`   | `#454854`   | Input borders                                    |
-| `border.strong`    | `0.50 0.014 250`   | `#71747F`   | Pressed, prominent                               |
-| `border.focus`     | `0.72 0.13 235`    | `#52B0E2`   | Focus ring (= accent in dark mode)               |
-
-#### Accent — Dark mode
-
-| Token               | OKLCH              | sRGB approx | Use                                              |
-|---------------------|--------------------|-------------|--------------------------------------------------|
-| `accent`            | `0.72 0.13 235`    | `#52B0E2`   | Primary actions, focus rings, selection edges    |
-| `accent.hover`      | `0.78 0.13 235`    | `#74C0E8`   | Hover                                            |
-| `accent.active`     | `0.82 0.12 235`    | `#90CFEE`   | Pressed                                          |
-| `accent.subtle`     | `0.32 0.04 235`    | `#2C404F`   | Selected row tint                                |
-| `accent.subtle.hover` | `0.36 0.045 235`| `#34495A`   | Hover over selected                              |
-
-#### Semantic states — Dark mode
-
-| Token               | OKLCH              | sRGB approx | Use                                              |
-|---------------------|--------------------|-------------|--------------------------------------------------|
-| `state.loading`     | `0.30 0.01 250`    | `#3E414C`   | Skeleton base                                    |
-| `state.loading.hi`  | `0.38 0.012 250`   | `#525561`   | Skeleton highlight                               |
-| `state.error.fg`    | `0.75 0.12 25`     | `#E08577`   | Error text                                       |
-| `state.error.edge`  | `0.65 0.14 25`     | `#C5685A`   | Error border                                     |
-| `state.success.fg`  | `0.78 0.10 150`    | `#88C499`   | Success text                                     |
-| `state.warning.fg`  | `0.80 0.09 80`     | `#D6B468`   | Warning text                                     |
-
-**Rationale — accent flip in dark mode.** The light-mode accent at L=0.55 reads as
-"deep blue" against white. In dark mode the same L drowns in the background. The
-dark-mode accent moves to L=0.72 with reduced chroma (0.13 → preserves identity).
-Test: place both accents in their respective modes next to body text — both should
-read at the same "perceptual weight". Implementers verifying the dark theme should
-not use light-mode `accent` literally.
-
-#### Theme switching
-
-- macOS: follow system appearance by default; user can override via ⌘K → "Set
-  appearance to ...".
-- Windows / Linux: follow OS dark-mode preference; user override identical.
-- No mid-session animation between modes (CONCEPT.md "instant deterministic
-  rendering" principle). Theme swap is paint-only, no transitions.
-
-### 1.3 Typography
-
-#### Type families
-
-| Role            | Family                   | Fallback                                              |
-|-----------------|--------------------------|-------------------------------------------------------|
-| UI sans         | **Inter** (variable)     | `system-ui, -apple-system, "Segoe UI", sans-serif`    |
-| Mono            | **JetBrains Mono**       | `ui-monospace, "SF Mono", Menlo, Consolas, monospace` |
-| Display (rare)  | **Inter Display**        | Same as UI sans (variable axis covers display)        |
-
-**Rationale — Inter, not SF Pro.** SF Pro is the native macOS system font and
-would read most native there. But:
-
-- Electron is the chosen runtime (`docs/tech-stack.md`). Inter rendering through
-  Skia is identical on macOS, Windows, Linux. SF Pro is licensed for macOS Cocoa
-  rendering, not freely embeddable.
-- Linear, Vercel, Notion, Things 3 (newer builds) all use Inter or a near-Inter
-  variant — the reference apps. Users reading Omadia next to Linear will not feel
-  a typeface clash.
-- Inter's variable axis (weight 100–900, slant) lets us ship one file and address
-  every weight we need. SF Pro requires separate font assets per weight.
-
-**Rationale — JetBrains Mono, not SF Mono / Menlo.** JetBrains Mono has:
-
-- Generous x-height (data tables read at smaller sizes without losing legibility).
-- Distinguishable `0` / `O`, `1` / `l` / `I` (correctness matters for financial
-  data — Walkthrough 1's ERP budget column).
-- Open ligatures (`->`, `>=`) — useful in code blocks and TUI-style layouts where
-  the agent renders bash output or terminal-style diffs.
-
-Mono **is not a stylistic flourish**. It is the typographic anchor for the
-"Norton Commander" idiom (data-grid panels, terminal-feel data dumps), for code
-blocks in research walkthroughs (Walkthrough 4), and for any column where digit
-alignment matters (table financial columns). The single-mono-everywhere choice
-makes the Omadia idiom coherent.
-
-#### Type scale (semantic)
-
-All sizes are in `rem`, base `1rem = 16px`. Line heights are unitless.
-
-| Token                | Size            | Line height | Weight | Letter-spacing | Role                                              |
-|----------------------|-----------------|-------------|--------|----------------|---------------------------------------------------|
-| `type.display`       | `1.75rem` (28px) | `1.20`      | 600    | `-0.01em`      | Rare. Welcome surfaces, top-level pane title in editor workspace |
-| `type.heading.1`     | `1.375rem` (22px) | `1.25`     | 600    | `-0.005em`     | Canvas-level title, top of a `container` group     |
-| `type.heading.2`     | `1.125rem` (18px) | `1.30`     | 600    | `0em`          | Section heading inside a container                 |
-| `type.heading.3`     | `0.9375rem` (15px) | `1.35`    | 600    | `0em`          | Sub-section, table-group header                    |
-| `type.body`          | `0.875rem` (14px) | `1.50`     | 400    | `0em`          | Default UI text, paragraph copy                    |
-| `type.body.strong`   | `0.875rem` (14px) | `1.50`     | 600    | `0em`          | Inline emphasis; column-header text in tables      |
-| `type.body.compact`  | `0.8125rem` (13px) | `1.45`    | 400    | `0em`          | Dense table rows, `style: "compact"` containers    |
-| `type.caption`       | `0.75rem` (12px) | `1.40`      | 400    | `0.005em`      | Labels above inputs, timestamps, axis ticks        |
-| `type.caption.strong`| `0.75rem` (12px) | `1.40`      | 600    | `0.02em`       | Uppercase eyebrow labels (sparingly)               |
-| `type.mono.data`     | `0.8125rem` (13px) | `1.45`    | 450    | `0em`          | Numeric table cells, code snippets, terminal lines |
-| `type.mono.code`     | `0.8125rem` (13px) | `1.55`    | 400    | `0em`          | Multi-line code blocks                             |
-
-Weight `450` for `mono.data` uses a variable-axis intermediate weight: slightly
-heavier than 400 so digits hold up against denser table backgrounds, but lighter
-than 600 so they don't shout.
-
-**Rationale — no Helvetica-massive headings.** A typical "marketing UI" tops out at
-40–60px display. We cap at 28px because:
-
-- Omadia is a work surface, not a landing page. There is no hero.
-- Data is the protagonist. Headings above 28px steal attention from data.
-- The largest text on screen at any given moment should be either a `text` primitive
-  used as a hero quote (rare, user-chosen) or a single `heading.1` per canvas.
-
-#### Letter-spacing and weight discipline
-
-- Headings: tighter than body (-0.005em to -0.01em). Counteracts the visual
-  loosening that bigger sizes cause.
-- Caption-strong (uppercase eyebrows): wider tracking (+0.02em). Uppercase always
-  needs more space.
-- Body: zero tracking. Inter is metrically correct at body sizes.
-- Weights used: 400, 450 (mono only), 600. Anything else is forbidden — no
-  300 (too light at body sizes), no 500 (collides with 600 perceptually), no 700+
-  (heavy weights compete with accent).
-
-### 1.4 Spacing
-
-4pt grid. **Not** 8pt — 4pt offers the density required for editor workloads
-(toolbar button spacing, inspector field rows) without forcing implementers to use
-fractional values.
-
-| Token       | Value   | Use                                                                    |
-|-------------|---------|------------------------------------------------------------------------|
-| `space.0`   | `0`     | Touching edges                                                         |
-| `space.1`   | `2px`   | Hairline gap between same-group icons; sub-pixel-feeling adjustments   |
-| `space.2`   | `4px`   | Default gap inside a tight group (input + clear button)                |
-| `space.3`   | `8px`   | Default gap in a row of controls, between list items in compact density |
-| `space.4`   | `12px`  | Default block spacing inside a container; default `gap` of a stack      |
-| `space.5`   | `16px`  | Default container padding; section gap                                  |
-| `space.6`   | `24px`  | Generous block spacing; spacious density default                        |
-| `space.7`   | `32px`  | Top-of-canvas padding; sectional dividers                               |
-| `space.8`   | `48px`  | Major layout gaps (left rail to content area)                           |
-| `space.9`   | `64px`  | Reserved for explicit "breathing-room" placements (rare)                |
-
-Density variants apply a per-primitive override (see §4): `style: "compact"` shifts
-defaults one step down, `style: "spacious"` shifts one step up.
-
-### 1.5 Border radii
-
-| Token        | Value  | Use                                                       |
-|--------------|--------|-----------------------------------------------------------|
-| `radius.0`   | `0`    | Tables, panes, canvas-region (engineering surfaces)       |
-| `radius.sm`  | `4px`  | Inputs, buttons, list-item hover/selected backgrounds      |
-| `radius.md`  | `6px`  | Containers, cards, popovers                                |
-| `radius.lg`  | `8px`  | Modals, raised cards (only one elevation step above `md`)  |
-| `radius.pill`| `999px`| Pill chips (badge primitive, rare; status indicators)      |
-
-**Rationale — restrained radii.** Things 3 uses ~10px on cards; Notion ~6px on
-blocks; Linear ~6–8px. We pick 6px for containers because the canvas is dense; a
-larger radius would create visible empty corners between adjacent containers and
-break the data-grid feel.
-
-`radius.0` exists explicitly so editor workloads (Photoshop workspace) have
-sharp-corner surfaces. A pixel editor with rounded corners reads "consumer photo
-app", not "professional tool".
-
-### 1.6 Elevation / shadows
-
-Sparing. Almost everything sits flat on `bg.canvas` or `bg.surface`. Elevation is
-for **temporally raised** surfaces: popovers, dropdowns, modals, drag-in-flight.
-
-| Token           | Light                                                | Dark                                                  | Use                                  |
-|-----------------|------------------------------------------------------|-------------------------------------------------------|--------------------------------------|
-| `elev.0`        | none                                                 | none                                                  | Flat content surfaces                |
-| `elev.popover`  | `0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06)` | `0 1px 2px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.40)` | Dropdowns, popovers, hover cards     |
-| `elev.modal`    | `0 4px 8px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.10)` | `0 4px 8px rgba(0,0,0,0.40), 0 16px 32px rgba(0,0,0,0.55)` | Modal panes                          |
-| `elev.drag`     | `0 8px 24px rgba(0,0,0,0.16)`                        | `0 8px 24px rgba(0,0,0,0.50)`                          | Drag-in-flight ghost preview         |
-
-No "card" elevation. Cards are differentiated by **border + radius**, not by
-shadow. This is a deliberate departure from Material Design and an alignment with
-Linear / Things / Apple Catalyst.
-
-### 1.7 Motion
-
-| Token            | Value                                  | Use                                                 |
-|------------------|----------------------------------------|-----------------------------------------------------|
-| `motion.instant` | `0ms`                                  | Theme switch, scroll jumps, focus moves on tab nav  |
-| `motion.quick`   | `100ms`                                | Hover state, focus ring fade-in                     |
-| `motion.smooth`  | `200ms`                                | Modal open/close, accordion expand, patch fade-in   |
-| `motion.deliberate` | `320ms`                             | Reserved — used only for canvas-activate transitions between Spaces |
-| `easing.standard`| `cubic-bezier(0.22, 0.61, 0.36, 1.00)` | Most transitions (decelerate-out)                   |
-| `easing.emphasis`| `cubic-bezier(0.4, 0.0, 0.2, 1.0)`     | Bigger moves (modal scale-in, full snapshot replace) |
-| `easing.linear`  | `linear`                               | Skeleton pulse                                      |
-
-#### Skeleton pulse
-
-`@keyframes skeleton-pulse`:
-
-```text
-0%   { background-position: -200% 0; }
-100% { background-position:  200% 0; }
-```
-
-- Duration: `1400ms`, `linear`, infinite.
-- Gradient: `linear-gradient(90deg, state.loading 0%, state.loading.hi 50%, state.loading 100%)` at 400% width.
-- Reduced-motion: pulse disabled, skeleton renders as static `state.loading` fill.
-
-#### Reduced motion
-
-When the OS reports `prefers-reduced-motion: reduce`:
-
-- `motion.quick` → `0ms`. (Hover/focus changes still happen, just without fade.)
-- `motion.smooth` → `0ms`. (Modal opens instantly.)
-- `motion.deliberate` → `0ms`.
-- Skeleton pulse → static.
-- Patch-apply highlight (§5.1) → no fade-out; the highlight simply isn't drawn.
-
-### 1.8 Icons
-
-**Library: Lucide.** Stroke-based, MIT-licensed, ~1100 icons, actively maintained,
-React/Vue/Svelte/HTML bindings — covers every Electron renderer choice.
-
-Heroicons was the runner-up; rejected because:
-
-- Two-style split (outline vs. solid) tempts implementers to mix metaphors.
-- Smaller icon set; editor workloads (brush, magic-wand, vector-pen, timeline-
-  scrub) hit gaps faster.
-
-Custom icons forbidden in v1 except where Lucide has no equivalent:
-
-- Three documented exceptions allowed: `magic-wand` (selection tool), `brush-pressure`
-  (pressure-sensitive brush variant), `vector-pen-anchor` (path-anchor handle).
-  These ship in `assets/icons/custom/` and follow Lucide stroke/width conventions
-  exactly.
-
-#### Icon sizes (semantic)
-
-| Token             | Size  | Stroke | Use                                          |
-|-------------------|-------|--------|----------------------------------------------|
-| `icon.xs`         | 12px  | 1.5    | Inline with caption text                     |
-| `icon.sm`         | 14px  | 1.5    | Inline with body text                        |
-| `icon.md`         | 16px  | 1.75   | Buttons, toolbar default                     |
-| `icon.lg`         | 20px  | 1.75   | Tab indicators, prominent toolbar tools       |
-| `icon.xl`         | 24px  | 2.0    | Empty-state illustrations (centred glyph)    |
-
-Stroke width scales with size — preserves perceived weight. Lucide ships
-configurable stroke width; the token-build step bakes the right values.
+## 1. Material — Lume
+
+### 1.1 Thesis
+
+Apple has never shipped "colors and shadows"; each generation has shipped a
+named material with physical properties (Aqua → frosted glass → spatial glass
+→ Liquid Glass). The current Omadia v0.1 spec adopted tokens in the
+Linear/Notion lineage — correct in spirit, but materially flat: it had no
+material story.
+
+**Lume is the proposed Omadia material:** UI is not drawn, it is condensed
+out of light. The agent's attention is visible as accent-tinted illumination
+on the surface it touches. Backgrounds carry a subtle directional luminosity
+that suggests they are generated, not printed. The single accent slot has
+two visual forms — fill (the hard form, on buttons and indicators) and glow
+(the soft form, as halos at selection and focus).
+
+This expresses the Omadia thesis directly. CONCEPT.md says the agent
+*materialises* UI per turn; the material identity must say so too.
+
+### 1.2 The four forces
+
+Everything else in this spec is composition of these four.
+
+| Force | What it does | Where it shows up |
+|---|---|---|
+| **Surface luminosity** | Every surface is a 180° linear-gradient from a slightly lit top to a slightly settled bottom (~1.5% L delta). Imperceptible per-surface; cumulative effect: surfaces feel illuminated, not printed. | `bg.canvas`, `bg.surface`, `bg.surface.raised`, `bg.surface.sunken`, modal surface — all carry a `.top` / `.btm` pair. |
+| **Accent as illumination** | The single accent token splits into two visual modes. `accent` is the fill (buttons, indicators). `accent-glow` + `accent-glow-strong` are the accent-tinted corona of a light source. `accent-glow-core` is the bright inner core that reads as *emitted light* rather than as accent-tinted shadow. | Selection halos, focus rings, button-in-flight, active-tool indicators, modal-pane glow. |
+| **Directional borders** | Borders use a lighter `top` color and a slightly stronger `btm` color, so an edge reads as catching light from above. Combined with a 1px inner highlight on raised surfaces, every container gains perceived thickness. | All container, input, button, card, modal edges. |
+| **Soft corners with editor exception** | Lume shifts the v0.1 radius scale up by one stop. Light has no edges; the material's softness expresses the metaphor. The exception is the editor boundary — `canvas-region`, `timeline` and similar surfaces stay at radius 0. That visual contrast doubles as a Tier-1 boundary marker. | Radius scale §2.9. |
+
+### 1.3 What Lume is NOT
+
+| Out | Reason |
+|---|---|
+| **Refraction** | Linear's ProKit team rejected refraction explicitly — it makes dense data-driven UIs harder to read. The boundaries between cells in a table need to be stable; refraction wiggles them. |
+| **Real-time blur as primary chrome** | We're not in spatial computing. Blur costs performance and competes with text legibility on data surfaces. |
+| **Specular highlights on every surface** | Apple uses them everywhere in Liquid Glass; we use them only at semantic-meaning moments (active tool, focused input). |
+| **Glassmorphism** | Frosted-everything is a 2020 aesthetic dead end. Lume is solid light, not see-through plastic. |
+| **Multiple accent slots** | Still exactly one. Three *palettes* bind to it. Not three accents at once. |
+| **Settings / Preferences UI for palette** | Palette is set conversationally, per CONCEPT.md prefs model. The user says "make it warmer"; Tier 2 writes to `ui-prefs`. |
+
+### 1.4 Apple-lineage credits
+
+Lume is influenced by Apple's progression from Aqua through Liquid Glass and
+by Linear's ProKit adaptation. We take **light shapes hierarchy** as the load-
+bearing idea. We discard the optical effects (refraction, specular sheen on
+chrome, glass-everywhere translucency) that don't translate to a
+productivity-grade canvas. The result is light-as-material at productivity-
+tool throttle: subtle enough to recede, present enough to feel.
 
 ---
 
-## 2. Per-Primitive Visual
-
-For each of the 24 primitives from CONCEPT.md §"The Primitive Vocabulary", this
-section specifies: default visual, interactive states, variants, density behaviour,
-and edge cases (empty, overflow, error). ASCII wireframes accompany layout-heavy
-primitives.
-
-Conventions:
-
-- "Default density" = no `style` override; behaves as if `style: "default"`.
-- "Compact" / "Spacious" = `style.density` override.
-- "Selected" applies only when the primitive has a `selection` trait.
-- Tokens referenced by name (`bg.surface`, `accent`, …); resolve via §1.
-
-### 2.1 `text`
-
-Block or inline copy. The workhorse of agent prose.
-
-| State              | Visual                                                         |
-|--------------------|----------------------------------------------------------------|
-| Default            | `type.body` / `text.primary`. No background, no border.        |
-| Inside heading group | Inherits font from heading; otherwise default                |
-| Long prose         | Max width 72ch when not constrained by parent; left-aligned    |
-| Inline emphasis    | `type.body.strong` for `<strong>`-equivalent semantics         |
-| Inline code        | `type.mono.data` on `bg.surface.sunken` with `radius.sm` padding `0 4px` |
-
-Density:
-
-- Compact: `type.body.compact`.
-- Spacious: increased line-height to `1.6` (no size change).
-
-No hover, no focus (text is not interactive). Selection (text-selection by mouse)
-uses native OS behaviour with `accent.subtle` highlight tint.
-
-### 2.2 `heading`
-
-Section title. Always renders inside a `container` or pane.
-
-| Level | Token            | Margin-top (within container)                                |
-|-------|------------------|--------------------------------------------------------------|
-| 1     | `type.heading.1` | First child: 0; otherwise `space.6`                          |
-| 2     | `type.heading.2` | First child: 0; otherwise `space.5`                          |
-| 3     | `type.heading.3` | First child: 0; otherwise `space.4`                          |
-
-Margin-bottom inside a heading is always `space.3`.
-
-Variants:
-
-- `style.divider: true` — adds a `border.subtle` underline running the full content
-  width. Used when the agent wants visual separation under a section heading.
-- `style.eyebrow: true` — renders `type.caption.strong` (uppercase eyebrow) above
-  the heading at `text.tertiary`.
-
-### 2.3 `container`
-
-Grouping primitive. Optional title, optional border, optional padding.
-
-```
-┌──────────────────────────────────────────────┐
-│ Optional heading                             │
-│                                              │
-│  child                                       │
-│  child                                       │
-│                                              │
-└──────────────────────────────────────────────┘
-```
-
-Default (no title, no border, no shadow): 0 padding, behaves as a flex group with
-`gap: space.4`.
-
-| Variant           | Visual                                                       |
-|-------------------|--------------------------------------------------------------|
-| `border: true`    | `1px solid border.subtle`, `radius.md`, padding `space.5`    |
-| `title: <string>` | `heading.3` at top, `space.3` bottom margin                  |
-| `style: compact`  | padding `space.3`, gap `space.3`                             |
-| `style: spacious` | padding `space.6`, gap `space.5`                             |
-| `style: sunken`   | `bg.surface.sunken`, no border by default                    |
-| `style: raised`   | `bg.surface.raised`, `1px solid border.subtle`, `radius.md`  |
-
-Empty container with `title` only: shows title and a tertiary-text placeholder
-hint if and only if the agent provides `placeholder`. **Never** ships a default
-"This container is empty" string.
-
-### 2.4 `list`
-
-Ordered collection. Vertical by default.
-
-```
-─── item label                            ─┐
-                                           │ row height: 32px (default)
-─── item label                            ─┤
-                                           │  hover: bg.surface.sunken
-─── selected item                         ─┤  selected: accent.subtle + 2px left bar in accent
-                                           │
-─── item label                            ─┘
-```
-
-| Mode (`selection`) | Visual                                                                  |
-|--------------------|-------------------------------------------------------------------------|
-| `none`             | Plain rows, hover bg only                                               |
-| `single`           | Selected row: `accent.subtle` + 2px `accent` left bar; hover otherwise  |
-| `multi`            | Same as single + leading checkbox indicator (toggle primitive embedded) |
-
-Density:
-
-| Density   | Row height | Padding (x/y)   | Type token         |
-|-----------|------------|-----------------|--------------------|
-| Compact   | 28px       | `space.3` / `space.2` | `type.body.compact` |
-| Default   | 32px       | `space.4` / `space.3` | `type.body`         |
-| Spacious  | 40px       | `space.5` / `space.4` | `type.body`         |
-
-Focus: keyboard-focused item draws a 2px `border.focus` ring **inset** by 2px (so
-the ring doesn't overlap neighbours). Arrow up/down moves focus; Enter triggers the
-item's `action`.
-
-Empty: tertiary-text inline hint, 1 line, agent-authored. No icon, no illustration.
-
-Overflow: rows render as-is up to virtualised threshold (declared via trait
-`virtualized: true`). Past 200 rows without virtualisation: implementer logs a
-warning; rendering is still correct but degrades.
-
-### 2.5 `table`
-
-Rows × columns. The data-aggregation workhorse.
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ OWNER          OPEN TICKETS    BUDGET LEFT (h)    STATUS         │ ← header row
-├─────────────────────────────────────────────────────────────────┤
-│ Anna Schmidt          12               5.0        out of budget  │
-│ Bernd Lutz             8               7.5        under budget   │
-│ Cara König            15              22.0        ok             │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-- Header: `type.body.strong`, `text.secondary`, uppercase tracking optional
-  (per-table flag, default off). Row separator: 1px `border.subtle` below header.
-- Body rows: `type.body` for text columns, **`type.mono.data` for numeric columns**
-  (detected by column declared `kind: 'number' | 'currency' | 'count'`).
-- Numeric columns right-aligned. Text columns left-aligned. No vertical separators
-  by default.
-- Row height: 36px default, 30px compact, 44px spacious.
-- Zebra: **off by default**. Reading data depends on alignment, not stripes.
-  `style.zebra: true` enables alternating `bg.surface.sunken` on every second row;
-  the agent uses this for very wide tables.
-- Hover: `bg.surface.sunken` on hovered row.
-- Selection (`single` / `multi`): same accent treatment as list. Multi-select shows
-  a checkbox in a leading column.
-- Sort indicators: small caret in `text.tertiary` next to the active sort column;
-  on hover of a sortable column header, caret appears in `text.secondary`.
-- Sticky header on scroll: header stays at top, gets `1px solid border.subtle` shadow
-  separator (no `elev.popover`, the shadow is purely a divider).
-
-Loading rows:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ OWNER          OPEN TICKETS    BUDGET LEFT (h)    STATUS         │
-├─────────────────────────────────────────────────────────────────┤
-│ ▓▓▓▓▓▓▓▓▓▓▓     ▓▓▓▓▓▓▓        ▓▓▓▓▓▓▓             ▓▓▓▓▓▓▓▓▓▓   │ ← skeleton row
-│ ▓▓▓▓▓▓▓▓▓       ▓▓▓▓▓▓▓        ▓▓▓▓▓▓▓             ▓▓▓▓▓▓▓▓     │
-│ ▓▓▓▓▓▓▓▓▓▓▓▓    ▓▓▓▓▓▓▓        ▓▓▓▓▓▓▓             ▓▓▓▓▓▓▓▓▓    │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-Skeleton cell width per row is randomised but stable for the lifetime of that row
-identifier (so it doesn't flicker between repaints).
-
-Empty: row-area replaced with a single centred tertiary-text line at half-height of
-a typical row.
-
-Variant — **highlighted row**: a row with the cross-cutting trait
-`style.emphasis: "accent"` renders with `accent.subtle` background and **no** left
-bar (left bar is reserved for selection — must remain unambiguous). This is what
-Walkthrough 1 step 13 uses to flag "under budget" rows.
-
-### 2.6 `tree`
-
-Hierarchical list. Also serves as **layer-stack** when carrying editor traits.
-
-```
-▾ Group                              hover: bg.surface.sunken
-   ▾ Subgroup
-       Item                          focus: 2px border.focus inset
-       Item (selected)               selected: accent.subtle + 2px accent left bar
-   ▸ Subgroup (collapsed)
-Item
-```
-
-- Indent: `space.4` per level.
-- Expand/collapse caret: `icon.sm` chevron, `text.tertiary` default,
-  `text.secondary` on hover.
-- Selection visuals: identical to `list`.
-- Drag handle (layer-stack mode only): appears on hover at the right edge of the
-  row, `icon.sm` `grip-vertical`, `text.tertiary`.
-- Layer trait (when present): row shows leading 16×16 thumbnail (canvas-region
-  preview) + visibility toggle (eye icon) + opacity slider on a row hover-popover.
-
-Performance: implementers must implement either virtualisation (preferred for
-large trees) or progressive disclosure (collapse-by-default past depth N).
-
-### 2.7 `button`
-
-Action trigger.
-
-| Variant         | Background           | Border              | Text                | Use                                     |
-|-----------------|----------------------|---------------------|---------------------|-----------------------------------------|
-| `primary` (default if `accent: true`) | `accent` | none | `text.inverse` | One per surface; e.g. "Send", "Generate" |
-| `secondary`     | transparent          | `1px border.default`| `text.primary`      | Toolbar default, "Cancel" siblings      |
-| `ghost`         | transparent          | none                | `text.primary`      | Icon-only buttons in toolbars            |
-| `danger`        | transparent          | `1px state.error.edge` | `state.error.fg` | Destructive confirm in modals (rare)    |
-
-Sizes (uniform across variants):
-
-| Size      | Height | Padding (x)   | Type token   | Icon size |
-|-----------|--------|----------------|--------------|-----------|
-| Compact   | 24px   | `space.3` (8px) | `type.body.compact` | `icon.sm` |
-| Default   | 32px   | `space.4` (12px) | `type.body`        | `icon.md` |
-| Spacious  | 40px   | `space.5` (16px) | `type.body`        | `icon.md` |
-
-States:
-
-| State    | Primary                                  | Secondary                               | Ghost                                |
-|----------|------------------------------------------|------------------------------------------|--------------------------------------|
-| Hover    | bg → `accent.hover`                      | bg → `bg.surface.sunken`                 | bg → `bg.surface.sunken`             |
-| Active   | bg → `accent.active`                     | bg → `bg.surface.sunken`, border darker  | bg → `bg.surface.sunken`             |
-| Focus    | 2px `border.focus` ring, 2px offset      | same                                     | same                                 |
-| Disabled | bg → `state.loading`, text → `text.disabled` | border → `state.loading`              | text → `text.disabled`               |
-| Loading  | spinner *not* allowed — see §5; button shows `type.body.compact` "Working…" replacing label with marquee dots animation | same | same |
-
-**Rationale — single spinner exception, only for buttons.** A button that
-performs an external-effect action (Walkthrough 3 step 20: "Send") cannot show a
-skeleton (the button has no content to skeletonise). Three documented options
-considered:
-
-1. Disable the button, change label to "Sending…", no visual motion. Risk: user
-   thinks the click didn't register.
-2. Add a tiny inline spinner glyph. Violates CONCEPT.md skeleton-only rule.
-3. **Selected** — replace label with "Sending…" plus animated marquee dots
-   (`Sending.`, `Sending..`, `Sending...` at `motion.quick * 4` interval). No
-   spinner glyph, no ring. Conveys progress without a circle.
-
-This is the single skeleton-rule exception, scoped to button-in-flight. The
-exception lives here, in the spec, and is documented at the §5 anti-pattern list.
-
-### 2.8 `input`
-
-Text entry.
-
-```
-┌──────────────────────────────────────┐
-│ Placeholder text…                    │   default: 1px border.default
-└──────────────────────────────────────┘
-                                          focus: 2px border.focus (inset, no offset)
-                                          error: 1px border = state.error.edge
-```
-
-| Size      | Height | Padding (y/x)        | Type        |
-|-----------|--------|----------------------|-------------|
-| Compact   | 28px   | `space.2` / `space.3` | `type.body.compact` |
-| Default   | 32px   | `space.3` / `space.3` | `type.body`         |
-| Spacious  | 40px   | `space.4` / `space.4` | `type.body`         |
-
-States: hover bg → `bg.surface`, focus inset 2px `border.focus`, error 1px
-`state.error.edge` + inline message below input at `state.error.fg` and
-`type.caption`. Disabled: bg → `bg.surface.sunken`, text → `text.disabled`.
-
-Variants:
-
-- `multiline: true` → renders as a textarea, min-height 96px, vertical resize handle
-  in bottom-right (16×16 grip glyph at `text.tertiary`).
-- `leadingIcon` / `trailingIcon` → icon size `icon.md`, `text.tertiary`, inset by
-  `space.3` from input edge; input text padding shifts to leave room.
-- `password: true` → reveal-toggle icon in trailing slot, `eye-off` / `eye`.
-
-### 2.9 `choice`
-
-Single-select from N. Renders as **dropdown** by default, **radio group** when the
-agent sets `style.layout: "inline"`.
-
-#### Dropdown variant (default)
-
-```
-┌──────────────────────────────────────────┐
-│ Selected option                       ▾  │   trigger: button-secondary look
-└──────────────────────────────────────────┘
-       ↓ click / Enter / Space
-┌──────────────────────────────────────────┐
-│  Option A                                │   open: elev.popover, radius.md
-│  Option B  ✓                             │   selected option: leading check
-│  Option C                                │   keyboard: arrow up/down, Enter to pick
-└──────────────────────────────────────────┘
-```
-
-- Trigger same dimensions as input.
-- Open menu: `bg.surface.raised`, `border.subtle`, `radius.md`, `elev.popover`.
-- Item hover: `bg.surface.sunken`. Item focus (keyboard): 2px `border.focus`
-  inset. Selected item: leading checkmark `icon.sm` in `accent`.
-- Max-height 320px before scroll; overflow scrolls vertically with no scrollbar
-  by default (overlay scrollbars).
-
-#### Radio variant (inline)
-
-```
-( ) Option A    ( ) Option B    (•) Option C
-```
-
-- Circle: 16px outer, `1px border.default`, inner dot 6px `accent` when selected.
-- Focus: 2px `border.focus` ring around the outer circle, 2px offset.
-- Inline layout: horizontal flex, gap `space.5`.
-
-### 2.10 `toggle`
-
-Boolean. Two visual forms — **checkbox** by default for in-form use, **switch** for
-on/off-of-a-feature mental model (set via `style.layout: "switch"`).
-
-#### Checkbox (default)
-
-```
-[ ] Label text          off
-[✓] Label text          on:  accent fill + text.inverse check glyph
-```
-
-- Box: 16×16, `radius.sm`, `1px border.default` off, `accent` fill on.
-- Indeterminate: `accent` fill, `text.inverse` minus glyph.
-- Focus: 2px `border.focus` ring, 2px offset.
-
-#### Switch (style.layout: "switch")
-
-```
-( ●─ )  off:  bg = bg.surface.sunken, knob = bg.surface.raised + 1px border.default
-( ─● )  on:   bg = accent, knob = bg.surface.raised
-```
-
-- Dimensions: 28×16 track, 12×12 knob, knob inset 2px.
-- Transition: knob slide `motion.quick / easing.standard`.
-
-### 2.11 `image`
-
-Static bitmap content.
-
-- Rendered with `object-fit: contain` by default; agent can override via
-  `style.fit: "cover" | "contain"`.
-- Loading: skeleton with the image's known aspect ratio (agent passes `width` /
-  `height` in props; renderer uses them as the skeleton box).
-- Error: container at the same dimensions, centred `image-off` icon at `icon.lg`
-  `text.tertiary`, no text (consistent with the empty-state restraint).
-- No border / no shadow by default. `style.border: true` adds `1px border.subtle`
-  `radius.md`.
-
-### 2.12 `chart`
-
-Static data-driven visual. v1 supports `bar`, `line`, `pie`. Implementations should
-use a small library (Tremor's primitives or Recharts via Visx for full control) —
-but the **visual language** is normative:
-
-- Single accent for the primary series. Additional series use accent variations
-  on the **chroma axis** (drop chroma to 0.06 for series 2; chroma 0.04 for series
-  3) at the same `L`. Never multi-hue.
-- Grid lines: `border.subtle`, dashed 1px on Y-axis, no X-axis grid.
-- Axis labels: `type.caption`, `text.tertiary`.
-- Value labels: `type.mono.data`, `text.secondary`, shown on hover only.
-- Tooltip on hover: `bg.surface.raised`, `elev.popover`, `radius.md`, padding
-  `space.3`. Content: series name (`type.body.strong`) + value (`type.mono.data`).
-- No legend if there's only one series. Multi-series: legend below chart in
-  `type.caption`, `text.secondary`, with 8px swatch squares matching the series
-  chroma reduction.
-
-Empty: `chart` with no data renders the axes only and a tertiary-text inline hint
-at chart centre.
-
-### 2.13 `form`
-
-Group of inputs + submit. When carrying the `context-binding` trait
-(CONCEPT.md §"Editor primitives"), this primitive **is the inspector** in editor
-workspaces.
-
-Default layout: vertical stack of labelled rows.
-
-```
-Label                                              ← type.caption.strong, text.secondary
-┌──────────────────────────────────────────┐
-│ value                                    │       ← input
-└──────────────────────────────────────────┘
-Optional helper text                               ← type.caption, text.tertiary
-
-Label
-[✓] Toggle option
-( ) Choice A    (•) Choice B
-
-[ Submit ]   [ Cancel ]                             ← toolbar at bottom: primary + secondary
-```
-
-- Row gap: `space.4` (default), `space.3` (compact), `space.5` (spacious).
-- Submit button: primary variant, default size. Cancel: secondary, same size.
-- Inline error: under the input at `state.error.fg`, `type.caption`.
-- Form-level error (e.g. "Send failed — try again"): banner above the submit row,
-  `1px state.error.edge` left border, `bg.surface` background, padding `space.4`,
-  text in `state.error.fg`.
-
-**Inspector mode (`form` with `context-binding` trait):**
-
-- Renders without a Submit button. Each input change emits its own action.
-- Compact density by default.
-- Labels render to the **left** of inputs (label-input grid), not above. Label
-  column 40% width, input column 60%.
-
-### 2.14 `toolbar`
-
-Action strip. Horizontal flex of buttons (typically ghost variant) + optional
-separators.
-
-```
-┌────────────────────────────────────────────────────────────────┐
-│ [ ⤴ ] [ ⤵ ] │ [ B ] [ I ] [ U ] │ [ ⬛ ] [ ⊙ ] │ ...   [ Send ] │
-└────────────────────────────────────────────────────────────────┘
-   undo  redo │  text styles      │  shape tools │       primary action
-```
-
-- Height: 40px default, 32px compact, 48px spacious.
-- Padding: `space.3` (x), 0 (y; buttons size themselves).
-- Background: `bg.surface`. Optional `border.subtle` 1px bottom (when toolbar sits
-  above content) or top (when toolbar sits below content).
-- Separators: 1px `border.subtle` vertical, 16px tall, `space.3` margin.
-- Primary action (if any): pushed to the right, never centred.
-
-Vertical toolbar variant (left side of editor workspaces): same rules, rotated 90°.
-Buttons square (40×40 default), separators horizontal.
-
-### 2.15 `menubar`
-
-Cascading menu (top-of-window classic macOS-style menu, or context menu invoked by
-right-click).
-
-Top-of-window menubar:
-
-```
-File  Edit  View  Canvas  Help
-```
-
-- `type.body` at default density, `text.primary`.
-- Hover/open: `bg.surface.sunken` on the menu trigger.
-- Open menu: `bg.surface.raised`, `radius.md`, `elev.popover`, min-width 200px.
-- Menu items: 28px tall, padding `space.3` x, `type.body` text, optional leading
-  icon at `icon.sm`, optional trailing keyboard shortcut in `type.caption.strong`
-  uppercase tracking at `text.tertiary`, right-aligned.
-- Item hover: `accent.subtle` background, `text.primary`.
-- Disabled item: `text.disabled`, no hover.
-- Separator: 1px `border.subtle`, full width inside the menu.
-
-Context menu (right-click or long-press): identical to opened menu, no top-of-window
-trigger. Position: anchored to cursor point. Auto-flip to fit viewport.
-
-### 2.16 `tabs`
-
-Sibling containers with selector.
-
-```
-─── Tab one ──┬─── Tab two ──┬─── Tab three ──┬───────────────
-              │                                 active tab edge
-   inactive   │   inactive    │   inactive
-─────────────────────────────────────────────── ← 1px border.subtle, full width
-[ tab content ]
-```
-
-- Tab labels: `type.body`, `text.secondary` inactive, `text.primary` active.
-- Active tab: 2px solid `accent` underline, sits flush with the 1px subtle border
-  (overlaps it, so it appears "in front").
-- Hover (inactive): `text.primary`, no underline.
-- Focus: 2px `border.focus` ring, 2px offset, around the tab label itself.
-- Wizard variant (`style.variant: "wizard"`): tabs render as **steps** — see §3.2.
-
-### 2.17 `pane`
-
-Positionable, resizable container. The Miro-hybrid: technically a window, visually
-theme-driven (no per-window chrome, no traffic-light buttons inside the canvas —
-those belong to the OS window).
-
-Default appearance:
-
-- `bg.surface`, `radius.md`, `1px border.subtle`.
-- Drag handle: top 28px strip, `type.caption.strong` `text.secondary` title,
-  cursor `grab` on hover.
-- Resize affordance: 8px hit-target along the right + bottom edges and the
-  bottom-right corner; cursor changes to `col-resize` / `row-resize` / `nwse-resize`
-  on hover. No visible drag handle glyph (the cursor is the affordance).
-- Pinned / unpinned: a pinned pane shows a pin icon in the title strip
-  (`icon.sm`, `text.tertiary`); pinned panes cannot be dragged.
-
-Modal variant (`pane.kind: "modal"`):
-
-- Centered in viewport (max 640px wide, max viewport-height - 64px tall).
-- `elev.modal`.
-- Scrim `bg.modal.overlay` covers everything underneath.
-- Title strip: `type.heading.2` left, optional close `x` icon right.
-- See §5.4 for the full confirmation-modal pattern.
-
-Drag in-flight:
-
-- Ghost preview at 50% opacity, `elev.drag`.
-- Drop targets highlight with 2px dashed `accent` border.
-
-### 2.18 `status`
-
-Read-only display. Used by the agent to surface state without occupying input
-attention: "Last synced 14:23", "Connected to ERP", "3 sub-agents working".
-
-Layout: inline horizontal — optional leading icon (`icon.sm`, `text.tertiary`) +
-status text (`type.caption`, `text.secondary`). No background, no border.
-
-For **liveness** (e.g. "3 sub-agents working" in Walkthrough 4), `status` may carry
-the `loading` trait — then the leading icon area renders a skeleton pulse-bar
-(8px wide, 12px tall, `radius.sm`) at `state.loading` / `state.loading.hi`.
-
-### 2.19 `progress`
-
-Progress of an ongoing operation. Linear bar, no circular spinner.
-
-```
-─── operation label                                  78%
-████████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░
-```
-
-- Track: 4px tall, full available width, `bg.surface.sunken`, `radius.pill`.
-- Fill: `accent`, `radius.pill`.
-- Label (above the bar): `type.caption` `text.secondary`. Right-aligned numeric
-  percent in `type.mono.data` `text.secondary`.
-- Indeterminate (no known percentage): fill renders as a 30%-width segment that
-  travels back and forth across the track at `motion.deliberate * 4` interval,
-  reverses on each pass. `prefers-reduced-motion`: indeterminate static, fixed at
-  left 0%.
-
-### 2.20 `divider`
-
-Visual separator. Horizontal 1px `border.subtle`, full width by default. Vertical
-variant available for in-toolbar use (see §2.14).
-
-Variants:
-
-- `style.thickness: "strong"` → `border.strong` instead of `border.subtle`. Rare;
-  reserved for major canvas-level separations (e.g. left rail vs. content area).
-- `style.dashed: true` → 1px dashed `border.subtle`. Used for drop-zone indicators
-  during drag.
-
-### 2.21 `media` (editor-class)
-
-Audio/video with playback controls.
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                                                             │
-│                        [video frame]                        │
-│                                                             │
-├─────────────────────────────────────────────────────────────┤
-│ [▶] [⏸] [⏹]    00:34 / 02:15    ─────●────────  [ 🔊 ─●── ] │
-└─────────────────────────────────────────────────────────────┘
-   transport    time           scrubber           volume
-```
-
-- Frame area: `bg.surface.sunken` background, `radius.md`, video letterboxed with
-  `object-fit: contain`. Poster (if provided) shown until first play.
-- Transport bar height: 40px. `bg.surface`, `1px border.subtle` top.
-- Buttons: ghost-variant, `icon.md`. Time display: `type.mono.data`.
-- Scrubber: see `vector-path` / range-input visual — 4px track `bg.surface.sunken`,
-  3px buffered region `border.default`, 4px played region `accent`, 12px circular
-  knob with `accent` fill, focus ring on knob 2px `border.focus`.
-- Volume: smaller scrubber, 80px wide.
-
-For audio-only (`mediaType: "audio"`), the frame area is replaced by a
-**waveform** rendering using `accent.subtle` fill, `accent` for the played portion.
-Implementation note: visual mockup follows in mockup phase — waveform rendering
-detail is implementer choice within those colour constraints.
-
-### 2.22 `canvas-region` (editor-class)
-
-Pixel-editor region. Theme-wise the simplest primitive — it is **deliberately**
-visually plain so the user's image fills its content area.
-
-- Container: `bg.surface.sunken`, no radius (radius.0 — sharp corners for editor
-  feel), no border by default; **2px `accent` border** when this region is the
-  active editing target.
-- Cursor: changes to match the active tool (declared by Tier-2 via tool-mode
-  selection on the toolbar). The renderer maps tool identifier → CSS cursor (e.g.
-  `crosshair` for selection, custom 24×24 PNG cursor for brush — implementer
-  ships these alongside).
-- Selection-region overlay: 1px dashed line, animated dash-offset (marching ants).
-  Dash pattern: 4px on, 4px off; offset increments by 1px per `motion.quick`,
-  loops. Reduced-motion: static dash, no animation.
-- Zoom level indicator: bottom-right corner, `type.mono.data`, `text.tertiary`,
-  padding `space.3`, `bg.surface.raised` chip with `radius.sm`.
-- Loading (during durable op or Tier-3 AI op): full-region overlay,
-  `bg.surface.overlay` (50% scrim), centered status text "Removing object…",
-  `type.body.strong`, `text.primary`, with a 32×32 skeleton-pulse square below.
-
-Visual mockup of the Photoshop-workspace composition follows in mockup phase.
-
-### 2.23 `timeline` (editor-class)
-
-Multi-track, frame/sample-precise time axis. Theme-wise:
-
-```
-┌────────────────────────────────────────────────────────────────────┐
-│ 00:00       00:30       01:00       01:30       02:00       02:30 │ ← ruler
-├────────────────────────────────────────────────────────────────────┤
-│ V1 ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒ │ ← video track
-├────────────────────────────────────────────────────────────────────┤
-│ A1 ▁▁▂▂▃▄▅▆▇█▇▆▅▄▃▂▁▁▁▁▂▃▄▅▆▇█▇▆▅▄▃▂▁▁▁▁▁▂▃▄▅▆▇█▇▆▅▄▃▂▁▁▁▁▁▁▁▁▁▁ │ ← audio track
-├────────────────────────────────────────────────────────────────────┤
-│ ▲ playhead at 00:34                                                 │
-└────────────────────────────────────────────────────────────────────┘
-```
-
-- Ruler: 24px tall, `type.caption` `text.secondary` ticks, major ticks at full-
-  second/full-minute intervals depending on zoom.
-- Track height: 48px video, 56px audio (waveform needs vertical room), 24px marker.
-- Track label column: 32px wide on the left, `type.caption.strong` `text.secondary`,
-  centred vertically.
-- Track clip rendering: 1px `border.default` outline, `accent.subtle` fill for
-  audio waveform background, `bg.surface.sunken` for video, with the source-media
-  preview thumbnails inside.
-- Selected clip: 2px `accent` border, accent.subtle background tint.
-- Playhead: 2px vertical `accent` line spanning all tracks, with a 12×12 downward-
-  pointing triangle at the top.
-
-Visual mockup of multi-track editing follows in mockup phase.
-
-### 2.24 `vector-path` (editor-class)
-
-Pen-tool curves.
-
-- Path stroke: 2px `accent` when active, 1px `text.primary` when not.
-- Anchor points (when path is selected): 8×8 square, `bg.surface.raised` fill,
-  1px `accent` border. Selected anchor: 8×8, `accent` fill.
-- Control-handle lines: 1px dashed `accent.subtle`, with the handle endpoint
-  rendered as a 6×6 circle, `bg.surface.raised`, 1px `accent` border.
-
-Used inside `canvas-region` (as an overlay) or standalone (e.g. an EQ curve
-inside an audio-edit inspector form).
+## 2. Design tokens
+
+### 2.1 Token model
+
+| Token class | v0.1 shape | v0.2 / Lume shape |
+|---|---|---|
+| Surface backgrounds | Single value (`bg.canvas`, `bg.surface`, …) | Pair: `<class>.top` + `<class>.btm`, consumed as a linear-gradient |
+| Borders | Single value (`border.subtle`, `border.default`) | Pair: `<class>.top` + `<class>.btm`, applied as `border-top-color` + `border-color` |
+| Accent | One value + hover/active/subtle | One value + hover/active/subtle + **glow** + **glow-strong** + **glow-core** |
+| Text | Unchanged | Unchanged |
+| Semantic states | Unchanged | Unchanged |
+
+OKLCH is the source of truth. The token-build step generates sRGB hex for
+legacy renderers; the conversion is mechanical and lives in the build
+pipeline, not in product code.
+
+### 2.2 Surface tokens
+
+#### Light mode
+
+| Token | OKLCH `top` | OKLCH `btm` | sRGB `top` | sRGB `btm` | Use |
+|---|---|---|---|---|---|
+| `bg.canvas` | `0.992 0.002 250` | `0.975 0.004 250` | `#FDFDFE` | `#F7F8FB` | Workspace background |
+| `bg.surface` | `1.00 0 0` | `0.985 0.003 250` | `#FFFFFF` | `#FAFAFD` | Primary content surface |
+| `bg.surface.raised` | `1.00 0 0` | `0.99 0.002 250` | `#FFFFFF` | `#FCFCFE` | Cards, popovers, inputs |
+| `bg.surface.sunken` | `0.965 0.004 250` | `0.945 0.005 250` | `#F2F3F7` | `#ECEDF2` | Code blocks, hover, secondary |
+| `bg.modal.surface` | `1.00 0 0` | `0.99 0.003 250` | `#FFFFFF` | `#FBFBFE` | Modal pane interior |
+| `bg.modal.overlay` | `0.30 0.02 250 / 0.40` | — | `rgba(20,30,50,0.40)` | — | Modal scrim — minimally accent-tinted, never neutral black |
+
+#### Dark mode
+
+| Token | OKLCH `top` | OKLCH `btm` | sRGB `top` | sRGB `btm` | Use |
+|---|---|---|---|---|---|
+| `bg.canvas` | `0.20 0.01 250` | `0.175 0.012 250` | `#232631` | `#1B1D24` | Workspace background |
+| `bg.surface` | `0.22 0.012 250` | `0.20 0.012 250` | `#2A2D38` | `#23262F` | Primary content surface |
+| `bg.surface.raised` | `0.245 0.013 250` | `0.215 0.012 250` | `#303440` | `#292C37` | Cards, popovers, inputs |
+| `bg.surface.sunken` | `0.18 0.011 250` | `0.15 0.01 250` | `#1D1F26` | `#16181E` | Sunken |
+| `bg.modal.surface` | `0.245 0.013 250` | `0.215 0.012 250` | `#303440` | `#292C37` | Modal pane interior |
+| `bg.modal.overlay` | `0 0 0 / 0.60` | — | `rgba(0,0,0,0.60)` | — | Modal scrim |
+
+**Renderer rule.** Every surface is rendered as
+`background: linear-gradient(180deg, <token>.top 0%, <token>.btm 100%)`.
+Renderers that can't gradient (extreme legacy) fall back to `<token>.btm`.
+The visible delta is small per-surface and cumulative across the screen.
+
+### 2.3 Text tokens
+
+| Token | OKLCH (light) | sRGB (light) | OKLCH (dark) | sRGB (dark) | Use |
+|---|---|---|---|---|---|
+| `text.primary` | `0.22 0.01 250` | `#1B1D24` | `0.96 0.005 250` | `#EEEFF3` | Headings, body, data |
+| `text.secondary` | `0.45 0.01 250` | `#5B5F6B` | `0.75 0.008 250` | `#B6B9C3` | Labels, captions |
+| `text.tertiary` | `0.62 0.01 250` | `#8D9099` | `0.58 0.008 250` | `#888B95` | Hints, placeholders |
+| `text.disabled` | `0.78 0.005 250` | `#BFC1C6` | `0.38 0.008 250` | `#525561` | Disabled controls |
+| `text.inverse` | `0.99 0.002 250` | `#FCFCFD` | `0.20 0.01 250` | `#1F2127` | Text on accent or inverse |
+| `text.accent` | per palette | per palette | per palette | per palette | Links, accent-emphasised values — resolves to the active palette's `accent` |
+
+### 2.4 Border tokens — directional
+
+Borders are not single colors. They render as `1px solid <class>.btm` with
+an explicit `border-top-color: <class>.top` override, so the top edge of the
+border catches more light than the bottom. Combined with a 1px white-tinted
+`box-shadow inset` on raised surfaces, this gives every container a
+perceived thickness.
+
+#### Light mode
+
+| Token | `top` color | `btm` color | Use |
+|---|---|---|---|
+| `border.subtle` | `rgba(20, 24, 36, 0.05)` | `rgba(20, 24, 36, 0.09)` | Default container, table cell, divider |
+| `border.default` | `rgba(20, 24, 36, 0.08)` | `rgba(20, 24, 36, 0.14)` | Inputs, buttons, outlines |
+| `border.strong` | `rgba(20, 24, 36, 0.16)` | `rgba(20, 24, 36, 0.26)` | Pressed, prominent edges |
+| `border.focus` | resolves to `accent` | resolves to `accent` | Focus ring (override, not tinted) |
+
+#### Dark mode
+
+| Token | `top` color | `btm` color | Use |
+|---|---|---|---|
+| `border.subtle` | `rgba(255, 255, 255, 0.06)` | `rgba(0, 0, 0, 0.40)` | Default |
+| `border.default` | `rgba(255, 255, 255, 0.10)` | `rgba(0, 0, 0, 0.50)` | Inputs, buttons |
+| `border.strong` | `rgba(255, 255, 255, 0.18)` | `rgba(0, 0, 0, 0.60)` | Pressed |
+| `border.focus` | resolves to `accent` | resolves to `accent` | Focus ring |
+
+Dark mode's `top` color is white-tinted and `btm` color is shadow-tinted —
+the same physics rule as light mode, expressed in inverted lightness.
+Light comes from above, regardless of theme.
+
+### 2.5 Accent tokens — three palettes
+
+#### The accent token shape
+
+Every palette defines exactly the same seven sub-tokens for each of light and
+dark mode. The palette binding (§2.5.4) chooses which palette's values fill
+this shape; the rest of the spec only references the abstract token names.
+
+| Sub-token | Type | Role |
+|---|---|---|
+| `accent` | hex | The fill — buttons, focus rings, selection bars, indicator dots |
+| `accent.hover` | hex | Hover state of accent fills |
+| `accent.active` | hex | Pressed state of accent fills |
+| `accent.subtle` | rgba ~10% | Selected-row fill tint, accent-background wash |
+| `accent.glow` | rgba ~22% | Soft accent-tinted corona at selection, hover, halo |
+| `accent.glow-strong` | rgba ~38% | Stronger corona at focus, active tool, hover-emphasis |
+| `accent.glow-core` | rgba ~55% | The **bright inner light source** — white-shifted, *not* accent-tinted. Closes the light-mode-vs-dark-mode asymmetry the v0.1 single-tint approach had |
+
+#### 2.5.1 Palette: **Petrol** — *computational ambient*
+
+Cool steel-blue, hue 235°. Story: the agent as steady daylight, quiet ambient
+presence. Most-restrained of the three; doesn't impose a strong identity.
+
+**Light mode** — OKLCH 0.55 0.16 235 base · sRGB `#0F7AB8`
+
+| Sub-token | OKLCH | sRGB / rgba |
+|---|---|---|
+| `accent` | `0.55 0.16 235` | `#0F7AB8` |
+| `accent.hover` | `0.50 0.17 235` | `#0C6CA8` |
+| `accent.active` | `0.45 0.17 235` | `#0A5E94` |
+| `accent.subtle` | — | `rgba(15, 122, 184, 0.10)` |
+| `accent.glow` | — | `rgba(15, 122, 184, 0.22)` |
+| `accent.glow-strong` | — | `rgba(15, 122, 184, 0.36)` |
+| `accent.glow-core` | — | `rgba(165, 215, 240, 0.55)` |
+
+**Dark mode** — OKLCH 0.72 0.13 235 base · sRGB `#52B0E2`
+
+| Sub-token | OKLCH | sRGB / rgba |
+|---|---|---|
+| `accent` | `0.72 0.13 235` | `#52B0E2` |
+| `accent.hover` | `0.78 0.13 235` | `#74C0E8` |
+| `accent.active` | `0.82 0.12 235` | `#90CFEE` |
+| `accent.subtle` | — | `rgba(82, 176, 226, 0.16)` |
+| `accent.glow` | — | `rgba(82, 176, 226, 0.28)` |
+| `accent.glow-strong` | — | `rgba(82, 176, 226, 0.44)` |
+| `accent.glow-core` | — | `rgba(197, 229, 245, 0.45)` |
+
+#### 2.5.2 Palette: **Atelier** — *studio warmth*
+
+Warm burnt-amber, hue 50°. Story: studio lamp, the agent as craftsman lighting
+the work. Strongest narrative fit with "agent materialises UI" (workshop
+metaphor). Separated from semantic states by L+C distance even though hue
+neighbours error (25°) and warning (80°).
+
+**Light mode** — OKLCH 0.57 0.13 50 base · sRGB `#B36B2E`
+
+| Sub-token | OKLCH | sRGB / rgba |
+|---|---|---|
+| `accent` | `0.57 0.13 50` | `#B36B2E` |
+| `accent.hover` | `0.52 0.13 50` | `#9F5C26` |
+| `accent.active` | `0.47 0.13 50` | `#8A4E1F` |
+| `accent.subtle` | — | `rgba(179, 107, 46, 0.10)` |
+| `accent.glow` | — | `rgba(179, 107, 46, 0.24)` |
+| `accent.glow-strong` | — | `rgba(179, 107, 46, 0.38)` |
+| `accent.glow-core` | — | `rgba(245, 215, 175, 0.55)` |
+
+**Dark mode** — OKLCH 0.76 0.12 60 base · sRGB `#E0A26B`
+
+| Sub-token | OKLCH | sRGB / rgba |
+|---|---|---|
+| `accent` | `0.76 0.12 60` | `#E0A26B` |
+| `accent.hover` | `0.80 0.12 60` | `#E5B080` |
+| `accent.active` | `0.84 0.11 60` | `#EBBE93` |
+| `accent.subtle` | — | `rgba(224, 162, 107, 0.18)` |
+| `accent.glow` | — | `rgba(224, 162, 107, 0.30)` |
+| `accent.glow-strong` | — | `rgba(224, 162, 107, 0.46)` |
+| `accent.glow-core` | — | `rgba(250, 228, 200, 0.45)` |
+
+#### 2.5.3 Palette: **Lagoon** *(default)* — *lit water / bioluminescence*
+
+Lit teal-cyan, hue 200°. Story: light passing through shallow water. Strongest
+light-metaphor coherence of the three — `accent.glow-core` is bright
+cyan-white that reads as emitted light, not as accent-tinted shadow. Refined
+from an earlier "Botanical" draft (hue 195°, L 0.54) which under-played the
+light metaphor in light mode.
+
+**Light mode** — OKLCH 0.58 0.12 200 base · sRGB `#1F8FA3`
+
+| Sub-token | OKLCH | sRGB / rgba |
+|---|---|---|
+| `accent` | `0.58 0.12 200` | `#1F8FA3` |
+| `accent.hover` | `0.53 0.12 200` | `#197D90` |
+| `accent.active` | `0.48 0.12 200` | `#146B7C` |
+| `accent.subtle` | — | `rgba(31, 143, 163, 0.12)` |
+| `accent.glow` | — | `rgba(60, 175, 195, 0.32)` |
+| `accent.glow-strong` | — | `rgba(60, 175, 195, 0.48)` |
+| `accent.glow-core` | — | `rgba(180, 238, 248, 0.60)` |
+
+**Dark mode** — OKLCH 0.78 0.10 200 base · sRGB `#6FC8D6`
+
+| Sub-token | OKLCH | sRGB / rgba |
+|---|---|---|
+| `accent` | `0.78 0.10 200` | `#6FC8D6` |
+| `accent.hover` | `0.82 0.10 200` | `#88D2DE` |
+| `accent.active` | `0.85 0.09 200` | `#A1DCE6` |
+| `accent.subtle` | — | `rgba(111, 200, 214, 0.20)` |
+| `accent.glow` | — | `rgba(111, 200, 214, 0.32)` |
+| `accent.glow-strong` | — | `rgba(111, 200, 214, 0.48)` |
+| `accent.glow-core` | — | `rgba(210, 245, 250, 0.50)` |
+
+#### 2.5.4 Palette binding — user-controlled, context-aware
+
+The palette is **user-bound, not agent-bound**. The Skill never picks a
+palette; it only references the abstract `accent` token. The user binds
+the token to a palette via conversational preference:
+
+> "Mach das atelier-warm." / "Ich brauche Petrol heute." / "Switch to Lagoon."
+
+Storage: `memory://ui-prefs/<tenantId>/<userId>/<contextKey>/accent` carries
+one of `"petrol" | "atelier" | "lagoon"`. Default (no value set): `"lagoon"`.
+
+**Per `contextKey`.** The CONCEPT.md identity model already provides
+context-aware preferences keyed by `contextKey`. Palette is one such
+preference. A user can have Lagoon as their default work palette, Petrol on
+a finance-review canvas, Atelier on a creative-draft canvas. The Tier-2
+orchestrator loads the right palette at canvas-activate time.
+
+**Switching mid-session.** When the palette preference changes during a
+session, Tier 2 emits a `surface_patch` that re-tints accent tokens. Tree
+structure is unchanged; only colors update. The patch increments
+`treeRevision` as any other patch does — clients render the change as a
+short crossfade (see §6.1).
+
+**No Settings UI.** CONCEPT.md is explicit: user preferences are
+conversational, never set via a Preferences pane. The palette follows that
+rule. The UI Skill carries a `palette-binding-protocol` block (cross-ref
+CONCEPT.md §"The UI Skill") that lists trigger phrases and the persistence
+mechanic.
+
+**Marketing default.** App icon, splash, screenshots, demo videos render in
+Lagoon. The other two palettes are equal first-class options at runtime but
+not equal in brand presence.
+
+**Rationale.** v0.1 forced a single color choice and surfaced eight open
+questions just on that decision. The 2026 industry trend (per Pantone
+Cloud Dancer + multiple SaaS-design surveys) is away from a single "Startup
+Blue" toward palettes that fit context. Apple lets users pick the system
+accent on macOS and iOS; OS-like surfaces (which Omadia is) follow that
+convention. The user gets agency without the agent gaining a skinning
+capability. The single-material constraint is preserved.
+
+### 2.6 Semantic state tokens
+
+Intentionally text-only — never filled pills, badges or block fills. This
+rule from v0.1 stands.
+
+#### Light mode
+
+| Token | OKLCH | sRGB | Use |
+|---|---|---|---|
+| `state.loading` | `0.90 0.008 250` | `#DCDEE3` | Skeleton base |
+| `state.loading.hi` | `0.96 0.004 250` | `#EFEFF2` | Skeleton pulse highlight |
+| `state.error.fg` | `0.45 0.12 25` | `#A8443B` | Error text (never as pill bg) |
+| `state.error.edge` | `0.55 0.14 25` | `#C45A50` | 1px error border |
+| `state.success.fg` | `0.42 0.10 150` | `#3F7A55` | Success text |
+| `state.warning.fg` | `0.50 0.09 80` | `#8C6A1F` | Warning text |
+
+#### Dark mode
+
+| Token | OKLCH | sRGB | Use |
+|---|---|---|---|
+| `state.loading` | `0.30 0.01 250` | `#3E414C` | Skeleton base |
+| `state.loading.hi` | `0.38 0.012 250` | `#525561` | Skeleton highlight |
+| `state.error.fg` | `0.75 0.12 25` | `#E08577` | Error text |
+| `state.error.edge` | `0.65 0.14 25` | `#C5685A` | Error border |
+| `state.success.fg` | `0.78 0.10 150` | `#88C499` | Success text |
+| `state.warning.fg` | `0.80 0.09 80` | `#D6B468` | Warning text |
+
+**Hue separation from accent palettes:**
+
+| Palette | Δ to error 25° | Δ to warning 80° | Δ to success 150° |
+|---|---|---|---|
+| Petrol 235° | 210° | 155° | 85° |
+| Atelier 50° | 25° | 30° | 100° |
+| Lagoon 200° | 175° | 120° | 50° |
+
+Atelier has the tightest hue separation from error/warning; L+C separation
+takes over there (error at L 0.45 hue 25 vs Atelier at L 0.57 hue 50 is
+clearly distinct in both lightness and chroma to daltonism-simulator passes
+of red-green and blue-yellow types).
+
+### 2.7 Typography
+
+Unchanged from v0.1. Inter for sans, JetBrains Mono for mono. Type scale,
+weights and letter-spacing as v0.1. Full rationale in v0.1 §1.3; brief
+restate here for self-containment.
+
+**Families:** `Inter` (UI sans, variable axis), `JetBrains Mono` (data
+columns, code blocks, TUI-style layouts). System fallbacks per OS.
+
+**Scale (semantic, base 1rem = 16px):**
+
+| Token | Size | Line height | Weight | Letter-spacing | Role |
+|---|---|---|---|---|---|
+| `type.display` | 1.75rem | 1.20 | 600 | -0.01em | Welcome surfaces (rare) |
+| `type.heading.1` | 1.375rem | 1.25 | 600 | -0.005em | Canvas-level title |
+| `type.heading.2` | 1.125rem | 1.30 | 600 | 0 | Section heading |
+| `type.heading.3` | 0.9375rem | 1.35 | 600 | 0 | Sub-section |
+| `type.body` | 0.875rem | 1.50 | 400 | 0 | Default UI text |
+| `type.body.strong` | 0.875rem | 1.50 | 600 | 0 | Inline emphasis |
+| `type.body.compact` | 0.8125rem | 1.45 | 400 | 0 | Dense rows |
+| `type.caption` | 0.75rem | 1.40 | 400 | 0.005em | Labels |
+| `type.caption.strong` | 0.75rem | 1.40 | 600 | 0.02em | Uppercase eyebrows |
+| `type.mono.data` | 0.8125rem | 1.45 | 450 | 0 | Numeric cells, terminal |
+| `type.mono.code` | 0.8125rem | 1.55 | 400 | 0 | Code blocks |
+
+Weights used: 400, 450 (mono only), 600. No 300, no 500, no 700+.
+
+### 2.8 Spacing
+
+Unchanged: 4pt grid.
+
+| Token | Value | Use |
+|---|---|---|
+| `space.0` | 0 | Touching |
+| `space.1` | 2px | Hairline |
+| `space.2` | 4px | Tight group |
+| `space.3` | 8px | Default row |
+| `space.4` | 12px | Default block / stack gap |
+| `space.5` | 16px | Container padding |
+| `space.6` | 24px | Generous block |
+| `space.7` | 32px | Canvas padding |
+| `space.8` | 48px | Major layout |
+| `space.9` | 64px | Rare breathing-room |
+
+Density variants per primitive: `compact` shifts one step down, `spacious`
+one step up.
+
+### 2.9 Radii — Lume scale
+
+Lume shifts v0.1's radius scale up by one stop, with the editor exception
+remaining at 0.
+
+| Token | Value | Use |
+|---|---|---|
+| `radius.0` | 0 | **Editor-class surfaces** — `canvas-region`, `timeline`, Photoshop-style tool buttons inside the editor toolbar. Where Lume material stops, sharp corners take over |
+| `radius.sm` | 6px | Buttons, inputs, list-item hover/selected backgrounds |
+| `radius.md` | 8px | Containers, cards, popovers |
+| `radius.lg` | 12px | Modals, panes, outermost windows — matches macOS window-corner radius (Apple's "concentric corners" rule) |
+| `radius.pill` | 999px | Switches, badge chips, progress bars |
+
+**Rationale — softer than v0.1.** Light has no edges. If the material is
+condensed luminosity, hard corners fight the metaphor. The shift is one
+stop (sm 4→6, md 6→8, lg 8→12); not a redesign, a calibration to the
+material. The editor exception is load-bearing: a Photoshop-like
+canvas-region with rounded corners reads "consumer photo app", not
+"professional tool" — *and* the visual hardness at the edge reinforces the
+Tier-1 boundary marker.
+
+### 2.10 Elevation
+
+Three shadow tokens. All include an accent-tinted ambient component for
+prominent surfaces (modals).
+
+| Token | Light | Dark | Use |
+|---|---|---|---|
+| `elev.0` | none | none | Flat content |
+| `elev.popover` | `0 1px 2px rgba(20,24,36,0.04), 0 8px 24px rgba(20,24,36,0.06)` | `0 1px 2px rgba(0,0,0,0.30), 0 8px 24px rgba(0,0,0,0.45)` | Dropdowns, popovers, hover cards |
+| `elev.modal` | `0 4px 16px rgba(20,24,36,0.06), 0 24px 48px rgba(20,24,36,0.12), 0 0 32px var(--accent-glow-core), 0 0 96px var(--accent-glow)` | `0 4px 16px rgba(0,0,0,0.55), 0 24px 48px rgba(0,0,0,0.65), 0 0 32px var(--accent-glow-core), 0 0 96px var(--accent-glow)` | Modal panes — the modal is *the lit object*, scrim is its shadow |
+| `elev.drag` | `0 8px 24px rgba(20,24,36,0.16)` | `0 8px 24px rgba(0,0,0,0.55)` | Drag-in-flight ghost |
+
+Cards do **not** get a shadow. Cards are differentiated by border + radius +
+surface luminosity (the gradient pair). This is a deliberate alignment with
+Linear/Things/Apple Catalyst, against Material Design's everything-is-elevated.
+
+### 2.11 Motion
+
+| Token | Value | Use |
+|---|---|---|
+| `motion.instant` | 0ms | Theme switch, scroll jump, focus on tab |
+| `motion.quick` | 100ms | Hover, focus fade-in |
+| `motion.smooth` | 200ms | Modal open/close, accordion |
+| `motion.deliberate` | 320ms | Canvas-activate (Spaces switch) |
+| `motion.condense` | 800ms | **Patch-condensation animation** (§3.5) |
+| `easing.standard` | `cubic-bezier(0.22, 0.61, 0.36, 1.00)` | Default decelerate |
+| `easing.emphasis` | `cubic-bezier(0.4, 0.0, 0.2, 1.0)` | Bigger moves (modal, condensation) |
+| `easing.linear` | `linear` | Skeleton pulse |
+
+Reduced-motion: every animation respects `prefers-reduced-motion: reduce`.
+Condensation collapses to a single opacity 0→1 fade. Skeleton pulse becomes
+static fill. Modal open/close becomes instant.
+
+### 2.12 Icons
+
+Unchanged: Lucide as the icon library, 14/16/20/24 px sizes with
+1.5/1.75/2.0 stroke widths. Three documented custom icons allowed
+(`magic-wand`, `brush-pressure`, `vector-pen-anchor`) for editor-specific
+glyphs Lucide doesn't cover.
 
 ---
 
-## 3. Composition Idiom Visuals
+## 3. Lume implementation primitives
 
-The five idioms from the Composition-Idiom Library, rendered in the Omadia theme.
-**No visual mimicry of the era they reference** — the idiom is a layout hint, not a
-skin. The Omadia theme renders all of them.
+The CSS recipes that every renderer must implement. Per-primitive specs
+in §4 reference these by name rather than re-defining them. Each recipe is
+the single source of truth.
 
-### 3.1 Norton-Commander-style
+### 3.1 Surface gradient
 
-Two panes side-by-side, each holding a `list`, shared `toolbar` below.
+Every surface is rendered as a 180° linear-gradient between the surface
+token's `.top` and `.btm` colors.
 
-```
-╔═══════════════════════════════════════════════════════════════════╗
-║ ┌────────────────────────┐  ┌────────────────────────────────┐    ║
-║ │ Left pane              │  │ Right pane                     │    ║
-║ │ ───────────────────────│  │ ───────────────────────────────│    ║
-║ │ /home/user/projects    │  │ /home/user/projects/omadia-ui  │    ║
-║ │                        │  │                                │    ║
-║ │ ▸ omadia               │  │   CONCEPT.md          25.3 KB  │    ║
-║ │ ▸ omadia-ui            │  │   README.md            1.2 KB  │    ║
-║ │ ▸ tri-trading          │  │ ▸ docs/                        │    ║
-║ │ ▸ archive              │  │   visual-spec.md      18.4 KB  │    ║
-║ │                        │  │                                │    ║
-║ └────────────────────────┘  └────────────────────────────────┘    ║
-║                                                                    ║
-║ ┌────────────────────────────────────────────────────────────┐    ║
-║ │ [Copy]  [Move]  [Diff]  [Open]               [⌘K palette]  │    ║
-║ └────────────────────────────────────────────────────────────┘    ║
-╚═══════════════════════════════════════════════════════════════════╝
+```css
+background: linear-gradient(180deg, var(--bg-surface-top) 0%, var(--bg-surface-btm) 100%);
 ```
 
-- Two panes, side-by-side, equal width by default, resizable divider in the
-  middle (drag-handle treatment from §2.17).
-- Each pane: title strip + `list` with `type.mono.data` for data-grid feel (file
-  sizes, line counts).
-- Shared toolbar below: 40px default, ghost-variant action buttons left, primary
-  action right.
-- Keyboard focus moves between panes via Tab; arrow keys move within active pane.
-- Density: typically compact (mono-leaning data grid).
+Fallback for renderers that cannot gradient: use `<token>.btm` as a solid
+fill. The Lume effect degrades to flat; functionality is unaffected.
 
-What is **not** taken from Norton Commander: blue background, white-on-blue text,
-heavy box-drawing borders, function-key labels at the bottom. The agent expresses
-the layout, the theme renders it Omadia-style.
+### 3.2 Two-stop glow (the default Lume glow)
 
-### 3.2 Wizard
+The standard accent-glow recipe. A bright inner core close to the surface,
+an accent-tinted corona further out.
 
-`container` with step-`tabs` + `form` per step + `toolbar` (back/next).
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ Sales Proposal — AcmeInsure                                      │
-│ ─────────────────────────────────────────────────────────────── │
-│                                                                  │
-│  ● Customer ─── ● Use Case ─── ○ Pricing ─── ○ Document          │
-│                                                                  │
-│ ─────────────────────────────────────────────────────────────── │
-│                                                                  │
-│ Customer name        ┌────────────────────────────┐              │
-│                      │ AcmeInsure                 │              │
-│                      └────────────────────────────┘              │
-│                                                                  │
-│ Contact email        ┌────────────────────────────┐              │
-│                      │ contact@acmeinsure.com     │              │
-│                      └────────────────────────────┘              │
-│                                                                  │
-│ Branch               (•) Insurance   ( ) Banking   ( ) Other     │
-│                                                                  │
-│ ─────────────────────────────────────────────────────────────── │
-│                                                                  │
-│ [ ← Back ]                                          [ Next → ]   │
-└─────────────────────────────────────────────────────────────────┘
+```css
+box-shadow:
+  0 0 4px var(--accent-glow-core),       /* tight inner core, white-shifted */
+  0 4px 12px var(--accent-glow);         /* wider corona, accent-tinted */
 ```
 
-- Steps: filled accent circle (●) for completed, accent ring (○) for current,
-  border-subtle ring for upcoming. Connecting lines: `border.subtle`, current /
-  completed segments switch to `accent`.
-- Step labels under each circle: `type.caption` `text.secondary` for inactive,
-  `type.caption.strong` `text.primary` for current/completed.
-- Form: label-on-left layout (40/60 split), as inspector-mode in §2.13.
-- Back / Next: secondary / primary, right-aligned for forward motion.
-- Next-disabled state until required fields valid (rendered as button-disabled in
-  §2.7).
+For **emphasis states** (focused input, hovered primary button), the recipe
+intensifies:
 
-### 3.3 Spotlight
-
-Centered `input` + `list` of hits.
-
-```
-                  ┌────────────────────────────────────────────┐
-                  │ 🔍  Search projects, files, commands…      │
-                  └────────────────────────────────────────────┘
-                  ┌────────────────────────────────────────────┐
-                  │ ► CONCEPT.md                  /omadia-ui   │
-                  │   visual-spec.md              /omadia-ui   │
-                  │   architecture-3tier.svg      /omadia-ui   │
-                  │ ─────────────────────────────────────────  │
-                  │   Run: omadia start                        │
-                  │   Run: vercel deploy --prod                │
-                  └────────────────────────────────────────────┘
+```css
+box-shadow:
+  0 0 6px var(--accent-glow-core),
+  0 6px 18px var(--accent-glow-strong);
 ```
 
-- Centered in viewport, max 640px wide.
-- Input: 48px tall, `type.heading.2` text size, 1px `border.default`, leading
-  search icon at `icon.lg` `text.tertiary`.
-- Results list: directly below, no gap, same width, `bg.surface.raised`,
-  `elev.popover`, `radius.md`.
-- First result auto-focused (►). Arrow up/down moves focus, Enter triggers.
-- Section dividers: 1px `border.subtle` with optional `caption.strong` label
-  on the left side (`text.tertiary`).
-- Right-side hint: `type.caption` `text.tertiary` (path, type, age).
+For the **Spotlight idiom** (§5.3), the recipe extends to three stops as
+its single showcase moment:
 
-This idiom **is** Omadia UI's command palette (⌘K).
+```css
+box-shadow:
+  0 0 0 4px var(--accent-glow),          /* hard outline */
+  0 0 16px var(--accent-glow-core),      /* tight bright core */
+  0 12px 40px var(--accent-glow-strong); /* wide deep corona */
+```
 
-### 3.4 Dashboard
+**Why two stops, not one (the v0.1 single-tint had problems):** with a
+single `rgba(accent, alpha)` shadow, a light-mode glow reads as a *darker
+accent-tinted shadow* underneath the surface — not as light coming *from*
+the surface. The bright `glow-core` (white-shifted) is what closes that
+asymmetry. In light mode it adds a luminous halo that the accent-tinted
+shadow alone could never produce; in dark mode it intensifies the corona's
+"emitting" quality.
+
+### 3.3 Donut glow — for surfaces with a glyph at center
+
+When the surface has a centered glyph (Photoshop tool button, status-dot
+chip, KPI-card delta arrow), the standard recipe places the glow-core
+*at the glyph's pixel position*, drowning the glyph in bright white. Bug.
+
+**Recipe — donut variant:**
+
+```css
+background: radial-gradient(
+  circle at center,
+  var(--accent-subtle) 0%,
+  var(--accent-subtle) 35%,    /* clear pocket for the glyph */
+  var(--accent-glow-core) 75%, /* bright ring radiates outward */
+  transparent 100%
+);
+box-shadow:
+  0 0 12px var(--accent-glow-core),
+  0 0 22px -4px var(--accent-glow-strong);
+```
+
+Physical analogue: a lit lampshade where the reflector edge glows, not the
+bulb seen through. The glyph sits in a clean accent-subtle pocket; the
+bright light radiates around it.
+
+**Where the donut applies:**
+
+- `ps-tool.active` (editor-workspace toolbar)
+- `kpi.delta` chip when it carries an arrow glyph
+- Status dots with `loading: true` + icon
+- Any primitive declaring `style.center-glyph: true`
+
+**Open issue (carry-over from preview).** The donut still needs visual
+refinement — early implementations show the ring landing too close to the
+border, slightly clipped. Spike-phase to refine; the rule stays normative.
+
+### 3.4 Directional border
+
+```css
+border: 1px solid var(--border-default-btm);
+border-top-color: var(--border-default-top);
+box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset; /* top-edge highlight, raised surfaces */
+```
+
+For raised surfaces (cards, modal), the inset highlight is mandatory.
+For sunken surfaces (`bg.surface.sunken`), omit the highlight (sunken
+surfaces shouldn't catch light on their top edge).
+
+### 3.5 Patch-condensation animation
+
+Replaces v0.1's fade-in + highlight-wash. When a `surface_patch` arrives,
+the new content **condenses** into existence.
+
+**Three components, all running concurrently over 800ms (`motion.condense`):**
+
+1. **Content materialisation** — the new content starts at `opacity: 0`,
+   `transform: scale(1.03)`, `filter: blur(2px)`. Over 800ms (`easing.emphasis`),
+   it animates to `opacity: 1`, `scale: 1`, `blur: 0`. The transition is
+   front-loaded — by 40% of the duration (~320ms) the content is already
+   90% visible and sharp; the remaining 60% is settle.
+
+2. **Bloom collapse** — a radial-gradient pulse appears centered on the
+   new content's bounding box, sized 120% with `accent-glow-strong` at
+   center fading to transparent at edges. Over 800ms, it collapses to 50%
+   scale and opacity 0. This is the "light converging" effect.
+
+3. **Sweep bar** — a 1px horizontal accent-colored bar sweeps across the
+   bottom of the new content over the first 500ms, then fades. This is
+   the "ink-jet pass" reading — the agent's stroke laying down the new
+   content.
+
+**Reduced-motion fallback:** Components 2 and 3 are dropped entirely.
+Component 1 collapses to a simple opacity 0→1 fade over 200ms
+(`motion.smooth`). No blur, no scale, no bloom, no sweep.
+
+**Rapid-stream throttling.** When more than 5 patches arrive per second
+(typing-speed canvas updates), the animation degrades automatically:
+component 2 is skipped (the bloom would visually noise the stream),
+component 3 is skipped, only the materialisation (component 1) runs but
+at 400ms instead of 800ms. Renderer detects rapid-stream by counting
+patch arrivals in a 1-second sliding window.
+
+### 3.6 Modal materialization
+
+```
+opacity: 0 → 1 over motion.smooth, easing.emphasis
+transform: scale(0.97) → 1.0 concurrently
+scrim opacity: 0 → 0.4 (light) / 0.6 (dark) over motion.smooth
+```
+
+The scrim is `bg.modal.overlay` — minimally accent-tinted, never pure black.
+The modal pane carries `elev.modal` (which includes the accent-glow
+component) so it reads as the lit object emerging into focus.
+
+Modal dismiss: reverse over `motion.quick`.
+
+---
+
+## 4. Per-primitive visual
+
+### 4.1 General Lume rules (apply to every primitive)
+
+Before primitive-specific notes, the following universal rules apply
+unless overridden:
+
+| Rule | What it means in CSS |
+|---|---|
+| Surfaces are gradient pairs | `background: linear-gradient(180deg, <token>.top, <token>.btm)` |
+| Borders are directional | `border: 1px solid <token>.btm; border-top-color: <token>.top` |
+| Raised surfaces carry a top-edge highlight | `box-shadow: 0 1px 0 rgba(255,255,255,X) inset` (X = 0.06 light, 0.06 dark) |
+| Selection / focus emit light | Two-stop glow recipe §3.2 |
+| Loading is a skeleton pulse with linear gradient | (unchanged from v0.1) |
+| Hover transitions over `motion.quick` | (unchanged) |
+| Center-glyph surfaces use donut glow | §3.3 |
+
+Each primitive table below lists only the **Lume-specific notes**. Layout,
+density, edge cases, states inherited from v0.1 §2 are preserved unless
+explicitly contradicted here.
+
+### 4.2 Primitive-by-primitive notes
+
+#### `text` · `heading`
+
+Inherit body and section-title styles from v0.1. No Lume-specific
+treatment — typography carries hierarchy, light does not.
+
+Exception: an `h1`-equivalent at the top of a freshly-materialised pane
+inherits the patch-condensation animation §3.5 like any other new content.
+
+#### `container`
+
+Default container (`border: true`): directional `border.subtle`, surface
+gradient `bg.surface`, padding `space.5`, radius `radius.md` (= 8px under
+Lume). Raised variant: gradient `bg.surface.raised`, inset top-highlight.
+
+#### `list` · `tree`
+
+Selection rendering uses the two-stop glow §3.2:
+
+```css
+.list-item.selected, .tree-item.selected {
+  background:
+    radial-gradient(ellipse at 30% 50%, var(--accent-glow-core) 0%, var(--accent-glow) 20%, transparent 70%),
+    linear-gradient(180deg, var(--accent-subtle), transparent);
+  box-shadow:
+    0 0 12px -2px var(--accent-glow-core),
+    0 0 24px -6px var(--accent-glow-strong);
+}
+.list-item.selected::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 4px; bottom: 4px;
+  width: 2px;
+  background: var(--accent);
+  border-radius: 2px;
+  box-shadow: 0 0 6px var(--accent-glow-strong);
+}
+```
+
+The accent left-bar gains an accent-glow itself — the bar is the *edge of
+the lit pocket*, not a paint stroke.
+
+#### `table`
+
+Highlighted row (the agent flagged this row): same recipe as selected
+list-item, but with `background-position: 0 50%` so the gradient sits
+toward the left of the row (where the eye enters). Sort-active column
+header gets `accent.subtle` text color, no glow (header text must read
+clearly).
+
+Skeleton rows: `state.loading` linear-gradient with skeleton-pulse
+animation §3.5 — unchanged from v0.1.
+
+#### `button`
+
+- **Primary:** `linear-gradient(180deg, accent, accent.hover)` fill,
+  `border: 1px solid accent.hover; border-top-color: rgba(255,255,255,0.18)`,
+  two-stop glow §3.2.
+- **Secondary:** `linear-gradient(180deg, bg.surface.raised.top, bg.surface.raised.btm)`,
+  directional `border.default`, inset top-highlight.
+- **Ghost:** transparent; hover paints `accent.subtle`. No glow until hover.
+- **Danger:** transparent fill, `border.state.error.edge`, `text.state.error.fg`.
+- **Disabled:** `state.loading` fill, `text.disabled` text, no glow, no border.
+- **Focus:** layered box-shadow — `0 0 0 2px accent, 0 0 0 6px accent.glow`
+  on top of the existing two-stop glow.
+
+#### `input`
+
+Default: gradient `bg.surface.raised`, directional `border.default`,
+inset top-highlight (1px). Focus: `border-color: accent`, layered shadow
+`box-shadow: 0 0 0 1px accent, 0 0 0 4px accent.glow, 0 0 12px accent.glow-core`.
+
+Error: `border-color: state.error.edge`, error-message helper below.
+No glow on error state — the error is the salient signal, glow would compete.
+
+#### `choice` · `toggle`
+
+Dropdown trigger inherits secondary-button look. Open menu: `bg.surface.raised`
+gradient, `elev.popover`, directional border. Selected item in menu:
+accent.subtle background, accent checkmark.
+
+Radio + checkbox + switch: same v0.1 shapes; checked state uses `accent`
+fill with the two-stop glow recipe applied as `box-shadow` (smaller-radius
+glow because the elements are small: `0 0 3px accent.glow-core, 0 0 6px accent.glow`).
+
+#### `image` · `chart`
+
+Image: surface-sunken background as placeholder; no Lume chrome — images
+are content, not material.
+
+Chart: bars/lines use `accent` fill with a soft `accent.glow` underglow
+(`box-shadow: 0 0 6px accent.glow`). Tooltip: `bg.surface.raised`,
+`elev.popover`, directional border. Multi-series uses chroma-reduction
+on a single hue (per v0.1).
+
+#### `form`
+
+Inspector mode (with context-binding trait): label-left grid layout,
+inputs use Lume input recipe above, no per-form chrome.
+
+Submit row: primary button + secondary "Cancel".
+
+#### `toolbar`
+
+Surface `bg.surface` gradient, directional `border.subtle` (top or bottom
+depending on toolbar position). Separators 1px `border.subtle`, vertical,
+16px tall.
+
+#### `menubar`
+
+Menu surface: `bg.surface.raised`, `elev.popover`, directional border.
+Item hover: `accent.subtle` background (no glow — menubars are mode-bridges,
+glow would noise them).
+
+#### `tabs`
+
+Tab labels: `type.body`, `text.secondary` inactive, `text.primary` active.
+Active tab: 2px `accent` underline + 1px `accent.glow` underglow below
+(makes the underline read as *lit*, not just *colored*).
+
+Wizard variant: step dots use a small donut-glow §3.3 around the current step.
+
+#### `pane`
+
+Container surface: gradient `bg.surface`, directional border, `radius.md`
+(= 8px). Modal pane variant: `radius.lg` (= 12px, concentric with window),
+`elev.modal` including its accent-glow components.
+
+Drag-in-flight: `elev.drag` shadow, ghost at 50% opacity. No accent-glow
+on drag (it's a transient operation, not an active state).
+
+#### `status` · `progress`
+
+Status: text only, optional leading icon. When carrying `loading: true`
+trait, icon-area renders an 8×12px skeleton pulse-bar.
+
+Progress: 4px track `bg.surface.sunken` gradient, accent-fill bar with
+the two-stop glow shadow underneath (the bar reads as *lit*, not painted).
+Knob (for scrubbers): accent-fill circle with surrounding glow.
+
+#### `divider`
+
+Single 1px line, `border.subtle.btm` color. No Lume glow — dividers are
+quiet by design.
+
+#### `media` · `canvas-region` · `timeline` · `vector-path` *(editor-class)*
+
+**`canvas-region`** — the Lume boundary marker.
+
+- Background: `bg.surface.sunken.btm` solid (no gradient — opaque is the point).
+- Border: 2px solid `accent` (active editing target) or
+  `border.default.btm` (inactive). Border is solid color, not directional —
+  this surface is opaque material, not light.
+- Radius: **0** (`radius.0`).
+- Outer ambient: 0 0 20px `accent.glow` shadow (so the active canvas signals
+  "this is the focus" without applying Lume material *inside* the region).
+- Cursor: per active tool.
+- Selection overlay: 1px dashed marching-ants line, `accent` color.
+
+The contrast between the lit chrome surrounding the canvas-region and the
+opaque sharp-cornered region itself is load-bearing: it visually marks the
+Tier-1 boundary where the agent's chrome ends and the user's raw work begins.
+
+**`media`** (audio/video):
+
+- Frame area: `bg.surface.sunken.btm` opaque (same logic as canvas-region).
+- Transport bar: full Lume material (gradient surface, directional border,
+  accent-glow on scrubber knob).
+- Waveform (audio): `accent.subtle` fill, `accent` for played portion.
+  (Detail mockup follows in spike.)
+
+**`timeline`:**
+
+- Ruler row: surface gradient with `type.caption` `text.secondary` ticks.
+- Track row: opaque `bg.surface.sunken.btm` (the track surface is editor-class).
+- Clip rendering: `border.default` outline, `bg.surface.sunken.btm` interior
+  with media thumbnails inside.
+- Selected clip: 2px `accent` border + outer accent.glow.
+- Playhead: 2px vertical `accent` line spanning all tracks, with a 12×12 downward
+  triangle at top.
+
+**`vector-path`:**
+
+- Path stroke: 2px `accent` (active) or 1px `text.primary` (inactive).
+- Anchor: 8×8 `bg.surface.raised` square with 1px `accent` border.
+- Selected anchor: 8×8 `accent` solid + 4px `accent.glow` halo (small donut).
+
+---
+
+## 5. Composition idioms
+
+The five idioms from CONCEPT.md's Composition-Idiom Library, rendered in
+Lume material. None of them visually mimic the era they reference; all
+of them are layouts the agent infers from a request, painted in this
+material.
+
+### 5.1 Norton-Commander
+
+Two panes side-by-side, equal width by default. Each pane: directional
+border, surface gradient, internal `list` with `type.mono.data` for the
+data-grid feel. Resize divider between them carries the standard pane
+drag treatment. Shared toolbar below.
+
+Focus moves between panes via Tab; arrow keys within active pane. Density
+typically compact.
+
+What is **not** taken: blue-on-white box-drawing, function-key labels at
+bottom, heavy borders. The agent expresses the layout; Lume renders it.
+
+### 5.2 Wizard
+
+`container` with step `tabs` + `form` per step + `toolbar` (back/next).
+
+Steps render as small dots connected by lines:
+
+- Completed: filled `accent` dot, connecting line is filled `accent`.
+- Current: ring of `accent` around `bg.surface.raised` core, plus
+  `accent.glow-strong` halo (donut glow — the current step is *the
+  lit one*).
+- Upcoming: `border.subtle` ring around `bg.surface.raised`.
+
+Form renders inspector-mode (label-left grid). Back / Next: secondary /
+primary buttons at bottom, right-aligned for forward motion.
+
+### 5.3 Spotlight
+
+Centered `input` + `list` of hits. The **showcase moment** for Lume.
+
+- Stage: radial accent-glow centered on the input (background of the
+  stage gets `radial-gradient(ellipse at 50% 30%, accent.glow, transparent)`).
+- Input: 48px tall, `type.heading.2` size, leading search icon, the
+  three-stop Spotlight glow recipe §3.2.
+- Results: `bg.surface.raised` gradient, `elev.popover`, padding
+  `space.2`. Focused item uses the two-stop glow §3.2 with
+  `radial-gradient(at 25% 50%, glow-core, glow, transparent)` background.
+
+The stage itself glows — the user's eye is led by the canvas before they
+even read the input. This is what makes Spotlight feel less like a search
+box and more like the agent *lighting up* in response.
+
+### 5.4 Dashboard
 
 `grid` of `container` with `chart`, `status`, KPI-`text`.
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│ Monthly Overview                                       Apr 2026  ▾   │
-│ ──────────────────────────────────────────────────────────────────── │
-│                                                                       │
-│ ┌────────────────┐ ┌────────────────┐ ┌────────────────────────────┐│
-│ │ Open Tickets   │ │ Hours Budget   │ │ Weekly Trend                ││
-│ │                │ │ Remaining      │ │                             ││
-│ │     127        │ │     342h       │ │     ▁▂▃▅▆▇█▇▆▅▃▂            ││
-│ │ ▲ 12 vs Mar    │ │ ▼ 8% vs Mar    │ │                             ││
-│ └────────────────┘ └────────────────┘ └────────────────────────────┘│
-│                                                                       │
-│ ┌──────────────────────────────────────┐ ┌─────────────────────────┐ │
-│ │ Owners under budget                  │ │ Recent activity         │ │
-│ │ ─────────────────────────────────────│ │ ────────────────────────│ │
-│ │  Anna Schmidt           5.0h         │ │ 14:23 — pdf generated   │ │
-│ │  Bernd Lutz             7.5h         │ │ 13:51 — sub-agent done  │ │
-│ │  ...                                  │ │ ...                     │ │
-│ └──────────────────────────────────────┘ └─────────────────────────┘ │
-└──────────────────────────────────────────────────────────────────────┘
-```
+KPI cards: standard raised-surface treatment (gradient + directional
+border + inset highlight). Value rendered in `type.mono.data` at display
+size; delta line below in `type.caption`. The delta-arrow glyph gets a
+small text-shadow in `accent.glow` when positive
+(`text-shadow: 0 0 6px accent.glow`) — text-only, no pill, no badge.
 
-- Outer container: `space.5` padding, optional `style: "spacious"` for breathing
-  room.
-- KPI cards: small `container` with `border: true`, `radius.md`, padding `space.5`.
-  Top label `type.caption.strong` `text.secondary`, big value `type.display`
-  `text.primary`, delta line below at `type.caption` `text.secondary` with a
-  small ▲/▼ glyph in `accent` (up) or `state.warning.fg` (down) — note this is
-  the **single** documented use of a non-accent semantic colour in a "status"
-  context, and it is text-only, not a pill.
-- Charts inside the same containers, no decorative chrome.
-- Grid: 4-column CSS grid, gap `space.5`, KPI cards span 1 col, trend chart span 2,
-  table widgets span 2.
+Charts: bars use `accent` fill with `accent.glow` underglow.
 
-### 3.5 Photoshop-workspace
+### 5.5 Photoshop-workspace
 
-`canvas-region` centre, `toolbar` left, `inspector` (`form` with context-binding)
-right, `tree` (layer stack) bottom-right.
+The critical Lume test — material around an opaque editor boundary.
 
-```
-╔═══════════════════════════════════════════════════════════════════════════╗
-║┌──┐ ┌─────────────────────────────────────┐ ┌──────────────────────────┐ ║
-║│⬛│ │                                     │ │ INSPECTOR                │ ║
-║│⊙ │ │                                     │ │ ──────────────────────── │ ║
-║│✦ │ │                                     │ │ Tool      Brush          │ ║
-║│✎ │ │                                     │ │ Size      ────●────  18  │ ║
-║│  │ │       active canvas region          │ │ Hardness  ────●────  60%  │ ║
-║│⤬ │ │       (image being edited)          │ │ Opacity   ────●────  85%  │ ║
-║│  │ │                                     │ │ Colour    ████ #0F7AB8   │ ║
-║│✂ │ │                                     │ │ Flow      ─●──────   24% │ ║
-║│  │ │                                     │ └──────────────────────────┘ ║
-║│■ │ │                                     │ ┌──────────────────────────┐ ║
-║│  │ │                                     │ │ LAYERS                   │ ║
-║│⤡ │ │                                     │ │ ──────────────────────── │ ║
-║│⤢ │ │                                     │ │ 👁 ▸ Adjustments         │ ║
-║│  │ │                                     │ │ 👁    Curves             │ ║
-║│  │ └─────────────────────────────────────┘ │ 👁    Levels             │ ║
-║│  │                                         │ 👁 ► Background          │ ║
-║│  │ ┌─────────────────────────────────────┐ │                          │ ║
-║│  │ │ ⏵  ┃━━━━━━━━━━●━━━━━━━━━━━━━━━━ 32% │ │                          │ ║
-║│  │ │   undo · redo · zoom in/out · fit   │ │                          │ ║
-║└──┘ └─────────────────────────────────────┘ └──────────────────────────┘ ║
-╚═══════════════════════════════════════════════════════════════════════════╝
-```
+- Left toolbar: 48px wide, surface-sunken gradient (this is editor-class
+  chrome, but still chrome, so it gets Lume material). Tool buttons:
+  `style: "compact"` ghost buttons.
+- Active tool button: **donut glow** §3.3 + 1px `accent` border. The
+  icon glyph sits in a clean `accent.subtle` pocket; the bright cyan-white
+  ring radiates outward.
+- Center canvas-region: opaque, sharp-cornered, 2px `accent` border
+  + outer `accent.glow` shadow.
+- Right inspector (`form` with context-binding): full Lume material,
+  sliders use the standard track + accent-glow knob recipe.
+- Right layer-stack (`tree` with layer trait): full Lume selection halos
+  on selected layers.
 
-- Left toolbar: vertical, 48px wide, button-square 40×40, `bg.surface.sunken`,
-  `border.subtle` right edge. Active tool button: `accent.subtle` background,
-  `1px accent` border.
-- Inspector (right top): `form` in context-binding mode (label-left layout).
-  Sliders use the scrubber visual from §2.21 (4px track, 12px knob).
-- Layer stack (right bottom): `tree` with layer trait. Eye-icon toggles visibility.
-- Bottom toolbar: zoom slider + undo/redo, ghost buttons.
-- Canvas region: see §2.22; sharp corners, sunken background.
-
-The colour swatch in the inspector (`#0F7AB8` shown above) is illustrative — when
-the user picks a custom colour, that custom colour is shown verbatim. **This is
-the only place in the UI where a non-theme colour is rendered**, and it is rendered
-because it is *data*, not chrome.
+The visual story: lit toolbar holding lit tools, opening into an
+unlit raw work surface, surrounded by lit inspector + lit layers. The
+agent's hand is the lit part; the canvas is the user's.
 
 ---
 
-## 4. Animation and Transition Language
+## 6. Motion language
 
-### 4.1 Patch-apply
+### 6.1 Patch arrival — condensation
 
-When a `surface_patch` arrives and rewrites part of the tree:
+Per §3.5: 800ms three-component condensation (content materialise + bloom
+collapse + sweep bar). Reduced-motion: collapses to a 200ms opacity fade.
+Rapid-stream: degrades automatically when >5 patches/sec.
 
-- The replaced subtree fades out (`opacity: 0`) over `motion.quick`.
-- The new subtree fades in over `motion.quick`.
-- Cross-fade if both old and new fit the same DOM slot; otherwise sequential
-  out-then-in.
-- The new subtree gets a **patch-highlight overlay**: a `radius.sm` rectangle
-  matching the new content's bounds, filled with `accent.subtle`, fading from
-  `opacity: 1` to `opacity: 0` over `motion.smooth * 4` (~800ms). This is the
-  visual signal that "the canvas just grew here".
+Snapshot arrival: full-canvas crossfade over `motion.smooth` with
+`easing.emphasis`. No condensation (snapshot is too big to materialise
+gracefully).
 
-Patches affecting a single value (table cell update, status text change): no
-fade-out, just the highlight overlay on the changed cell.
+### 6.2 Modal — materialisation
 
-Snapshots (`surface_snapshot`) get a full-canvas crossfade over `motion.smooth`
-with `easing.emphasis`.
+Per §3.6: 200ms opacity + scale, scrim fades concurrently. Dismiss reverses
+over `motion.quick`.
 
-**Rationale — fade-in chosen over slide-down.** Three options considered:
+### 6.3 Selection / focus — light-on
 
-1. **Slide-down** (new content slides in from above the patch target). Risk: in
-   dense data UIs, sliding visually pushes adjacent content around; on a 60-row
-   table this is more disorienting than helpful.
-2. **Pulse** (new content briefly scales 1.05 → 1.00). Risk: scale animations
-   look toy-like in editor workloads; collides with the "data is the protagonist"
-   value.
-3. **Selected — fade + highlight.** Quiet, doesn't move layout, signals "this is
-   new" via a temporary accent wash, reduced-motion-safe (skip the fade, drop
-   the highlight, jump to final state).
+Background tint fades in over `motion.quick`. Glow recipe applies
+instantly (focus must be visible the moment the user tabs to it; we
+don't fade the focus *visibility*, only the background tint).
 
-### 4.2 Skeleton states
+### 6.4 Hover
 
-See §1.7 — pulse animation. The skeleton fills the bounds of the missing primitive
-with `state.loading`, animates the pulse, and never shows a spinner. Reduced-motion
-disables the pulse but keeps the fill.
+`motion.quick` fade on background tint. Cursor change instant. Glow on
+hover (for primary buttons) intensifies via the emphasis variant of the
+two-stop recipe §3.2.
 
-### 4.3 Modal appearance
+### 6.5 Canvas-activate (Spaces switch)
 
-- Scrim (`bg.modal.overlay`): fade in over `motion.smooth` with `easing.standard`.
-- Modal pane: opacity 0 → 1 + scale 0.97 → 1.0 over `motion.smooth` with
-  `easing.emphasis`.
-- Modal dismiss: reverse, `motion.quick`.
+Outgoing canvas: opacity 1→0, 4px horizontal slide over `motion.deliberate`.
+Incoming canvas: opacity 0→1, 4px slide-in over `motion.deliberate`,
+starting 60ms after outgoing. Direction follows the direction of the user's
+switch (next / prev).
 
-### 4.4 Selection / focus feedback
+Reduced-motion: instant swap.
 
-- Focus ring (`border.focus` 2px): instant on focus change. No fade — focus must
-  be visible the moment the user tabs to it.
-- Selection (list/table/tree row): `accent.subtle` background fades in over
-  `motion.quick`. Multi-select cumulative selection: each newly-selected row
-  fades in over `motion.quick`.
-- Deselect: fade out over `motion.quick`.
+### 6.6 Palette switch
 
-### 4.5 Hover
+When the user changes palette mid-session ("make it warmer"), Tier 2 emits
+a `surface_patch` that re-tints accent tokens. Client renders the change
+as a 200ms crossfade over the affected surfaces (`motion.smooth`,
+`easing.standard`). Tree structure is unchanged; only color values cross-fade.
 
-- Background tint changes fade over `motion.quick`.
-- Cursor change is instant.
+Reduced-motion: instant token swap, no transition.
 
-### 4.6 Canvas-activate transition (Spaces switch)
+### 6.7 Drag-in-flight
 
-When user switches canvases (CONCEPT.md §"Multiple Canvases"):
-
-- Outgoing canvas: fade out + 4px horizontal slide (depending on switch direction)
-  over `motion.deliberate`.
-- Incoming canvas: fade in + 4px horizontal slide-in over `motion.deliberate`,
-  starts 60ms after outgoing begins.
-- Reduced motion: instant swap, no fade.
-
-This is the **only** use of `motion.deliberate`. Spaces-switch is meant to feel
-heavier than an in-canvas patch — the user has changed context, and the motion
-acknowledges that.
-
-### 4.7 Drag-in-flight
-
-- Ghost preview: 50% opacity copy of the source primitive, `elev.drag`,
-  follows cursor. Z-index sits above all canvas content.
-- Drop targets: 2px dashed `accent` border fades in (`motion.quick`) when the
-  ghost enters the target's bounding box; fades out when it exits.
-- Drop: ghost fades out over `motion.quick`, real content appears in new location.
+Ghost: 50% opacity, `elev.drag`. Drop-target: 2px dashed `accent` border
+fade-in over `motion.quick`. No glow during drag — drag is operational,
+not active-state.
 
 ---
 
-## 5. Edge Cases and Anti-Patterns
+## 7. Edge cases and anti-patterns
 
-### 5.1 Empty canvas (first launch, no prior session)
+### 7.1 Empty canvas
 
-- No "Welcome to Omadia!" splash. No branded empty state. No tutorial overlay.
-- The canvas renders `bg.canvas`, nothing else.
-- A `status` primitive in the lower-left corner, `type.caption` `text.tertiary`,
-  reads: `Canvas ready. ⌘K to start.`
-- That is the entire empty state. Anything more is an anti-pattern in v1.
+Unchanged from v0.1. `bg.canvas` gradient, no chrome, single `status`
+primitive in lower-left: `Canvas ready. ⌘K to start.` in
+`type.caption text.tertiary`.
 
-**Rationale.** CONCEPT.md is explicit: the canvas is "the agent's blank page".
-A welcome screen authored by a designer breaks the model — the user should
-immediately feel that this surface waits for *them*. Power users learn ⌘K once,
-forever; new users discover it through the status hint or through the agent's
-first response after they type into the channel-side chat.
+### 7.2 Loading > 300ms
 
-### 5.2 Loading > 300ms
+Skeleton-pulse animation per §3.5. No spinner. Optional status text
+appears below skeleton after 3s.
 
-- 0–300ms: nothing rendered. Render the eventual primitive immediately if the
-  payload arrives in time.
-- 300ms+: skeleton renders for the expected primitive shape.
-- 3s+: skeleton continues; status indicator (`status` primitive with `loading`
-  trait) appears below or beside the skeleton, agent-authored caption explaining
-  what's happening.
-- 10s+: same skeleton; status caption becomes more specific ("Still fetching
-  Q1 invoices — large dataset, ~30s expected").
+### 7.3 Button-in-flight (the single spinner exception)
 
-Skeletons never time out into a spinner. They time out into a useful error if
-the operation actually fails (§5.3).
+A button that fires an external-effect action (Send, Publish, Delete)
+cannot show a skeleton — there's no content to skeletonise. Recipe:
+button stays in primary variant, label replaces with verb + animated dots
+("Sending."/"Sending.."/"Sending..."), no spinner glyph, no spinning ring.
+Period.
 
-### 5.3 Errors
+### 7.4 Errors
 
-Three error scopes:
+Three scopes — unchanged from v0.1:
 
-1. **Primitive-scoped error** (a single primitive failed to render or fetch its
-   dataRef):
-   - 1px `state.error.edge` border on the primitive.
-   - Inline message below or inside, `state.error.fg`, `type.caption`.
-   - No badge, no pill, no toast.
+1. Primitive-scoped: 1px `state.error.edge` border, inline message
+   `state.error.fg`.
+2. Field error: `state.error.edge` border on input, helper-text becomes
+   error.
+3. Canvas-scoped: a `status` primitive at the top of the affected
+   container, leading `alert-triangle` icon, inline retry action.
 
-2. **Field error** (form field validation):
-   - 1px `state.error.edge` border around the `input`.
-   - Helper-text slot under the input becomes the error message, `state.error.fg`,
-     `type.caption`.
+**No toasts.** The canvas is the surface of record. Errors live in the
+tree, in context.
 
-3. **Canvas-scoped error** (a sub-agent failed, a Tier-3 tool errored, dataRef
-   denied):
-   - A `status` primitive at the top of the affected container, leading
-     `alert-triangle` icon at `icon.sm` `state.error.fg`, message at `type.body`
-     `state.error.fg`.
-   - Optional inline retry action: `button` ghost-variant + text "Retry".
+### 7.5 Confirmation modal
 
-Toasts (transient floating notifications): **not used**. The canvas is the surface
-of record; transient toasts would create a parallel notification stream that the
-agent didn't author. If the agent needs to surface an error, it adds it to the tree
-(as a primitive, in the right scope) — and the user sees it in context.
+Per CONCEPT.md "External-effect action confirmation contract". Visual:
+modal pane with `radius.lg`, `elev.modal` (including the accent-glow
+components), scrim is `bg.modal.overlay`. Title heading.2, body, caveat
+in `text.secondary`, toolbar right-aligned (Cancel secondary, primary
+action verb-labelled).
 
-### 5.4 Confirmation modals
+Danger variant: primary button uses `button.danger` style (transparent +
+error-border + error-text). Focus opens on Cancel (deliberate friction).
 
-CONCEPT.md § "External-effect action confirmation contract" defines the wire
-shape. The visual is:
+### 7.6 Anti-pattern list — implementers must NOT
 
-```
-                ╔════════════════════════════════════════════════╗
-                ║                                                ║
-                ║  Confirm send                                  ║   ← heading.2
-                ║                                                ║
-                ║  Send proposal PDF to contact@acmeinsure.com?  ║   ← body
-                ║  This email cannot be unsent.                  ║   ← body, text.secondary
-                ║                                                ║
-                ║                                                ║
-                ║                       [ Cancel ]  [ Send → ]   ║   ← secondary + primary
-                ╚════════════════════════════════════════════════╝
-
-       (scrim covers everything else: bg.modal.overlay)
-```
-
-- Modal pane: `bg.modal.surface`, `radius.lg`, `elev.modal`, max 480px wide.
-- Padding: `space.6` (spacious — modal is a moment of focus).
-- Heading: `type.heading.2`, `text.primary`.
-- Body: `type.body`, `text.primary` for the main message, `text.secondary` for
-  the irreversibility caveat.
-- Toolbar: right-aligned, Cancel (secondary) + primary action. Primary action
-  label uses the verb of the action, not "OK" or "Confirm".
-- Keyboard: Esc cancels, Enter triggers the primary action. Focus on first open
-  is the primary action **unless** the action is destructive (`danger` variant),
-  in which case focus opens on Cancel — a small but deliberate friction.
-
-For `danger` confirmations (file delete, payment, irreversible publish), the
-primary button uses the `danger` variant (1px `state.error.edge` border, text in
-`state.error.fg`, on hover bg → `bg.surface.sunken`). No filled red button.
-
-### 5.5 Anti-patterns to call out by name
-
-The implementer must not:
-
-- Add coloured **status pills** ("OK", "BLOCKED", "OVERDUE") in any colour. The
-  word in body text, in `text.primary`, is what carries meaning. Where emphasis
-  is needed, use `type.body.strong` or row tint via `accent.subtle`.
-- Add **emoji glyphs** as decorative chrome. Emoji that the agent emits as
-  content (Walkthrough 1 prose "🎉") are content and pass through verbatim. Emoji
-  that an implementer adds to button labels or empty-state hints are forbidden.
-- Add **toasts**, **snackbars**, or any floating non-modal notification surface.
-- Add **circular spinners** anywhere except the documented button-in-flight
-  exception (§2.7) and the `loading: "spinner"` trait on `canvas-region` (§2.22),
-  which renders as a 32×32 skeleton-pulse square, not an animating ring.
-- Add **gradients** beyond the skeleton-pulse gradient. No accent-to-purple
+- Add colored **status pills** in any palette. Body text + accent row tint
+  is the affordance.
+- Add **emoji glyphs** as decorative chrome. Agent-content emoji passes
+  through; implementer-chrome emoji is forbidden.
+- Add **toasts** / floating notifications.
+- Add **circular spinners** outside the §7.3 exception.
+- Add **gradients** beyond the documented ones (surface gradients §3.1,
+  button-fill gradients §4.2, skeleton pulse §3.5). No accent-to-purple
   gradient buttons, no glassmorphism, no neumorphism.
-- Add **drop shadows** to flat content (cards, list items, panels). Shadows are
-  reserved for temporally elevated surfaces (§1.6).
+- Add **drop shadows** to flat content. Shadows are reserved for
+  temporally elevated surfaces (§2.10).
 - Add a **branded splash** or empty-state illustration.
-- Add **multiple accent colours**. There is exactly one accent slot.
+- Place **bright `accent-glow-core` directly under a centered glyph**.
+  Use the donut variant §3.3 instead.
+- **Skin per era.** Single material, three user-bound palettes. Anything
+  else is dynamic skinning, which v1 doesn't ship.
 
 ---
 
-## 6. Accessibility floor
+## 8. Accessibility floor
 
-This is not a full accessibility spec; it is the floor below which the visual
-choices already documented would themselves break a11y guarantees.
+Unchanged from v0.1.
 
-- **Contrast ratios** (verified against WCAG 2.2 AA at body-text size):
-  - `text.primary` on `bg.canvas` (both modes): ≥ 7.0:1 (AAA).
-  - `text.secondary` on `bg.canvas`: ≥ 4.5:1 (AA).
-  - `text.tertiary` on `bg.canvas`: ≥ 3.5:1 (AA Large only — used only on type at
-    14px+).
-  - `text.inverse` on `accent`: ≥ 4.5:1 in both modes.
-  - `accent` on `bg.canvas`: ≥ 3:1 (AA non-text — focus rings, icons).
-- **Focus rings**: 2px solid `border.focus`, 2px offset (or inset where noted).
-  Never just a colour change without a ring.
-- **Hit targets**: minimum 32×32 for any clickable affordance (default button
-  size). 24px buttons exist only inside high-density toolbars where 32px would
-  break the layout; those toolbars are keyboard-accessible parallel paths.
-- **Motion**: every animation respects `prefers-reduced-motion: reduce` (§1.7).
-- **Colour as sole signal**: forbidden. Every state communicated through colour
-  also carries a text label, an icon, or both.
-- **Keyboard reach**: every interactive primitive must be reachable via Tab and
-  operable via Enter/Space. Composite primitives (table, tree, list) must support
-  arrow-key navigation within them.
+- Contrast ratios verified WCAG 2.2 AA at body-text size against canvas:
+  text.primary ≥ 7.0:1, text.secondary ≥ 4.5:1, text.inverse on accent
+  ≥ 4.5:1, accent on canvas ≥ 3.0:1 for non-text uses.
+- Focus rings: always 2px solid + glow halo, never colour-only.
+- Hit targets: 32×32 minimum (24×24 only in dense toolbars with
+  keyboard-accessible parallel paths).
+- Motion respects `prefers-reduced-motion: reduce` — concretely the
+  fallbacks documented in §3.5 (condensation collapse), §6.5 (Spaces
+  switch) etc.
+- Colour as sole signal: forbidden. Every state communicated through
+  colour also carries a text label, an icon, or both.
+- Keyboard reach: every interactive primitive Tab-reachable, Enter/Space-
+  operable, arrow-key navigable within composite primitives.
 
----
-
-## 7. What is explicitly NOT specified in this document
-
-| Out of scope                                          | Where it belongs                             |
-|-------------------------------------------------------|----------------------------------------------|
-| Pixel-genau editor-workspace mockup (Photoshop idiom) | Mockup phase + Tier-1 spike                  |
-| `canvas-region` / `timeline` / `media` pixel visuals  | Mockup phase                                 |
-| Brand identity — logo, wordmark, app icon, name       | Separate brand-work track                    |
-| Onboarding / first-run flow                           | Separate UX phase                            |
-| Settings / Preferences screen                         | **Does not exist by design** — user prefs are conversational |
-| Marketing site visuals                                | Separate marketing-design track              |
-| Email or notification visuals (transactional)         | Out of scope — Omadia UI has no email surface |
-| Cross-platform native-control divergence              | Implementation choice during Tier-1 spike     |
-| Print stylesheets                                     | Not a workload for v1                        |
+Lume-specific accessibility note: the `accent.glow-core` token at high
+alpha (≥0.50) approaches `bg.surface.raised` lightness. Renderers must
+verify that text *inside* a glow-core-affected region (e.g. focused
+input) still meets contrast against the resulting blended background,
+not against the unblended surface. The token-build step generates a
+blended-background reference per palette for this check.
 
 ---
 
-## 8. Implementation contract
+## 9. Out of scope (explicit)
 
-When implementers consume this spec:
-
-- Token names from §1 are authoritative; renderer code references tokens by
-  semantic name only.
-- Per-primitive visual tables (§2) are authoritative for default, hover, focus,
-  active, disabled, loading, error states. Variants are restricted to those
-  listed; new variants require a spec amendment.
-- Composition idioms (§3) are normative for the wireframe relationships
-  (which primitive is where, which gets which density). The Skill remains free to
-  vary primitive choice within the idiom (e.g. swapping `list` for `table` if
-  data is uniform), but the layout language is fixed.
-- Motion (§4) is normative. Implementers may not invent new transitions for
-  unlisted situations without an amendment.
-- Anti-patterns (§5.5) are blockers — code that reintroduces them must not ship.
+| Out of scope | Belongs in |
+|---|---|
+| Pixel-level editor-workspace mockup | Mockup phase + Tier-1 spike |
+| `canvas-region` / `timeline` / `media` pixel detail | Mockup phase |
+| Brand identity — logo, wordmark, app icon | Separate brand work |
+| Onboarding / first-run | Separate UX phase |
+| Settings / Preferences screen | **Does not exist by design** — prefs are conversational |
+| Marketing site visuals | Separate track |
+| Email / transactional notification visuals | No such surface |
+| Cross-platform native-control divergence | Tier-1 spike |
+| Print stylesheets | Not a v1 workload |
 
 ---
 
-## 9. Open questions for review
+## 10. Implementation contract
 
-These are explicitly flagged for Codex review rounds — areas where the spec made a
-call but a reviewer might land elsewhere with good arguments.
-
-1. **Accent choice.** Petrol/steel-blue at 235°. Alternatives (indigo, copper,
-   ochre) listed in §1.1 rationale. Worth a second pass before lock-in.
-2. **Inter vs. system sans.** Inter on all platforms vs. SF Pro on macOS / Inter
-   elsewhere (two-typeface compromise). The current choice is Inter-everywhere
-   for consistency; native-purist reviewers may push back.
-3. **JetBrains Mono vs. SF Mono / IBM Plex Mono.** Trade-offs in §1.3.
-4. **4pt vs. 8pt grid.** 4pt was chosen for editor-workload density. 8pt would
-   be cleaner for non-editor workloads. A hybrid (8pt grid with 4pt half-stops
-   for editor only) was considered and rejected because it complicates the token
-   set.
-5. **Single-spinner exception in §2.7.** The marquee-dots compromise for button-
-   in-flight may strike reviewers as too clever; the alternative is silence
-   (disabled button with label change only).
-6. **Toasts forbidden — too strict?** A reviewer might argue background-Tier-3
-   completions (Walkthrough 4) deserve a transient surface that doesn't displace
-   canvas content. Current answer: those are status primitives in a designated
-   "activity" pane, not toasts. Worth re-examining.
-7. **Patch-highlight overlay (§4.1).** ~800ms accent-subtle wash may be too long
-   for high-frequency patch streams (typing-speed canvas updates in Walkthrough 4
-   step 8: live notes pane). A patch-rate-aware shorter highlight, or no
-   highlight on rapid streams, may be needed.
-8. **Empty canvas hint (§5.1).** The "Canvas ready. ⌘K to start." caption is the
-   single concession to discoverability. A reviewer might reasonably argue for
-   no caption at all. Counter-argument: first-launch UX without any affordance
-   leaves new users staring.
+- Token names from §2 are authoritative; renderer code references tokens
+  by semantic name, never raw values.
+- Lume implementation recipes from §3 are normative. Renderers must
+  implement them. Any divergence requires a spec amendment.
+- Per-primitive Lume notes in §4 are normative for default + interactive
+  states. Variants restricted to those listed.
+- Composition idioms (§5) are normative for the layout relationships.
+  The Skill may swap primitive choices within an idiom (e.g. `list` →
+  `table` when data is uniform); the layout language is fixed.
+- Motion language (§6) is normative. New transitions require an amendment.
+- Anti-patterns (§7.6) are blockers. Code that reintroduces them must
+  not ship.
+- The default palette is **Lagoon**. Palette binding is per-`contextKey`
+  via `ui-prefs`. Renderers must implement the §6.6 palette-switch
+  crossfade.
 
 ---
 
-## 10. Changelog
+## 11. Open questions for review
 
-- **v0.1** — first draft, written against CONCEPT.md v0.7 and walkthroughs.md.
-  Defines tokens (light + dark), 24 per-primitive visuals, 5 composition idioms,
-  motion language, accessibility floor, anti-patterns. 8 open questions flagged
-  for Codex review.
+The 8 questions in v0.1 §9 are mostly resolved by the Lume decision and
+the three-palette adoption. Carry-over and new questions:
+
+1. **Donut glow refinement.** The current recipe (§3.3) is normative but
+   visually unfinished — the ring lands slightly close to the border in
+   small surfaces (36px Photoshop tool button). Spike-phase to refine
+   the gradient stops without changing the principle. *Carry-over to
+   the Tier-1 spike, not blocking spec freeze.*
+
+2. **Glow alpha calibration.** Per-palette glow / glow-strong / glow-core
+   alphas are tuned to feel "subtle but present". Codex review or first-
+   user feedback may push them up or down. Specifically: Lagoon's
+   glow-core at 0.60 in light mode is the brightest of the three; if
+   sustained-use feedback says "too magical", lower to 0.50.
+
+3. **Patch-condensation duration.** 800ms matches v0.1's fade-in. Lume
+   spike-time empirically: with three components running, does it feel
+   slower than 800ms? Rapid-stream throttling (§3.5) helps but doesn't
+   address the single-patch case. Try-it-and-see.
+
+4. **Performance budget under Lume.** Multi-layer box-shadows + gradients
+   + no blur should stay 60fps in Electron + Skia at typical canvas
+   density (50 rows + 8 panes + active patch animation). Verified by
+   measurement in spike, not by assumption.
+
+5. **Marketing accent for app icon / splash / launch video.** Lagoon is
+   the runtime default and the spec recommendation. A reviewer might
+   argue for Petrol on the icon (more "professional, calmer") with
+   Lagoon at runtime. This is a brand decision adjacent to the spec.
+
+6. **Three palettes is the right number.** Two might be cleaner; four
+   might be necessary for cultural reach (a green for natural-sciences
+   users, a magenta for design audiences). Three feels like the right
+   trade-off between *user agency* and *brand coherence*; revisit at
+   v2 if usage data argues otherwise.
+
+7. **Palette per-canvas vs per-user.** Spec says per-`contextKey`, which
+   means per-canvas when contexts differ. Some users may want a single
+   global palette; CONCEPT.md's pref model allows a fallback chain
+   (canvas-context → user-global → default) — that fallback may need
+   explicit documentation.
+
+8. **Reduced-motion fallback for condensation (§3.5).** Currently:
+   components 2+3 dropped, component 1 reduces to opacity fade only.
+   A reviewer might argue we should also retain the sweep bar (it's
+   the smallest of the three, doesn't violate motion-reduction). Open.
+
+---
+
+## 12. Changelog
+
+- **v0.2 (this document)** — Lume material adoption. Light-as-material
+  thesis introduced; surface luminosity, accent-as-illumination,
+  directional borders, soft corners formalised. Three user-bindable
+  palettes (Petrol, Atelier, Lagoon — Lagoon default) replace the
+  single-accent choice. Radius scale shifted one stop softer (editor
+  surfaces stay 0). Two-stop glow primitive replaces v0.1 single
+  accent-subtle. Patch-condensation replaces fade-in. Donut-glow rule
+  introduced for centered-glyph surfaces. Token model gains
+  `accent.glow-core`. Open questions 1-7 from v0.1 §9 resolved by
+  material decision; new questions in §11.
+
+- **v0.1** — first draft. Flat tokens, single-accent choice (Petrol
+  proposed default), restraint baseline. Defined the 24-primitive
+  catalogue, the five composition idioms, motion/edge-cases/a11y.
+  Superseded by v0.2; preview retained at
+  `./visual-spec-preview.html` for material-comparison.

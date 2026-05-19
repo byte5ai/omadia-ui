@@ -1,0 +1,2336 @@
+<!doctype html>
+<html lang="en" data-mode="light" data-accent="petrol">
+<head>
+<meta charset="utf-8">
+<title>Omadia UI — Visual Spec Preview v0.1</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&family=JetBrains+Mono:wght@400;450;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   TOKENS — light mode, accent variants
+   ============================================================ */
+:root {
+  /* spacing */
+  --space-0: 0;
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 48px;
+  --space-9: 64px;
+  /* radii */
+  --radius-0: 0;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-pill: 999px;
+  /* motion */
+  --motion-quick: 100ms;
+  --motion-smooth: 200ms;
+  --motion-deliberate: 320ms;
+  --ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1.00);
+  --ease-emphasis: cubic-bezier(0.4, 0.0, 0.2, 1.0);
+  /* type */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-native-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-native-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+/* light mode (default) */
+[data-mode="light"] {
+  --bg-canvas: #FCFCFD;
+  --bg-surface: #FAFAFC;
+  --bg-surface-raised: #FFFFFF;
+  --bg-surface-sunken: #F4F4F7;
+  --bg-modal-overlay: rgba(20, 22, 28, 0.40);
+  --bg-modal-surface: #FFFFFF;
+  --text-primary: #1B1D24;
+  --text-secondary: #5B5F6B;
+  --text-tertiary: #8D9099;
+  --text-disabled: #BFC1C6;
+  --text-inverse: #FCFCFD;
+  --border-subtle: #E6E7EB;
+  --border-default: #D6D7DB;
+  --border-strong: #A4A6AC;
+  --state-loading: #DCDEE3;
+  --state-loading-hi: #EFEFF2;
+  --state-error-fg: #A8443B;
+  --state-error-edge: #C45A50;
+  --state-success-fg: #3F7A55;
+  --state-warning-fg: #8C6A1F;
+  --shadow-popover: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06);
+  --shadow-modal: 0 4px 8px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.10);
+  --shadow-drag: 0 8px 24px rgba(0,0,0,0.16);
+}
+
+[data-mode="dark"] {
+  --bg-canvas: #1F2127;
+  --bg-surface: #262830;
+  --bg-surface-raised: #2C2F38;
+  --bg-surface-sunken: #1A1C22;
+  --bg-modal-overlay: rgba(0, 0, 0, 0.60);
+  --bg-modal-surface: #2C2F38;
+  --text-primary: #EEEFF3;
+  --text-secondary: #B6B9C3;
+  --text-tertiary: #888B95;
+  --text-disabled: #525561;
+  --text-inverse: #1F2127;
+  --border-subtle: #363944;
+  --border-default: #454854;
+  --border-strong: #71747F;
+  --state-loading: #3E414C;
+  --state-loading-hi: #525561;
+  --state-error-fg: #E08577;
+  --state-error-edge: #C5685A;
+  --state-success-fg: #88C499;
+  --state-warning-fg: #D6B468;
+  --shadow-popover: 0 1px 2px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.40);
+  --shadow-modal: 0 4px 8px rgba(0,0,0,0.40), 0 16px 32px rgba(0,0,0,0.55);
+  --shadow-drag: 0 8px 24px rgba(0,0,0,0.50);
+}
+
+/* accent variants (overridable globally) */
+[data-accent="petrol"] {
+  --accent: #0F7AB8;
+  --accent-hover: #0C6CA8;
+  --accent-active: #0A5E94;
+  --accent-subtle: #E5F0F8;
+  --accent-subtle-hover: #D6E7F2;
+}
+[data-mode="dark"][data-accent="petrol"] {
+  --accent: #52B0E2;
+  --accent-hover: #74C0E8;
+  --accent-active: #90CFEE;
+  --accent-subtle: #2C404F;
+  --accent-subtle-hover: #34495A;
+}
+
+[data-accent="indigo"] {
+  --accent: #5E6AD2;
+  --accent-hover: #4F5BC1;
+  --accent-active: #424ECA;
+  --accent-subtle: #ECEDFA;
+  --accent-subtle-hover: #DCDEF5;
+}
+[data-mode="dark"][data-accent="indigo"] {
+  --accent: #8A93E0;
+  --accent-hover: #A1A8E8;
+  --accent-active: #B5BBED;
+  --accent-subtle: #34384F;
+  --accent-subtle-hover: #3D4259;
+}
+
+[data-accent="sky"] {
+  --accent: #2D8DD8;
+  --accent-hover: #267CC4;
+  --accent-active: #1F6CAD;
+  --accent-subtle: #E6F2FB;
+  --accent-subtle-hover: #D2E8F7;
+}
+[data-mode="dark"][data-accent="sky"] {
+  --accent: #6FBEED;
+  --accent-hover: #8CCBF0;
+  --accent-active: #A6D6F3;
+  --accent-subtle: #2E4154;
+  --accent-subtle-hover: #364B61;
+}
+
+[data-accent="copper"] {
+  --accent: #B66B2F;
+  --accent-hover: #A45D27;
+  --accent-active: #8F4F21;
+  --accent-subtle: #FBEEDF;
+  --accent-subtle-hover: #F4DEC5;
+}
+[data-mode="dark"][data-accent="copper"] {
+  --accent: #E0A06A;
+  --accent-hover: #E8B080;
+  --accent-active: #EDC097;
+  --accent-subtle: #4A3825;
+  --accent-subtle-hover: #553F2A;
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--text-primary);
+  background: var(--bg-canvas);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+h1, h2, h3, h4 { margin: 0; font-weight: 600; }
+p { margin: 0; }
+button { font: inherit; cursor: pointer; }
+
+/* ============================================================
+   PAGE STRUCTURE
+   ============================================================ */
+.page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: var(--space-7) var(--space-7) var(--space-9);
+}
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-6);
+  margin-bottom: var(--space-8);
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+  background: var(--bg-canvas);
+  z-index: 100;
+  padding-top: var(--space-5);
+}
+.page-header h1 {
+  font-size: 22px;
+  letter-spacing: -0.005em;
+}
+.page-header .subtitle {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.controls {
+  display: flex;
+  gap: var(--space-5);
+  align-items: center;
+}
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.control-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.toggle-segment {
+  display: inline-flex;
+  background: var(--bg-surface-sunken);
+  padding: 2px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+.toggle-segment button {
+  background: transparent;
+  border: none;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text-secondary);
+  transition: all var(--motion-quick) var(--ease-standard);
+}
+.toggle-segment button[aria-pressed="true"] {
+  background: var(--bg-surface-raised);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+.section {
+  margin-bottom: var(--space-8);
+}
+.section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--space-5);
+}
+.section-header h2 {
+  font-size: 18px;
+}
+.section-header .section-tag {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.section-intro {
+  margin-bottom: var(--space-5);
+  color: var(--text-secondary);
+  font-size: 13px;
+  max-width: 72ch;
+}
+
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+}
+.card.raised {
+  background: var(--bg-surface-raised);
+}
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-bottom: var(--space-4);
+}
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5); }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-4); }
+
+/* ============================================================
+   §1 — ACCENT COMPARISON
+   ============================================================ */
+.accent-card {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  background: var(--bg-surface-raised);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.accent-card.active-choice {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+.accent-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.accent-card-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+.accent-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(0,0,0,0.08);
+}
+.accent-card-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+/* mini-button for use inside accent cards */
+.mini-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  transition: background var(--motion-quick) var(--ease-standard);
+}
+.mini-btn.primary {
+  color: #FFF;
+}
+.mini-btn.secondary {
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+}
+.mini-btn.secondary:hover { background: var(--bg-surface-sunken); }
+
+.mini-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+.mini-row.selected {
+  position: relative;
+}
+.mini-row.selected::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 4px; bottom: 4px;
+  width: 2px;
+  border-radius: 2px;
+}
+
+/* Per-candidate accent overrides applied to scoped containers */
+.accent-preview[data-show="petrol"] { --accent: #0F7AB8; --accent-hover: #0C6CA8; --accent-subtle: #E5F0F8; }
+.accent-preview[data-show="indigo"] { --accent: #5E6AD2; --accent-hover: #4F5BC1; --accent-subtle: #ECEDFA; }
+.accent-preview[data-show="sky"]    { --accent: #2D8DD8; --accent-hover: #267CC4; --accent-subtle: #E6F2FB; }
+.accent-preview[data-show="copper"] { --accent: #B66B2F; --accent-hover: #A45D27; --accent-subtle: #FBEEDF; }
+[data-mode="dark"] .accent-preview[data-show="petrol"] { --accent: #52B0E2; --accent-subtle: #2C404F; }
+[data-mode="dark"] .accent-preview[data-show="indigo"] { --accent: #8A93E0; --accent-subtle: #34384F; }
+[data-mode="dark"] .accent-preview[data-show="sky"]    { --accent: #6FBEED; --accent-subtle: #2E4154; }
+[data-mode="dark"] .accent-preview[data-show="copper"] { --accent: #E0A06A; --accent-subtle: #4A3825; }
+
+.accent-preview .mini-btn.primary { background: var(--accent); }
+.accent-preview .mini-btn.primary:hover { background: var(--accent-hover); }
+.accent-preview .mini-row.selected { background: var(--accent-subtle); }
+.accent-preview .mini-row.selected::before { background: var(--accent); }
+.accent-preview .focus-demo {
+  height: 28px; width: 100%;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 0 8px;
+  display: flex; align-items: center;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+.accent-preview .focus-demo.focused {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+  color: var(--text-primary);
+}
+
+.accent-rationale {
+  margin-top: var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg-surface-sunken);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+.accent-rationale b { color: var(--text-primary); }
+
+/* ============================================================
+   §2 — TYPOGRAPHY COMPARISON
+   ============================================================ */
+.typo-card {
+  font-family: var(--font-sans);
+}
+.typo-card.native {
+  font-family: var(--font-native-sans);
+}
+.typo-card .mono {
+  font-family: var(--font-mono);
+}
+.typo-card.native .mono {
+  font-family: var(--font-native-mono);
+}
+.typo-sample h3 {
+  font-size: 22px;
+  letter-spacing: -0.005em;
+  margin-bottom: var(--space-3);
+  font-weight: 600;
+}
+.typo-sample h4 {
+  font-size: 15px;
+  margin-top: var(--space-5);
+  margin-bottom: var(--space-2);
+  color: var(--text-secondary);
+}
+.typo-sample p { color: var(--text-primary); font-size: 14px; line-height: 1.5; }
+.typo-sample p + p { margin-top: var(--space-3); }
+.typo-sample .label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-bottom: var(--space-2);
+}
+
+.typo-table {
+  margin-top: var(--space-4);
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.typo-table th, .typo-table td {
+  text-align: left;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.typo-table th {
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.typo-table td.num {
+  font-family: var(--font-mono);
+  text-align: right;
+  font-feature-settings: 'tnum';
+}
+.typo-card.native .typo-table td.num { font-family: var(--font-native-mono); }
+
+.typo-glyph-test {
+  margin-top: var(--space-4);
+  padding: var(--space-3);
+  background: var(--bg-surface-sunken);
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  letter-spacing: 0.1em;
+}
+.typo-glyph-test .mono { font-family: var(--font-mono); }
+.typo-card.native .typo-glyph-test .mono { font-family: var(--font-native-mono); }
+
+/* ============================================================
+   §3 — DENSITY (4pt vs 8pt)
+   ============================================================ */
+.density-card { padding: 0; overflow: hidden; }
+.density-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.density-table thead th {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+}
+.density-table tbody td {
+  border-bottom: 1px solid var(--border-subtle);
+}
+.density-table tbody tr:last-child td { border-bottom: none; }
+.density-table td.num { font-family: var(--font-mono); text-align: right; font-feature-settings: 'tnum'; }
+.density-card.grid-4pt .density-table thead th { padding: 8px 12px; }
+.density-card.grid-4pt .density-table tbody td { padding: 8px 12px; }
+.density-card.grid-8pt .density-table thead th { padding: 16px 16px; }
+.density-card.grid-8pt .density-table tbody td { padding: 16px 16px; }
+.density-card-label {
+  background: var(--bg-surface-sunken);
+  padding: var(--space-3) var(--space-5);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ============================================================
+   §4 — PRIMITIVE GALLERY
+   ============================================================ */
+.prim {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+.prim-label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.prim-label .name {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.prim-label .desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.prim-demo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+.prim-grid { display: flex; flex-direction: column; gap: var(--space-3); }
+
+/* buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  transition: all var(--motion-quick) var(--ease-standard);
+  font-family: inherit;
+}
+.btn.primary {
+  background: var(--accent);
+  color: var(--text-inverse);
+}
+.btn.primary:hover { background: var(--accent-hover); }
+.btn.primary:active { background: var(--accent-active); }
+.btn.secondary {
+  background: transparent;
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+.btn.secondary:hover { background: var(--bg-surface-sunken); }
+.btn.ghost {
+  background: transparent;
+  color: var(--text-primary);
+}
+.btn.ghost:hover { background: var(--bg-surface-sunken); }
+.btn.danger {
+  background: transparent;
+  border-color: var(--state-error-edge);
+  color: var(--state-error-fg);
+}
+.btn.danger:hover { background: var(--bg-surface-sunken); }
+.btn.disabled,
+.btn[disabled] {
+  background: var(--state-loading);
+  color: var(--text-disabled);
+  border-color: transparent;
+  cursor: not-allowed;
+}
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.btn.compact { height: 24px; padding: 0 8px; font-size: 13px; }
+.btn.spacious { height: 40px; padding: 0 16px; }
+
+/* inputs */
+.input {
+  height: 32px;
+  width: 240px;
+  padding: 0 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--bg-surface-raised);
+  color: var(--text-primary);
+  transition: border-color var(--motion-quick) var(--ease-standard), box-shadow var(--motion-quick) var(--ease-standard);
+}
+.input::placeholder { color: var(--text-tertiary); }
+.input:hover { background: var(--bg-surface); }
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.input.error {
+  border-color: var(--state-error-edge);
+  box-shadow: inset 0 0 0 1px var(--state-error-edge);
+}
+.input-error-msg {
+  font-size: 12px;
+  color: var(--state-error-fg);
+  margin-top: 4px;
+}
+
+/* lists */
+.list {
+  min-width: 240px;
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+}
+.list-item {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--text-primary);
+  position: relative;
+  cursor: pointer;
+  transition: background var(--motion-quick) var(--ease-standard);
+}
+.list-item:hover { background: var(--bg-surface-sunken); }
+.list-item.selected { background: var(--accent-subtle); }
+.list-item.selected::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 4px; bottom: 4px;
+  width: 2px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+.list-item.focused {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* tables */
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.tbl thead th {
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.tbl tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.tbl tbody tr:last-child td { border-bottom: none; }
+.tbl tbody tr:hover { background: var(--bg-surface-sunken); }
+.tbl tbody tr.highlight { background: var(--accent-subtle); }
+.tbl tbody tr.highlight:hover { background: var(--accent-subtle-hover); }
+.tbl td.num, .tbl th.num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-feature-settings: 'tnum';
+}
+
+/* tree */
+.tree { font-size: 14px; }
+.tree-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 28px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  position: relative;
+}
+.tree-item:hover { background: var(--bg-surface-sunken); }
+.tree-item.selected { background: var(--accent-subtle); }
+.tree-item.selected::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 4px; bottom: 4px;
+  width: 2px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+.tree-caret {
+  display: inline-block;
+  width: 12px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+.tree-indent { padding-left: 20px; }
+.tree-indent-2 { padding-left: 40px; }
+
+/* choice (radio) */
+.radio-row { display: inline-flex; align-items: center; gap: var(--space-3); }
+.radio {
+  width: 16px; height: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 50%;
+  background: var(--bg-surface-raised);
+  position: relative;
+  display: inline-block;
+}
+.radio.checked { border-color: var(--accent); }
+.radio.checked::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+
+/* toggle */
+.check {
+  width: 16px; height: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-raised);
+  position: relative;
+  display: inline-block;
+}
+.check.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.check.checked::after {
+  content: '';
+  position: absolute;
+  left: 4px; top: 1px;
+  width: 4px; height: 9px;
+  border-right: 2px solid var(--text-inverse);
+  border-bottom: 2px solid var(--text-inverse);
+  transform: rotate(45deg);
+}
+.switch {
+  display: inline-block;
+  width: 28px; height: 16px;
+  background: var(--bg-surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  position: relative;
+  transition: background var(--motion-quick) var(--ease-standard);
+}
+.switch::after {
+  content: '';
+  position: absolute;
+  left: 1px; top: 1px;
+  width: 12px; height: 12px;
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: 50%;
+  transition: left var(--motion-quick) var(--ease-standard);
+}
+.switch.on { background: var(--accent); border-color: var(--accent); }
+.switch.on::after { left: 13px; border-color: var(--accent); }
+
+/* toolbar */
+.toolbar {
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  gap: var(--space-2);
+}
+.toolbar .sep { width: 1px; height: 16px; background: var(--border-subtle); margin: 0 var(--space-3); }
+.toolbar .spacer { flex: 1; }
+
+/* tabs */
+.tabs {
+  display: inline-flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.tab {
+  padding: 8px 16px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  position: relative;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.tab:hover { color: var(--text-primary); }
+.tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+  font-weight: 500;
+}
+
+/* status, progress */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.status .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent);
+}
+.status .dot.live {
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.progress {
+  width: 240px;
+  height: 4px;
+  background: var(--bg-surface-sunken);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+.progress-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+  width: 64%;
+}
+
+/* divider */
+.div-h { height: 1px; background: var(--border-subtle); width: 100%; }
+
+/* chart (mini) */
+.chart-mini {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 80px;
+  padding: var(--space-3);
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  width: 240px;
+}
+.chart-mini .bar {
+  flex: 1;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+}
+
+/* form */
+.form-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+}
+.form-label { font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; }
+.form-footer {
+  display: flex; gap: var(--space-3); justify-content: flex-end;
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* image placeholder */
+.image-ph {
+  width: 200px; height: 120px;
+  background: var(--bg-surface-sunken);
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+/* canvas region preview */
+.canvas-region {
+  width: 240px; height: 140px;
+  background: var(--bg-surface-sunken);
+  border: 2px solid var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  position: relative;
+}
+.canvas-region .zoom-chip {
+  position: absolute; bottom: 8px; right: 8px;
+  background: var(--bg-surface-raised);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+/* ============================================================
+   §5 — IDIOMS
+   ============================================================ */
+.idiom {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-canvas);
+}
+.idiom-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg-surface-sunken);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.idiom-header h3 { font-size: 14px; }
+.idiom-header .meta { font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); }
+.idiom-body { padding: var(--space-6); }
+
+/* spotlight idiom */
+.spotlight {
+  max-width: 480px;
+  margin: 0 auto;
+}
+.spotlight-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 var(--space-5);
+  font-size: 18px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-raised);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+.spotlight-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+.spotlight-results {
+  margin-top: var(--space-2);
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+  padding: var(--space-2);
+}
+.spotlight-section {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: var(--space-3) var(--space-3) var(--space-2);
+}
+.spotlight-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  cursor: pointer;
+}
+.spotlight-item:hover { background: var(--bg-surface-sunken); }
+.spotlight-item.focused {
+  background: var(--accent-subtle);
+  position: relative;
+}
+.spotlight-item.focused::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 6px; bottom: 6px;
+  width: 2px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+.spotlight-item .path { color: var(--text-tertiary); font-size: 12px; }
+
+/* dashboard idiom */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 2fr;
+  gap: var(--space-5);
+}
+.kpi {
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+}
+.kpi-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+}
+.kpi-value {
+  margin-top: var(--space-3);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-family: var(--font-mono);
+  font-feature-settings: 'tnum';
+}
+.kpi-delta {
+  margin-top: var(--space-2);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.kpi-delta.down { color: var(--state-warning-fg); }
+.kpi-delta.up { color: var(--accent); }
+
+.dashboard-trend {
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+}
+.dashboard-trend-bars {
+  margin-top: var(--space-4);
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 64px;
+}
+.dashboard-trend-bars div {
+  flex: 1;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+}
+
+.dashboard-row {
+  margin-top: var(--space-5);
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-5);
+}
+
+/* norton commander idiom */
+.nc {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: var(--space-4);
+}
+.nc-panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+.nc-pane {
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.nc-pane-header {
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-surface-sunken);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.nc-pane-body {
+  padding: var(--space-2);
+}
+.nc-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+}
+.nc-row:hover { background: var(--bg-surface-sunken); }
+.nc-row.selected { background: var(--accent-subtle); position: relative; }
+.nc-row.selected::before {
+  content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 2px;
+  background: var(--accent); border-radius: 2px;
+}
+.nc-row .size { color: var(--text-tertiary); }
+
+/* wizard idiom */
+.wizard {
+  max-width: 600px;
+  margin: 0 auto;
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+}
+.wizard-title { font-size: 18px; font-weight: 600; margin-bottom: var(--space-2); }
+.wizard-divider { height: 1px; background: var(--border-subtle); margin: var(--space-4) 0; }
+.wizard-steps {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: var(--space-5) 0;
+}
+.wizard-step {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 0 0 auto;
+}
+.wizard-step-dot {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--border-default);
+  background: var(--bg-surface-raised);
+}
+.wizard-step.done .wizard-step-dot { background: var(--accent); border-color: var(--accent); }
+.wizard-step.current .wizard-step-dot { background: var(--bg-surface-raised); border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-subtle); }
+.wizard-step-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.wizard-step.current .wizard-step-label { color: var(--text-primary); font-weight: 600; }
+.wizard-step-line { flex: 1; height: 1px; background: var(--border-subtle); }
+.wizard-step-line.filled { background: var(--accent); }
+.wizard-footer { display: flex; justify-content: space-between; margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--border-subtle); }
+
+/* photoshop idiom */
+.ps {
+  display: grid;
+  grid-template-columns: 48px 1fr 220px;
+  gap: var(--space-3);
+  height: 360px;
+}
+.ps-toolbar {
+  background: var(--bg-surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-2);
+  gap: var(--space-2);
+}
+.ps-tool {
+  width: 36px; height: 36px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.ps-tool:hover { background: var(--bg-surface); }
+.ps-tool.active {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+.ps-canvas {
+  background: var(--bg-surface-sunken);
+  border: 2px solid var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  position: relative;
+}
+.ps-canvas .zoom-chip {
+  position: absolute; bottom: 8px; right: 8px;
+  background: var(--bg-surface-raised);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.ps-right {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: var(--space-3);
+}
+.ps-inspector, .ps-layers {
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  overflow: auto;
+}
+.ps-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-3);
+}
+.ps-insp-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 36px;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 12px;
+  margin-bottom: var(--space-3);
+}
+.ps-insp-row .lbl { color: var(--text-secondary); }
+.ps-slider {
+  height: 4px;
+  background: var(--bg-surface-sunken);
+  border-radius: var(--radius-pill);
+  position: relative;
+}
+.ps-slider::after {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+}
+.ps-slider.s50::after { width: 50%; }
+.ps-slider.s60::after { width: 60%; }
+.ps-slider.s85::after { width: 85%; }
+.ps-slider.s24::after { width: 24%; }
+.ps-slider .knob {
+  position: absolute;
+  top: 50%;
+  width: 12px; height: 12px;
+  background: var(--accent);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+.ps-insp-row .val { font-family: var(--font-mono); font-size: 12px; color: var(--text-primary); text-align: right; }
+
+.ps-layer {
+  display: grid;
+  grid-template-columns: 16px 12px 1fr;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+.ps-layer:hover { background: var(--bg-surface-sunken); }
+.ps-layer.selected { background: var(--accent-subtle); position: relative; }
+.ps-layer.selected::before {
+  content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 2px;
+  background: var(--accent); border-radius: 2px;
+}
+.ps-layer .eye { font-family: var(--font-mono); color: var(--text-secondary); font-size: 12px; }
+.ps-layer .caret { color: var(--text-tertiary); font-size: 10px; }
+
+/* ============================================================
+   §6 — SKELETON + PATCH HIGHLIGHT
+   ============================================================ */
+.skel {
+  background: var(--state-loading);
+  background: linear-gradient(90deg, var(--state-loading) 0%, var(--state-loading-hi) 50%, var(--state-loading) 100%);
+  background-size: 400% 100%;
+  border-radius: var(--radius-sm);
+  animation: skeleton-pulse 1400ms linear infinite;
+}
+@keyframes skeleton-pulse {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skel-row { height: 14px; margin: 8px 0; }
+.skel-row.w1 { width: 70%; }
+.skel-row.w2 { width: 90%; }
+.skel-row.w3 { width: 60%; }
+.skel-row.w4 { width: 80%; }
+
+.patch-demo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-5);
+}
+.patch-cell {
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+  position: relative;
+  overflow: hidden;
+}
+.patch-cell .label {
+  font-size: 11px; color: var(--text-tertiary); text-transform: uppercase;
+  letter-spacing: 0.04em; margin-bottom: 4px;
+}
+.patch-cell .value { font-family: var(--font-mono); font-size: 20px; }
+.patch-cell.patched::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent-subtle);
+  animation: patch-fade 800ms ease-out forwards;
+  pointer-events: none;
+}
+@keyframes patch-fade {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ============================================================
+   §7 — OPEN QUESTIONS
+   ============================================================ */
+.oq {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+}
+.oq-item {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.oq-item:last-child { border-bottom: none; }
+.oq-num {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+.oq-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.oq-desc { font-size: 13px; color: var(--text-secondary); }
+
+/* ============================================================
+   MODAL DEMO
+   ============================================================ */
+.modal-demo {
+  position: relative;
+  background: var(--bg-surface-sunken);
+  border-radius: var(--radius-md);
+  height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-demo::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: var(--bg-modal-overlay);
+  border-radius: var(--radius-md);
+}
+.modal {
+  position: relative;
+  background: var(--bg-modal-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  padding: var(--space-6);
+  max-width: 440px;
+  width: 90%;
+}
+.modal h3 { font-size: 18px; margin-bottom: var(--space-3); }
+.modal p { font-size: 14px; color: var(--text-primary); margin-bottom: var(--space-2); }
+.modal p.caveat { color: var(--text-secondary); font-size: 13px; }
+.modal-footer {
+  display: flex; gap: var(--space-3); justify-content: flex-end;
+  margin-top: var(--space-5);
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ===================================================== -->
+  <!-- HEADER + CONTROLS                                    -->
+  <!-- ===================================================== -->
+  <header class="page-header">
+    <div>
+      <h1>Omadia UI — Visual Spec Preview</h1>
+      <div class="subtitle">v0.1 — interactive companion to <code style="font-family:var(--font-mono);font-size:12px">docs/visual-spec.md</code></div>
+    </div>
+    <div class="controls">
+      <div class="control-group">
+        <label>Mode</label>
+        <div class="toggle-segment" id="modeToggle">
+          <button data-mode="light" aria-pressed="true">Light</button>
+          <button data-mode="dark"  aria-pressed="false">Dark</button>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Accent</label>
+        <div class="toggle-segment" id="accentToggle">
+          <button data-accent="petrol" aria-pressed="true">Petrol</button>
+          <button data-accent="indigo">Indigo</button>
+          <button data-accent="sky">Sky</button>
+          <button data-accent="copper">Copper</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================================================== -->
+  <!-- §1 — ACCENT COMPARISON                                -->
+  <!-- ===================================================== -->
+  <section class="section">
+    <div class="section-header">
+      <h2>§1 — Accent comparison</h2>
+      <span class="section-tag">spec §1.1</span>
+    </div>
+    <p class="section-intro">
+      Four candidates side-by-side. Each card renders a primary button, a focus-ringed
+      input, and a selected row tint in its own accent — so you can compare them in
+      isolation. The global Accent control above switches the whole page to one of
+      these four for the §4 / §5 previews.
+    </p>
+
+    <div class="grid-4">
+      <div class="accent-card active-choice accent-preview" data-show="petrol">
+        <div class="accent-card-header">
+          <div>
+            <div class="accent-card-name">Petrol / Steel blue</div>
+            <div class="accent-card-meta">#0F7AB8 · OKLCH 0.55 0.16 235</div>
+          </div>
+          <div class="accent-swatch" style="background:#0F7AB8"></div>
+        </div>
+        <button class="mini-btn primary">Primary action</button>
+        <div class="focus-demo focused">focused input</div>
+        <div class="mini-row selected">Selected row</div>
+        <div class="accent-card-meta" style="font-family:var(--font-sans);font-size:11px;color:var(--text-tertiary)">Spec default — cool, recedes as row tint, distinct from error-red</div>
+      </div>
+
+      <div class="accent-card accent-preview" data-show="indigo">
+        <div class="accent-card-header">
+          <div>
+            <div class="accent-card-name">Linear indigo</div>
+            <div class="accent-card-meta">#5E6AD2 · OKLCH 0.55 0.17 280</div>
+          </div>
+          <div class="accent-swatch" style="background:#5E6AD2"></div>
+        </div>
+        <button class="mini-btn primary">Primary action</button>
+        <div class="focus-demo focused">focused input</div>
+        <div class="mini-row selected">Selected row</div>
+        <div class="accent-card-meta" style="font-family:var(--font-sans);font-size:11px;color:var(--text-tertiary)">Familiar productivity look — risks reading as a Linear clone</div>
+      </div>
+
+      <div class="accent-card accent-preview" data-show="sky">
+        <div class="accent-card-header">
+          <div>
+            <div class="accent-card-name">Things sky</div>
+            <div class="accent-card-meta">#2D8DD8 · OKLCH 0.62 0.15 240</div>
+          </div>
+          <div class="accent-swatch" style="background:#2D8DD8"></div>
+        </div>
+        <button class="mini-btn primary">Primary action</button>
+        <div class="focus-demo focused">focused input</div>
+        <div class="mini-row selected">Selected row</div>
+        <div class="accent-card-meta" style="font-family:var(--font-sans);font-size:11px;color:var(--text-tertiary)">Lighter, friendlier — may read too consumer for editor workloads</div>
+      </div>
+
+      <div class="accent-card accent-preview" data-show="copper">
+        <div class="accent-card-header">
+          <div>
+            <div class="accent-card-name">Warm copper</div>
+            <div class="accent-card-meta">#B66B2F · OKLCH 0.62 0.13 60</div>
+          </div>
+          <div class="accent-swatch" style="background:#B66B2F"></div>
+        </div>
+        <button class="mini-btn primary">Primary action</button>
+        <div class="focus-demo focused">focused input</div>
+        <div class="mini-row selected">Selected row</div>
+        <div class="accent-card-meta" style="font-family:var(--font-sans);font-size:11px;color:var(--text-tertiary)">Distinctive — risk of feeling "branded" rather than utility</div>
+      </div>
+    </div>
+
+    <div class="accent-rationale">
+      <b>What to compare:</b> Switch the page Accent above and scroll to §5 (idioms) —
+      Spotlight focus ring, Dashboard KPI delta arrow, Wizard step dots, Photoshop
+      active-tool border. The accent appears in those places <i>at the same time</i>;
+      whichever combination still feels coherent across all of them wins.
+      <br><br>
+      <b>Constraints to respect:</b> single accent slot, must be ≥3:1 against
+      <code>bg.canvas</code> for non-text use, must be visually separable from
+      <code>state.error.fg</code> (which is in the 25° red range) for users with
+      red-green colour deficiencies.
+    </div>
+  </section>
+
+  <!-- ===================================================== -->
+  <!-- §2 — TYPOGRAPHY                                       -->
+  <!-- ===================================================== -->
+  <section class="section">
+    <div class="section-header">
+      <h2>§2 — Typography</h2>
+      <span class="section-tag">spec §1.3</span>
+    </div>
+    <p class="section-intro">
+      Same content rendered with Inter + JetBrains Mono (spec default, left) vs.
+      system / SF Pro + SF Mono on macOS (right). Watch the data-table column,
+      the digit shapes, and the proportional spacing in the headline.
+    </p>
+
+    <div class="grid-2">
+      <div class="card typo-card">
+        <div class="card-title">Inter + JetBrains Mono</div>
+        <div class="typo-sample">
+          <h3>Three people are under budget — Anna, Bernd, Cara</h3>
+          <p>Tier 2 resolved the highlight against canvas state. The previous
+            expansion of Anna's row survived the column-add patch.</p>
+          <h4>Highlighted rows</h4>
+          <table class="typo-table">
+            <thead><tr><th>Owner</th><th class="num">Open</th><th class="num">Budget left</th></tr></thead>
+            <tbody>
+              <tr><td>Anna Schmidt</td><td class="num">12</td><td class="num">5.0&nbsp;h</td></tr>
+              <tr><td>Bernd Lutz</td><td class="num">8</td><td class="num">7.5&nbsp;h</td></tr>
+              <tr><td>Cara König</td><td class="num">15</td><td class="num">22.0&nbsp;h</td></tr>
+            </tbody>
+          </table>
+          <div class="typo-glyph-test"><span class="mono">0 O · 1 l I · &gt;= -&gt; !=</span></div>
+        </div>
+      </div>
+
+      <div class="card typo-card native">
+        <div class="card-title">System (SF Pro / Segoe) + SF Mono / Menlo</div>
+        <div class="typo-sample">
+          <h3>Three people are under budget — Anna, Bernd, Cara</h3>
+          <p>Tier 2 resolved the highlight against canvas state. The previous
+            expansion of Anna's row survived the column-add patch.</p>
+          <h4>Highlighted rows</h4>
+          <table class="typo-table">
+            <thead><tr><th>Owner</th><th class="num">Open</th><th class="num">Budget left</th></tr></thead>
+            <tbody>
+              <tr><td>Anna Schmidt</td><td class="num">12</td><td class="num">5.0&nbsp;h</td></tr>
+              <tr><td>Bernd Lutz</td><td class="num">8</td><td class="num">7.5&nbsp;h</td></tr>
+              <tr><td>Cara König</td><td class="num">15</td><td class="num">22.0&nbsp;h</td></tr>
+            </tbody>
+          </table>
+          <div class="typo-glyph-test"><span class="mono">0 O · 1 l I · &gt;= -&gt; !=</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="accent-rationale" style="margin-top:var(--space-5)">
+      <b>Decision criterion:</b> the data row should read as <i>data</i>, not as
+      decorative copy. The mono columns should pop against the surrounding sans copy
+      without shouting. Digit alignment via <code>font-feature-settings: 'tnum'</code>
+      is applied to both — but the glyph proportions still differ.
+      <br><br>
+      Inter+JBM gives you predictable cross-platform rendering (Electron paints
+      identically on macOS/Windows/Linux). System fonts give you native macOS feel
+      but require macOS to look the way you expect.
+    </div>
+  </section>
+
+  <!-- ===================================================== -->
+  <!-- §3 — DENSITY (4pt vs 8pt grid)                        -->
+  <!-- ===================================================== -->
+  <section class="section">
+    <div class="section-header">
+      <h2>§3 — Spacing grid: 4pt vs 8pt</h2>
+      <span class="section-tag">spec §1.4</span>
+    </div>
+    <p class="section-intro">
+      Same table, same content, different grid. 4pt is the spec default — chosen for
+      editor-workload density (inspector field rows, toolbar buttons). 8pt would be
+      cleaner for non-editor workloads but forces fractional values in the editor.
+    </p>
+
+    <div class="grid-2">
+      <div class="density-card card" style="padding:0">
+        <div class="density-card-label">
+          <span>4pt grid</span><span style="font-family:var(--font-mono);color:var(--text-tertiary)">spec default</span>
+        </div>
+        <table class="density-table grid-4pt"><thead><tr><th>Owner</th><th class="num">Open</th><th class="num">Budget left</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Anna Schmidt</td><td class="num">12</td><td class="num">5.0&nbsp;h</td><td>out of budget</td></tr>
+            <tr><td>Bernd Lutz</td><td class="num">8</td><td class="num">7.5&nbsp;h</td><td>under budget</td></tr>
+            <tr><td>Cara König</td><td class="num">15</td><td class="num">22.0&nbsp;h</td><td>ok</td></tr>
+            <tr><td>Daniel Roth</td><td class="num">22</td><td class="num">31.5&nbsp;h</td><td>ok</td></tr>
+            <tr><td>Eva Weiß</td><td class="num">6</td><td class="num">2.0&nbsp;h</td><td>out of budget</td></tr>
+          </tbody>
+        </table>
+        <table class="density-table grid-4pt" style="border-top:1px solid var(--border-subtle)">
+          <tbody>
+            <tr><td colspan="4" style="background:var(--bg-surface-sunken)">5 rows · 36px rows</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="density-card card" style="padding:0">
+        <div class="density-card-label">
+          <span>8pt grid</span><span style="font-family:var(--font-mono);color:var(--text-tertiary)">alternative</span>
+        </div>
+        <table class="density-table grid-8pt"><thead><tr><th>Owner</th><th class="num">Open</th><th class="num">Budget left</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Anna Schmidt</td><td class="num">12</td><td class="num">5.0&nbsp;h</td><td>out of budget</td></tr>
+            <tr><td>Bernd Lutz</td><td class="num">8</td><td class="num">7.5&nbsp;h</td><td>under budget</td></tr>
+            <tr><td>Cara König</td><td class="num">15</td><td class="num">22.0&nbsp;h</td><td>ok</td></tr>
+            <tr><td>Daniel Roth</td><td class="num">22</td><td class="num">31.5&nbsp;h</td><td>ok</td></tr>
+            <tr><td>Eva Weiß</td><td class="num">6</td><td class="num">2.0&nbsp;h</td><td>out of budget</td></tr>
+          </tbody>
+        </table>
+        <table class="density-table grid-8pt" style="border-top:1px solid var(--border-subtle)">
+          <tbody>
+            <tr><td colspan="4" style="background:var(--bg-surface-sunken)">5 rows · 52px rows</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================== -->
+  <!-- §4 — PRIMITIVE GALLERY                                -->
+  <!-- ===================================================== -->
+  <section class="section">
+    <div class="section-header">
+      <h2>§4 — Primitive gallery</h2>
+      <span class="section-tag">spec §2 (all 24)</span>
+    </div>
+    <p class="section-intro">
+      Each primitive in its default visual state. Editor-class primitives
+      (<code style="font-family:var(--font-mono);font-size:12px">canvas-region</code>,
+      <code style="font-family:var(--font-mono);font-size:12px">timeline</code>,
+      <code style="font-family:var(--font-mono);font-size:12px">media</code>,
+      <code style="font-family:var(--font-mono);font-size:12px">vector-path</code>)
+      are shown as theme-only chrome; full pixel mockups follow in spike phase.
+    </p>
+
+    <div style="display:grid;gap:var(--space-4)">
+
+      <!-- text + heading -->
+      <div class="prim">
+        <div class="prim-label">
+          <div class="name">text · heading</div>
+          <div class="desc">block copy + section title</div>
+        </div>
+        <div class="prim-demo">
+          <div>
+            <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.02em;font-weight:600;margin-bottom:4px">Eyebrow label</div>
+            <div style="font-size:22px;font-weight:600;letter-spacing:-0.005em;margin-bottom:4px">Heading level 1</div>
+            <div style="font-size:18px;font-weight:600;margin-bottom:4px">Heading level 2</div>
+            <div style="font-size:15px;font-weight:600;margin-bottom:8px">Heading level 3</div>
+            <p style="max-width:60ch;color:var(--text-primary)">Body copy at <code style="font-family:var(--font-mono);font-size:13px">type.body</code>.
+              Caption-secondary follows.</p>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Caption at type.caption</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- button -->
+      <div class="prim">
+        <div class="prim-label">
+          <div class="name">button</div>
+          <div class="desc">primary · secondary · ghost · danger; sizes; states</div>
+        </div>
+        <div class="prim-demo">
+          <button class="btn primary">Primary</button>
+          <button class="btn secondary">Secondary</button>
+          <button class="btn ghost">Ghost</button>
+          <button class="btn danger">Danger</button>
+          <button class="btn primary" disabled>Disabled</button>
+          <button class="btn primary compact">Compact</button>
+          <button class="btn primary spacious">Spacious</button>
+        </div>
+      </div>
+
+      <!-- input -->
+      <div class="prim">
+        <div class="prim-label">
+          <div class="name">input</div>
+          <div class="desc">default · focus · error · multiline</div>
+        </div>
+        <div class="prim-demo">
+          <input class="input" placeholder="Default input">
+          <div>
+            <input class="input error" value="anna@" />
+            <div class="input-error-msg">Email looks incomplete.</div>
+          </div>
+          <textarea class="input" style="height:84px;width:280px;padding:8px 10px;resize:vertical;font-family:inherit" placeholder="Multiline input&#10;Lines wrap as expected."></textarea>
+        </div>
+      </div>
+
+      <!-- choice -->
+      <div class="prim">
+        <div class="prim-label">
+          <div class="name">choice</div>
+          <div class="desc">radio (inline) and dropdown (trigger only shown)</div>
+        </div>
+        <div class="prim-demo">
+          <div class="radio-row"><span class="radio"></span> Option A</div>
+          <div class="radio-row"><span class="radio"></span> Option B</div>
+          <div class="radio-row"><span class="radio checked"></span> Option C</div>
+          <button class="btn secondary" style="margin-left:24px">Insurance ▾</button>
+        </div>
+      </div>
+
+      <!-- toggle -->
+      <div class="prim">
+        <div class="prim-label">
+          <div class="name">toggle</div>
+          <div class="desc">checkbox + switch variants</div>
+        </div>
+        <div class="prim-demo">
+          <div style="display:inline-flex;align-items:center;gap:8px"><span class="check"></span> Off</div>
+          <div style="display:inline-flex;align-items:center;gap:8px"><span class="check checked"></span> On</div>
+          <span class="switch"></span>
+          <span class="switch on"></span>
+        </div>
+      </div>
+
+      <!-- list -->
+      <div class="prim">
+        <div class="prim-label">
+          <div class="name">list</div>
+          <div class="desc">single-select; hover, selected, focus</div>
+        </div>
+        <div class="prim-demo">
+          <div class="list">
+            <div class="list-item">First item</div>
+            <div class="list-item">Second item</div>
+            <div class="list-item selected">Selected item</div>
+            <div class="list-item focused">Keyboard-focused</div>
+            <div class="list-item">Last item</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- table -->
+      <div class="prim">
+        <div class="prim-label">
+          <div class="name">table</div>
+          <div class="desc">numeric mono columns · highlight row</div>
+        </div>
+        <div class="prim-demo" style="width:100%">
+          <table class="tbl" style="width:100%">
+            <thead><tr><th>Owner</th><th class="num">Open</th><th class="num">Budget left</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr class="highlight"><td>Anna Schmidt</td><td class="num">12</td><td class="num">5.0&nbsp;h</td><td>out of budget</td></tr>
+              <tr><td>Bernd Lutz</td><td class="num">8</td><td class="num">7.5&nbsp;h</td><td>under budget</td></tr>
+              <tr><td>Cara König</td><td class="num">15</td><td class="num">22.0&nbsp;h</td><td>ok</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- tree -->
+      <div class="prim">
+        <div class="prim-label">
+          <div class="name">tree</div>
+          <div class="desc">hierarchy with carets; doubles as layer stack</div>
+        </div>
+        <div class="prim-demo">
+          <div class="tree" style="min-width:240px">
+            <div class="tree-item"><span class="tree-caret">▾</span> Adjustments</div>
+            <div class="tree-item tree-indent"><span class="tree-caret">▸</span> Curves</div>
+            <div class="tree-item tree-indent"><span class="tree-caret">▸</span> Levels</div>
+            <div class="tree-item selected"><span class="tree-caret">▸</span> Background</div>
+            <div class="tree-item"><span class="tree-caret">▸</span> Shadows</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- toolbar -->
+      <div class="prim">
+        <div class="prim-label">
+          <div class="name">toolbar</div>
+          <div class="desc">action strip with separators + right-aligned primary</div>
+        </div>
+        <div class="prim-demo">
+          <div class="toolbar" style="width:100%">
+            <button class="btn ghost compact">⤴ Undo</button>
+            <button class="btn ghost compact">⤵ Redo</button>
+            <span class="sep"></span>
+            <button class="btn ghost compact">Crop</button>
+            <button class="btn ghost compact">Blur</button>
+            <button class="btn ghost compact">Curves</button>
+            <span class="spacer"></span>
+            <button class="btn primary compact">Send</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- tabs -->
+      <div class="prim">
+        <div class="prim-label">
+          <div class="name">tabs</div>
+          <div class="desc">section selector with accent underline</div>
+        </div>
+        <div class="prim-demo">
+          <div class="tabs">
+            <div class="tab active">Customer</div>
+            <div class="tab">Use case</div>
+            <div class="tab">Pricing</div>
+            <div class="tab">Document</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- status + progress -->
+      <div class="prim">
+        <div class="prim-label">
+          <div class="name">status · progress</div>
+          <div class="desc">liveness + completion</div>
+        </div>
+        <div class="prim-demo">
+          <div class="status"><span class="dot live"></span> 3 sub-agents working</div>
+          <div class="status"><span class="dot"></span> Last synced 14:23</div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:4px">
+              <span>Generating PDF</span><span style="font-family:var(--font-mono)">64%</span>
+            </div>
+            <div class="progress"><div class="progress-bar"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- chart -->
+      <div class="prim">
+        <div class="prim-label">
+          <div class="name">chart</div>
+          <div class="desc">bar chart — single accent series, restrained chrome</div>
+        </div>
+        <div class="prim-demo">
+          <div class="chart-mini">
+            <div class="bar" style="height:30%"></div>
+            <div class="bar" style="height:50%"></div>
+            <div class="bar" style="height:65%"></div>
+            <div class="bar" style="height:80%"></div>
+            <div class="bar" style="height:75%"></div>
+            <div class="bar" style="height:90%"></div>
+            <div class="bar" style="height:60%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- form -->
+      <div class="prim">
+        <div class="prim-label">
+          <div class="name">form</div>
+          <div class="desc">label-on-left layout (inspector mode)</div>
+        </div>
+        <div class="prim-demo" style="width:100%">
+          <div style="width:100%;max-width:520px">
+            <div class="form-row"><div class="form-label">Customer</div><input class="input" value="AcmeInsure"></div>
+            <div class="form-row"><div class="form-label">Email</div><input class="input" value="contact@acmeinsure.com"></div>
+            <div class="form-row"><div class="form-label">Branch</div>
+              <div style="display:flex;gap:16px">
+                <div class="radio-row"><span class="radio checked"></span> Insurance</div>
+                <div class="radio-row"><span class="radio"></span> Banking</div>
+                <div class="radio-row"><span class="radio"></span> Other</div>
+              </div>
+            </div>
+            <div class="form-footer">
+              <button class="btn secondary">Cancel</button>
+              <button class="btn primary">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- divider, image, canvas-region -->
+      <div class="prim">
+        <div class="prim-label">
+          <div class="name">divider · image · canvas-region</div>
+          <div class="desc">supporting + editor placeholders</div>
+        </div>
+        <div class="prim-demo">
+          <div style="width:200px">
+            <div class="div-h"></div>
+            <div style="font-size:11px;color:var(--text-tertiary);margin-top:6px">1px subtle horizontal divider</div>
+          </div>
+          <div class="image-ph">image placeholder</div>
+          <div class="canvas-region">
+            canvas-region (active)
+            <div class="zoom-chip">32%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- modal -->
+      <div class="prim">
+        <div class="prim-label">
+          <div class="name">pane · modal</div>
+          <div class="desc">confirmation modal (external-effect action contract)</div>
+        </div>
+        <div class="prim-demo" style="width:100%">
+          <div class="modal-demo" style="width:100%">
+            <div class="modal">
+              <h3>Confirm send</h3>
+              <p>Send proposal PDF to <strong>contact@acmeinsure.com</strong>?</p>
+              <p class="caveat">This email cannot be unsent.</p>
+              <div class="modal-footer">
+                <button class="btn secondary">Cancel</button>
+                <button class="btn primary">Send →</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ===================================================== -->
+  <!-- §5 — IDIOMS                                           -->
+  <!-- ===================================================== -->
+  <section class="section">
+    <div class="section-header">
+      <h2>§5 — Composition idioms</h2>
+      <span class="section-tag">spec §3</span>
+    </div>
+    <p class="section-intro">
+      All five idioms rendered as actual layouts in the current theme. Note: none of
+      them visually mimic the era they reference. The Norton Commander idiom is
+      <i>not</i> blue with white text on black box-drawing characters — it is the
+      Omadia theme rendering the <i>layout</i> the agent inferred from a "norton
+      commander style" request.
+    </p>
+
+    <!-- Spotlight -->
+    <div class="idiom" style="margin-bottom:var(--space-5)">
+      <div class="idiom-header">
+        <h3>Spotlight — ⌘K command palette</h3>
+        <span class="meta">centered input + scoped results</span>
+      </div>
+      <div class="idiom-body">
+        <div class="spotlight">
+          <input class="spotlight-input" placeholder="Search projects, files, commands…" value="visual">
+          <div class="spotlight-results">
+            <div class="spotlight-section">Files</div>
+            <div class="spotlight-item focused"><span>visual-spec.md</span><span class="path">docs/</span></div>
+            <div class="spotlight-item"><span>visual-spec-preview.html</span><span class="path">docs/</span></div>
+            <div class="spotlight-item"><span>CONCEPT.md</span><span class="path">/</span></div>
+            <div class="spotlight-section">Commands</div>
+            <div class="spotlight-item"><span>Run: omadia start</span><span class="path">⏎</span></div>
+            <div class="spotlight-item"><span>Set appearance to dark</span><span class="path">⌘D</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="idiom" style="margin-bottom:var(--space-5)">
+      <div class="idiom-header">
+        <h3>Dashboard — KPI grid + trend + table widgets</h3>
+        <span class="meta">walkthrough 1 lane</span>
+      </div>
+      <div class="idiom-body">
+        <div class="dashboard-grid">
+          <div class="kpi">
+            <div class="kpi-label">Open tickets</div>
+            <div class="kpi-value">127</div>
+            <div class="kpi-delta up">▲ 12 vs Mar</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Budget left</div>
+            <div class="kpi-value">342&nbsp;h</div>
+            <div class="kpi-delta down">▼ 8% vs Mar</div>
+          </div>
+          <div class="dashboard-trend">
+            <div class="kpi-label">Weekly trend</div>
+            <div class="dashboard-trend-bars">
+              <div style="height:20%"></div>
+              <div style="height:30%"></div>
+              <div style="height:45%"></div>
+              <div style="height:60%"></div>
+              <div style="height:75%"></div>
+              <div style="height:85%"></div>
+              <div style="height:95%"></div>
+              <div style="height:80%"></div>
+              <div style="height:70%"></div>
+              <div style="height:55%"></div>
+              <div style="height:40%"></div>
+              <div style="height:30%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="dashboard-row">
+          <div class="kpi">
+            <div class="kpi-label">Owners under budget</div>
+            <table class="tbl" style="margin-top:12px">
+              <thead><tr><th>Owner</th><th class="num">Left</th></tr></thead>
+              <tbody>
+                <tr class="highlight"><td>Anna Schmidt</td><td class="num">5.0&nbsp;h</td></tr>
+                <tr class="highlight"><td>Bernd Lutz</td><td class="num">7.5&nbsp;h</td></tr>
+                <tr><td>Daniel Roth</td><td class="num">8.5&nbsp;h</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Recent activity</div>
+            <div style="margin-top:12px;font-size:13px">
+              <div style="padding:6px 0;display:flex;gap:12px;color:var(--text-secondary)"><span style="font-family:var(--font-mono)">14:23</span><span>pdf generated</span></div>
+              <div style="padding:6px 0;display:flex;gap:12px;color:var(--text-secondary);border-top:1px solid var(--border-subtle)"><span style="font-family:var(--font-mono)">13:51</span><span>sub-agent done</span></div>
+              <div style="padding:6px 0;display:flex;gap:12px;color:var(--text-secondary);border-top:1px solid var(--border-subtle)"><span style="font-family:var(--font-mono)">13:48</span><span>jira sync ok</span></div>
+              <div style="padding:6px 0;display:flex;gap:12px;color:var(--text-secondary);border-top:1px solid var(--border-subtle)"><span style="font-family:var(--font-mono)">13:42</span><span>canvas-activate proposal</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Norton Commander -->
+    <div class="idiom" style="margin-bottom:var(--space-5)">
+      <div class="idiom-header">
+        <h3>Norton-Commander — two panes side-by-side</h3>
+        <span class="meta">layout only; <i>not</i> blue-on-white box drawing</span>
+      </div>
+      <div class="idiom-body">
+        <div class="nc">
+          <div class="nc-panes">
+            <div class="nc-pane">
+              <div class="nc-pane-header">~/Projekte</div>
+              <div class="nc-pane-body">
+                <div class="nc-row selected"><span>▸ omadia</span><span class="size">—</span></div>
+                <div class="nc-row"><span>▸ omadia-ui</span><span class="size">—</span></div>
+                <div class="nc-row"><span>▸ tri-trading</span><span class="size">—</span></div>
+                <div class="nc-row"><span>▸ archive</span><span class="size">—</span></div>
+              </div>
+            </div>
+            <div class="nc-pane">
+              <div class="nc-pane-header">~/Projekte/omadia-ui/docs</div>
+              <div class="nc-pane-body">
+                <div class="nc-row"><span>CONCEPT.md</span><span class="size">25.3 KB</span></div>
+                <div class="nc-row"><span>README.md</span><span class="size">1.2 KB</span></div>
+                <div class="nc-row selected"><span>visual-spec.md</span><span class="size">62.1 KB</span></div>
+                <div class="nc-row"><span>visual-spec-preview.html</span><span class="size">—</span></div>
+                <div class="nc-row"><span>walkthroughs.md</span><span class="size">18.4 KB</span></div>
+                <div class="nc-row"><span>tech-stack.md</span><span class="size">22.1 KB</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="toolbar">
+            <button class="btn ghost compact">Copy</button>
+            <button class="btn ghost compact">Move</button>
+            <button class="btn ghost compact">Diff</button>
+            <button class="btn ghost compact">Open</button>
+            <span class="spacer"></span>
+            <button class="btn secondary compact">⌘K palette</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wizard -->
+    <div class="idiom" style="margin-bottom:var(--space-5)">
+      <div class="idiom-header">
+        <h3>Wizard — step tabs + form per step + back/next</h3>
+        <span class="meta">walkthrough 3 — sales proposal</span>
+      </div>
+      <div class="idiom-body">
+        <div class="wizard">
+          <div class="wizard-title">Sales Proposal — AcmeInsure</div>
+          <div class="wizard-divider"></div>
+          <div class="wizard-steps">
+            <div class="wizard-step done"><div class="wizard-step-dot"></div><div class="wizard-step-label">Customer</div></div>
+            <div class="wizard-step-line filled"></div>
+            <div class="wizard-step current"><div class="wizard-step-dot"></div><div class="wizard-step-label">Use case</div></div>
+            <div class="wizard-step-line"></div>
+            <div class="wizard-step"><div class="wizard-step-dot"></div><div class="wizard-step-label">Pricing</div></div>
+            <div class="wizard-step-line"></div>
+            <div class="wizard-step"><div class="wizard-step-dot"></div><div class="wizard-step-label">Document</div></div>
+          </div>
+          <div class="wizard-divider"></div>
+          <div class="form-row"><div class="form-label">Use case</div>
+            <input class="input" style="width:100%" value="Claims triage + automated damage assessment + escalation routing">
+          </div>
+          <div class="form-row"><div class="form-label">Template</div>
+            <div style="display:flex;gap:16px">
+              <div class="radio-row"><span class="radio checked"></span> Insurance claims</div>
+              <div class="radio-row"><span class="radio"></span> Insurance underwriting</div>
+            </div>
+          </div>
+          <div class="wizard-footer">
+            <button class="btn secondary">← Back</button>
+            <button class="btn primary">Next →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Photoshop -->
+    <div class="idiom">
+      <div class="idiom-header">
+        <h3>Photoshop-workspace — canvas + toolbar + inspector + layers</h3>
+        <span class="meta">walkthrough 2 — pixel editing lane</span>
+      </div>
+      <div class="idiom-body">
+        <div class="ps">
+          <div class="ps-toolbar">
+            <div class="ps-tool">⬛</div>
+            <div class="ps-tool">⊙</div>
+            <div class="ps-tool active">✎</div>
+            <div class="ps-tool">⤬</div>
+            <div class="ps-tool">✂</div>
+            <div class="ps-tool">■</div>
+            <div class="ps-tool">⤡</div>
+            <div class="ps-tool">⤢</div>
+          </div>
+          <div class="ps-canvas">
+            canvas-region (active editing target)
+            <div class="zoom-chip">32%</div>
+          </div>
+          <div class="ps-right">
+            <div class="ps-inspector">
+              <div class="ps-section-title">Inspector — Brush</div>
+              <div class="ps-insp-row"><span class="lbl">Size</span><div class="ps-slider s50"><div class="knob" style="left:50%"></div></div><span class="val">18</span></div>
+              <div class="ps-insp-row"><span class="lbl">Hardness</span><div class="ps-slider s60"><div class="knob" style="left:60%"></div></div><span class="val">60%</span></div>
+              <div class="ps-insp-row"><span class="lbl">Opacity</span><div class="ps-slider s85"><div class="knob" style="left:85%"></div></div><span class="val">85%</span></div>
+              <div class="ps-insp-row"><span class="lbl">Colour</span><div style="height:16px;background:var(--accent);border-radius:var(--radius-sm)"></div><span class="val" style="font-size:11px">accent</span></div>
+              <div class="ps-insp-row"><span class="lbl">Flow</span><div class="ps-slider s24"><div class="knob" style="left:24%"></div></div><span class="val">24%</span></div>
+            </div>
+            <div class="ps-layers">
+              <div class="ps-section-title">Layers</div>
+              <div class="ps-layer"><span class="eye">👁</span><span class="caret">▾</span><span>Adjustments</span></div>
+              <div class="ps-layer" style="padding-left:24px"><span class="eye">👁</span><span class="caret"></span><span>Curves</span></div>
+              <div class="ps-layer" style="padding-left:24px"><span class="eye">👁</span><span class="caret"></span><span>Levels</span></div>
+              <div class="ps-layer selected"><span class="eye">👁</span><span class="caret">▸</span><span>Background</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================== -->
+  <!-- §6 — SKELETON + PATCH HIGHLIGHT                       -->
+  <!-- ===================================================== -->
+  <section class="section">
+    <div class="section-header">
+      <h2>§6 — Motion: skeleton + patch-highlight</h2>
+      <span class="section-tag">spec §1.7 · §4.1</span>
+    </div>
+    <p class="section-intro">
+      Left: the skeleton-pulse animation (1400ms linear loop). Right: the patch-apply
+      accent-subtle highlight that fades out over 800ms. Click <b>Replay patch</b> to
+      retrigger.
+    </p>
+
+    <div class="grid-2">
+      <div class="card raised">
+        <div class="card-title">Skeleton — loading state</div>
+        <table class="tbl">
+          <thead><tr><th>Owner</th><th class="num">Open</th><th class="num">Budget left</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><div class="skel skel-row w1"></div></td>
+              <td><div class="skel skel-row w3"></div></td>
+              <td><div class="skel skel-row w3"></div></td>
+              <td><div class="skel skel-row w4"></div></td>
+            </tr>
+            <tr>
+              <td><div class="skel skel-row w2"></div></td>
+              <td><div class="skel skel-row w3"></div></td>
+              <td><div class="skel skel-row w3"></div></td>
+              <td><div class="skel skel-row w1"></div></td>
+            </tr>
+            <tr>
+              <td><div class="skel skel-row w1"></div></td>
+              <td><div class="skel skel-row w3"></div></td>
+              <td><div class="skel skel-row w3"></div></td>
+              <td><div class="skel skel-row w2"></div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card raised">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Patch-highlight — agent just updated this value</span>
+          <button class="btn secondary compact" id="replayPatch">Replay patch</button>
+        </div>
+        <div class="patch-demo" id="patchDemo">
+          <div class="patch-cell patched">
+            <div class="label">Open tickets</div>
+            <div class="value">127</div>
+          </div>
+          <div class="patch-cell">
+            <div class="label">Budget left</div>
+            <div class="value">342&nbsp;h</div>
+          </div>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--text-secondary)">
+          800ms accent-subtle fade. Quiet enough for typing-speed patch streams,
+          loud enough to signal "this is new".
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================== -->
+  <!-- §7 — OPEN QUESTIONS                                   -->
+  <!-- ===================================================== -->
+  <section class="section">
+    <div class="section-header">
+      <h2>§7 — Open questions to lock</h2>
+      <span class="section-tag">spec §9</span>
+    </div>
+    <p class="section-intro">
+      The 8 questions flagged in <code style="font-family:var(--font-mono);font-size:12px">visual-spec.md §9</code>.
+      Now decidable with the previews above. Tell me which way each goes,
+      I update the spec, v0.2 ships.
+    </p>
+
+    <div class="oq">
+      <div class="oq-item">
+        <div class="oq-num">1</div>
+        <div>
+          <div class="oq-title">Accent — Petrol / Indigo / Sky / Copper?</div>
+          <div class="oq-desc">Switch the page Accent control above and watch §5 idioms simultaneously. The cards in §1 also show all four side-by-side.</div>
+        </div>
+      </div>
+      <div class="oq-item">
+        <div class="oq-num">2</div>
+        <div>
+          <div class="oq-title">Type families — Inter+JBM everywhere, or system fonts on macOS?</div>
+          <div class="oq-desc">§2 side-by-side. Inter wins on cross-platform consistency, system wins on native macOS feel.</div>
+        </div>
+      </div>
+      <div class="oq-item">
+        <div class="oq-num">3</div>
+        <div>
+          <div class="oq-title">JetBrains Mono vs SF Mono / Plex Mono?</div>
+          <div class="oq-desc">JBM is shown in §2 left and §1 metadata text. Watch the glyph-test line for digit / letter disambiguation.</div>
+        </div>
+      </div>
+      <div class="oq-item">
+        <div class="oq-num">4</div>
+        <div>
+          <div class="oq-title">4pt vs 8pt grid?</div>
+          <div class="oq-desc">§3 — same table, both grids. 4pt is denser (Editor-friendly), 8pt is more spacious.</div>
+        </div>
+      </div>
+      <div class="oq-item">
+        <div class="oq-num">5</div>
+        <div>
+          <div class="oq-title">Button-in-flight: marquee dots, silent disabled, or accept a tiny spinner?</div>
+          <div class="oq-desc">Not yet animated here. The spec's current call is marquee dots ("Sending."). Worth a follow-up preview if this matters.</div>
+        </div>
+      </div>
+      <div class="oq-item">
+        <div class="oq-num">6</div>
+        <div>
+          <div class="oq-title">Toasts forbidden — really?</div>
+          <div class="oq-desc">Current answer: yes, background updates land as status primitives in a designated activity pane. Walkthrough 4 stress-tests this.</div>
+        </div>
+      </div>
+      <div class="oq-item">
+        <div class="oq-num">7</div>
+        <div>
+          <div class="oq-title">Patch-highlight duration: 800ms or shorter on rapid streams?</div>
+          <div class="oq-desc">§6 right shows the 800ms version. Replay to retrigger. Imagine 5 cells changing per second — too loud?</div>
+        </div>
+      </div>
+      <div class="oq-item">
+        <div class="oq-num">8</div>
+        <div>
+          <div class="oq-title">Empty canvas — "Canvas ready. ⌘K to start." or nothing at all?</div>
+          <div class="oq-desc">Not previewed visually (the screen would just be empty). Decision is purely whether the one-line caption helps first-time users.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+// Mode toggle
+document.getElementById('modeToggle').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-mode]');
+  if (!btn) return;
+  const mode = btn.dataset.mode;
+  document.documentElement.setAttribute('data-mode', mode);
+  document.querySelectorAll('#modeToggle button').forEach(b => {
+    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+  });
+});
+
+// Accent toggle
+document.getElementById('accentToggle').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-accent]');
+  if (!btn) return;
+  const accent = btn.dataset.accent;
+  document.documentElement.setAttribute('data-accent', accent);
+  document.querySelectorAll('#accentToggle button').forEach(b => {
+    b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+  });
+  // Reflect "active choice" framing on the matching §1 card
+  document.querySelectorAll('.accent-card').forEach(c => c.classList.remove('active-choice'));
+  const match = document.querySelector('.accent-card.accent-preview[data-show="' + accent + '"]');
+  if (match) match.classList.add('active-choice');
+});
+
+// Replay patch highlight
+document.getElementById('replayPatch').addEventListener('click', () => {
+  const cells = document.querySelectorAll('#patchDemo .patch-cell');
+  cells.forEach(c => c.classList.remove('patched'));
+  // force reflow so the animation re-runs
+  void document.getElementById('patchDemo').offsetWidth;
+  cells.forEach(c => c.classList.add('patched'));
+});
+</script>
+</body>
+</html>
