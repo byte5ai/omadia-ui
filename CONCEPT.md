@@ -2,7 +2,7 @@
 
 > A persistent canvas surface for the Omadia Agentic OS. The agent synthesises UI live the way it synthesises prose today — on a blank canvas, in the layout and composition that fit the user's task and preferences in the moment.
 
-Version 0.9 — typography architecture locked at the concept level: three registers (structural / prose / mono), bound to three families in `docs/visual-spec.md` v0.3 (Geist · Source Serif 4 · Geist Mono). UI Skill gains a `prose-vs-structure protocol` alongside the palette-binding protocol; `style` trait extends to carry `"prose"` and `"mono"` register markers. v0.8: material identity (Lume) named and locked; accent slot becomes user-bindable across three curated palettes (Petrol / Atelier / Lagoon, Lagoon default), bound via the existing context-aware prefs model. UI Skill gained a `palette-binding protocol`. Visual specification carved out to [`docs/visual-spec.md`](docs/visual-spec.md) v0.2. v0.7 baseline: DataRef lifecycle (content-addressed, buffer ownership, GC), per-mutation mutex semantics, sub-agent cancellation, Tier-2 data cache between turns, external-effect action classification with confirmation pattern, `canvas-activate` action type, Tier-2 statelessness wrt active canvas, referential-continuity contract. v0.6: direct-gesture vs. routed-local-op split, canonical `DataRef` shape, concrete boot handshake, editor-primitive required fields, preview-vs-durable ops, contextKey per canvas, sentinel mechanism, server-assigned `surfaceSeq`. v0.5: forward-compat hooks for shared canvases. v0.4: 2D architecture, editor primitives, local ops catalog, multiple canvases, context-aware prefs, protocol versioning.
+Version 0.10 — input model made explicit: three prompt-input classes (canvas-level prompt · container-internal inputs · container-scoped prompt), `targetContainerId` added to `IncomingTurn`, routing rules in Tier 2. Closes the gap surfaced when the vision-frame mockups showed both a global prompt bar and per-container inputs ("Reply in thread", "Type to add a note · ⌘K to summon agent") without the concept specifying how they differ. v0.9 — typography architecture locked at the concept level: three registers (structural / prose / mono), bound to three families in `docs/visual-spec.md` v0.3 (Geist · Source Serif 4 · Geist Mono). UI Skill gains a `prose-vs-structure protocol` alongside the palette-binding protocol; `style` trait extends to carry `"prose"` and `"mono"` register markers. v0.8: material identity (Lume) named and locked; accent slot becomes user-bindable across three curated palettes (Petrol / Atelier / Lagoon, Lagoon default), bound via the existing context-aware prefs model. UI Skill gained a `palette-binding protocol`. Visual specification carved out to [`docs/visual-spec.md`](docs/visual-spec.md) v0.2. v0.7 baseline: DataRef lifecycle (content-addressed, buffer ownership, GC), per-mutation mutex semantics, sub-agent cancellation, Tier-2 data cache between turns, external-effect action classification with confirmation pattern, `canvas-activate` action type, Tier-2 statelessness wrt active canvas, referential-continuity contract. v0.6: direct-gesture vs. routed-local-op split, canonical `DataRef` shape, concrete boot handshake, editor-primitive required fields, preview-vs-durable ops, contextKey per canvas, sentinel mechanism, server-assigned `surfaceSeq`. v0.5: forward-compat hooks for shared canvases. v0.4: 2D architecture, editor primitives, local ops catalog, multiple canvases, context-aware prefs, protocol versioning.
 
 ---
 
@@ -212,6 +212,30 @@ Capability names in manifests are **versioned** (`canvasChatAgent@1`). Runtime s
 `CoreApi.handleTurnStream` has no service-selector parameter; `TurnDispatcher` is wired at boot to one orchestrator service.
 
 **Additive SDK extension**: `channel.dispatchService?: string` in the channel manifest. Boot wires the channel-specific dispatcher to the resolved service. Defaults to `chatAgent@1` for classic channels.
+
+---
+
+## Prompt Input Classes
+
+A canvas has more than one place a user can type. The vision-frame shows a global prompt bar at the bottom, a "Reply in thread" box inside a chat container, and a "Type to add a note · ⌘K to summon agent" field inside a notes container. These are **three distinct input classes** with different routing and cost. The concept must keep them separate so the implementation does not collapse them into one ambiguous text box.
+
+| Class | Where it lives | What it does | Routing | Cost |
+|---|---|---|---|---|
+| **Canvas-level prompt** | Global bottom prompt bar, one per canvas | Speaks to the OS as a whole — summon a new container, modify/extend existing containers, cross-container operations, canvas-wide questions | `IncomingTurn` with `text`, **no** `targetContainerId` → Tier 2 decides scope, may go to Tier 3 | Tier-2 (always) + Tier-3 (if content-bound) |
+| **Container-internal input** | Standard UI inside a container — `input`, `form`, `choice`, `toggle`, text areas | Deterministic UI interaction. Filling a form field, ticking a checkbox, typing a note body, picking a dropdown value. **No agent invocation** until an explicit submit/action | `IncomingTurn` with an `action` (`effect: local \| internal`), no free-text prompt. Local-effect actions never leave Tier 1 | Tier-1 (local) or Tier-2 (on submit) |
+| **Container-scoped prompt** | A prompt field bound to one container ("Reply in thread", "summon agent" in a notes container) | "Make *this* container do something" — extend this thread, transform these rows, research into this note. The agent receives the prompt **with the container as context** | `IncomingTurn` with `text` **and** `targetContainerId` → Tier 2 scopes its work to that container | Tier-2 + Tier-3 (if content-bound) |
+
+**Routing rule (Tier 2):**
+
+- `text` present, `targetContainerId` absent → **canvas-level**. Tier 2 may create new containers or patch any container.
+- `text` present, `targetContainerId` present → **container-scoped**. Tier 2 restricts its tree mutations to the named container's subtree (and may spawn a tightly-related sidecar, e.g. a confirmation modal).
+- `action` present, `text` absent → **container-internal**. Deterministic; resolves against the Tier-1 local catalog or a structured action handler, never free-form synthesis.
+
+**Why container-scoped is not just canvas-level with a hint:** scoping changes what the agent is allowed to touch. A canvas-level prompt can restructure the whole workspace; a container-scoped prompt must not. This is a permission boundary, not a convenience — it keeps "add a line to my note" from accidentally rebuilding the canvas. It is also the natural seam for v2+ shared canvases: a container-scoped prompt touches one container's state, which is the smallest unit a CRDT merge has to reconcile.
+
+**Not every container has a scoped prompt.** It is opt-in per component type. A static KPI grid has none. A chat-thread container has one ("Reply in thread"). A notes container has one ("Type to add a note · ⌘K to summon agent"). The component schema declares whether a container exposes a scoped-prompt affordance.
+
+**SDK change**: add `targetContainerId?: string` to `IncomingTurn` (`incoming.ts`), additive. Absent = canvas-level; present = container-scoped. Classic channels never set it.
 
 ---
 
@@ -592,6 +616,7 @@ The handshake is the **first message exchange** after WebSocket-open. It is serv
 | Service-name version-stripping convention in boot wiring | `middleware/src/index.ts:1700-1716`, `pluginContext.ts:213-216` | small additive helper |
 | Wire `TurnDispatcher` to honour `dispatchService` at boot | `middleware/src/index.ts:1700-1716` + `coreApi.ts:16-25` | small refactor |
 | Add `tenantId?: string` to `IncomingTurn` | `harness-channel-sdk/src/incoming.ts:6-19` | one optional field |
+| Add `targetContainerId?: string` to `IncomingTurn` (canvas-level vs. container-scoped prompt routing) | `harness-channel-sdk/src/incoming.ts:6-19` | one optional field |
 | Add `surface?: OutgoingSurface` to `SemanticAnswer` | `harness-channel-sdk/src/outgoing.ts:25-81` | one optional field + type |
 | Add `surface_*` event family (incl. `surface_local_action`) with revision metadata to `ChatStreamEvent` union | `harness-channel-sdk/src/chatAgent.ts:374-500` | seven new discriminated members |
 | Origin-metadata carry-through in sentinel extraction | `orchestrator.ts:903-919` + extractor signatures | small carry-through |
