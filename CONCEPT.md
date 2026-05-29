@@ -2,7 +2,7 @@
 
 > A persistent canvas surface for the Omadia Agentic OS. The agent synthesises UI live the way it synthesises prose today — on a blank canvas, in the layout and composition that fit the user's task and preferences in the moment.
 
-Version 0.10 — input model made explicit: three prompt-input classes (canvas-level prompt · container-internal inputs · container-scoped prompt), `targetContainerId` added to `IncomingTurn`, routing rules in Tier 2. Closes the gap surfaced when the vision-frame mockups showed both a global prompt bar and per-container inputs ("Reply in thread", "Type to add a note · ⌘K to summon agent") without the concept specifying how they differ. v0.9 — typography architecture locked at the concept level: three registers (structural / prose / mono), bound to three families in `docs/visual-spec.md` v0.3 (Geist · Source Serif 4 · Geist Mono). UI Skill gains a `prose-vs-structure protocol` alongside the palette-binding protocol; `style` trait extends to carry `"prose"` and `"mono"` register markers. v0.8: material identity (Lume) named and locked; accent slot becomes user-bindable across three curated palettes (Petrol / Atelier / Lagoon, Lagoon default), bound via the existing context-aware prefs model. UI Skill gained a `palette-binding protocol`. Visual specification carved out to [`docs/visual-spec.md`](docs/visual-spec.md) v0.2. v0.7 baseline: DataRef lifecycle (content-addressed, buffer ownership, GC), per-mutation mutex semantics, sub-agent cancellation, Tier-2 data cache between turns, external-effect action classification with confirmation pattern, `canvas-activate` action type, Tier-2 statelessness wrt active canvas, referential-continuity contract. v0.6: direct-gesture vs. routed-local-op split, canonical `DataRef` shape, concrete boot handshake, editor-primitive required fields, preview-vs-durable ops, contextKey per canvas, sentinel mechanism, server-assigned `surfaceSeq`. v0.5: forward-compat hooks for shared canvases. v0.4: 2D architecture, editor primitives, local ops catalog, multiple canvases, context-aware prefs, protocol versioning.
+Version 0.11 — interaction model defined: intent is spatial, not locked in a text box. Inherent affordances live client-side (hard rule, extends local-ops catalog to data-structure standard ops). Context-invoke gesture (long-press primary, right-click desktop shortcut, hover dropped, double-click stays edit). First-class action panel (deterministic affordances + agent-pre-supplied `suggestedActions` + annotation field, no turn on open). Annotation-as-prompt with target granularity; annotation history as a standard element, screen otherwise noise-free. No persistent bottom prompt bar in v1 (⌘K command layer + cold-start field instead); persistent bar documented as fallback. v0.10 — input model made explicit: three prompt-input classes (canvas-level prompt · container-internal inputs · container-scoped prompt), `targetContainerId` added to `IncomingTurn`, routing rules in Tier 2. v0.9 — typography architecture locked at the concept level: three registers (structural / prose / mono), bound to three families in `docs/visual-spec.md` v0.3 (Geist · Source Serif 4 · Geist Mono). UI Skill gains a `prose-vs-structure protocol` alongside the palette-binding protocol; `style` trait extends to carry `"prose"` and `"mono"` register markers. v0.8: material identity (Lume) named and locked; accent slot becomes user-bindable across three curated palettes (Petrol / Atelier / Lagoon, Lagoon default), bound via the existing context-aware prefs model. UI Skill gained a `palette-binding protocol`. Visual specification carved out to [`docs/visual-spec.md`](docs/visual-spec.md) v0.2. v0.7 baseline: DataRef lifecycle (content-addressed, buffer ownership, GC), per-mutation mutex semantics, sub-agent cancellation, Tier-2 data cache between turns, external-effect action classification with confirmation pattern, `canvas-activate` action type, Tier-2 statelessness wrt active canvas, referential-continuity contract. v0.6: direct-gesture vs. routed-local-op split, canonical `DataRef` shape, concrete boot handshake, editor-primitive required fields, preview-vs-durable ops, contextKey per canvas, sentinel mechanism, server-assigned `surfaceSeq`. v0.5: forward-compat hooks for shared canvases. v0.4: 2D architecture, editor primitives, local ops catalog, multiple canvases, context-aware prefs, protocol versioning.
 
 ---
 
@@ -221,7 +221,7 @@ A canvas has more than one place a user can type. The vision-frame shows a globa
 
 | Class | Where it lives | What it does | Routing | Cost |
 |---|---|---|---|---|
-| **Canvas-level prompt** | Global bottom prompt bar, one per canvas | Speaks to the OS as a whole — summon a new container, modify/extend existing containers, cross-container operations, canvas-wide questions | `IncomingTurn` with `text`, **no** `targetContainerId` → Tier 2 decides scope, may go to Tier 3 | Tier-2 (always) + Tier-3 (if content-bound) |
+| **Canvas-level prompt** | ⌘K command layer (summon-anywhere) + cold-start field on an empty canvas. **No persistent bottom bar in v1** (see Interaction Model) | Speaks to the OS as a whole — summon a new container, modify/extend existing containers, cross-container operations, canvas-wide questions | `IncomingTurn` with `text`, **no** `targetContainerId` → Tier 2 decides scope, may go to Tier 3 | Tier-2 (always) + Tier-3 (if content-bound) |
 | **Container-internal input** | Standard UI inside a container — `input`, `form`, `choice`, `toggle`, text areas | Deterministic UI interaction. Filling a form field, ticking a checkbox, typing a note body, picking a dropdown value. **No agent invocation** until an explicit submit/action | `IncomingTurn` with an `action` (`effect: local \| internal`), no free-text prompt. Local-effect actions never leave Tier 1 | Tier-1 (local) or Tier-2 (on submit) |
 | **Container-scoped prompt** | A prompt field bound to one container ("Reply in thread", "summon agent" in a notes container) | "Make *this* container do something" — extend this thread, transform these rows, research into this note. The agent receives the prompt **with the container as context** | `IncomingTurn` with `text` **and** `targetContainerId` → Tier 2 scopes its work to that container | Tier-2 + Tier-3 (if content-bound) |
 
@@ -236,6 +236,88 @@ A canvas has more than one place a user can type. The vision-frame shows a globa
 **Not every container has a scoped prompt.** It is opt-in per component type. A static KPI grid has none. A chat-thread container has one ("Reply in thread"). A notes container has one ("Type to add a note · ⌘K to summon agent"). The component schema declares whether a container exposes a scoped-prompt affordance.
 
 **SDK change**: add `targetContainerId?: string` to `IncomingTurn` (`incoming.ts`), additive. Absent = canvas-level; present = container-scoped. Classic channels never set it.
+
+---
+
+## Interaction Model — Intent Capture vs. Direct Manipulation
+
+The Prompt Input Classes above define *what happens* to an input. This section defines *how the user produces one*. The guiding principle: **intent is spatial, not locked in a text box.** This is what keeps Omadia UI from collapsing back into "a chat window with rich rendering".
+
+### Three layers of input, in frequency order
+
+| Layer | When | Determinism | Agent turn? |
+|---|---|---|---|
+| **Direct manipulation + inherent affordances** | the common case — sort, filter, select, drag, resize, edit a field | full (client) | no |
+| **Annotation-as-prompt** | contextual intent for what no affordance covers — bind a prompt directly to a target | hard-bound to the annotated target | yes, on submit |
+| **Cold-start / new-surface prompt** | empty canvas, or a brand-new container from scratch | canvas-level | yes |
+
+### Inherent affordances — a hard client-side rule
+
+Every primitive type carries its deterministic standard operations **client-side**. They are **always offered**, the agent can neither forget, override, nor replace them with a turn. This extends the Local Operations Catalog from editor-only ops to data-structure standard ops:
+
+| Primitive | Inherent affordances (client-side, no turn) |
+|---|---|
+| `table` | sort, filter, select, group-by, hide/show column, paginate, resize columns |
+| `list` | sort, filter, select, reorder |
+| `tree` | collapse/expand, filter |
+| `canvas-region` | zoom, pan + editor local-ops catalog (brush, blur, …) |
+| `pane` | move, resize, close, collapse |
+| `form` | edit fields, validate, submit |
+
+"Sortiere die mittlere Liste um" is therefore **not a prompt** — the user clicks that list's sort header. No agent, no turn, deterministic. The prompt channel is only for what inherent affordances cannot do.
+
+### Context-invoke gesture
+
+| Gesture | Role | Platform |
+|---|---|---|
+| **Long-press / click-and-hold** (~400ms) | **primary** context-invoke — opens the action panel | universal: mouse + trackpad + touch |
+| Right-click | desktop-mouse shortcut for the same | desktop mouse |
+| Double-click | stays edit-in-place / open — **not** context-invoke | learned, unchanged |
+| Single-click | select / activate | learned, unchanged |
+| Hover | **dropped** — not touch-capable, collides with tooltips | — |
+
+Long-press is the anchor: the only gesture identical across mouse, trackpad, and touch that collides with nothing learned. Right-click is just the mouse shortcut to it. The gesture is defined abstractly as **context-invoke**, not hard-bound to "right mouse button", so a touch future maps cleanly (long-press is already the touch idiom for context actions).
+
+### The action panel — a first-class citizen, not an OS context menu
+
+Context-invoke opens not a thin grey Windows/Mac menu but a **wide, Lume-styled panel**, positioned beside the target (never covering it). Three zones:
+
+| Zone | Content | Source | Turn? |
+|---|---|---|---|
+| **Deterministic affordances** | the primitive's inherent affordances (Sort · Filter · Group · Select · Export …) | client-side, always | no |
+| **Contextual suggestions** | agent-proposed actions that fit *this* element ("Summarise these 3", "Reassign to Daniel") | **pre-supplied in the tree** via a `suggestedActions` property on the container | no |
+| **Annotation field** | "Ask omadia about this…" — free intent, deterministically bound to the target | — | yes, on submit |
+
+**Critical: no turn on panel open.** If contextual suggestions were generated when the panel opens, every context-invoke would cost ~400ms + a turn — fatal. Instead the agent supplies `suggestedActions` when it *builds* the container. The panel opens instantly with deterministic affordances + pre-supplied suggestions; a turn happens only when the user types into the annotation field and submits.
+
+Trade-off, made deliberately: `suggestedActions` costs output tokens per container (more tree content) and demands an "anticipate next actions" discipline in the Tier-2 Skill. Worth it — instant panel response is more UX-critical than the token saving.
+
+### Annotation-as-prompt — target granularity
+
+The annotation binds the prompt to a target, deterministically. No NLP inference about "which of the three lists":
+
+| Target | Example | Binding field on `IncomingTurn` |
+|---|---|---|
+| Container | "make this a kanban" | `targetContainerId` |
+| Region / row selection | "summarise these three" | `targetSelection: id[]` |
+| Cell / element | "why is this value so high?" | `targetElementId` |
+| Pixel region (editor) | "remove this" on an image area | `targetRegion: {bbox}` |
+| Text range | "make this shorter" | `targetTextRange` |
+| Empty canvas area | "build a week overview here" | canvas-level, position = click point |
+
+Multi-target ("compare list A with list B") via multi-select before annotating → `targetContainerIds: id[]`. Deferred to v2 unless v1 use-cases demand it.
+
+### Annotation lifecycle + history
+
+A pending annotation sticks visibly to its target while the agent works (like a pending comment). On resolution it disappears — the screen stays noise-free, which is non-negotiable. The command history (what was asked, what the agent built in response) lives in a **session-history / audit element**, reachable on demand via a standard affordance (like Miro's activity log). This is the *command* history, distinct from the *result* state (the current canvas). Related to `crossChannelConversationMemory@1`.
+
+### No persistent bottom prompt bar in v1 — with a documented fallback
+
+v1 ships **without** a persistent bottom prompt bar. The canvas-level channel is ⌘K (summon-anywhere command layer) plus the cold-start field. Rationale: a persistent always-visible text field pulls the concept back toward chat — the thing we are deliberately leaving behind.
+
+**Cold-start mechanic**: a canvas is never empty. An empty canvas shows one system-supplied prompt field, centred, Google-search style. The first agent return replaces it with materialised UI. After that, intent flows through annotation + inherent affordances + ⌘K.
+
+**Fallback (documented, not built)**: if real-world use shows the spatial-only model is too indirect — users hunting for where to type, or rebelling against the absence of a familiar input bar — a persistent bottom bar can be reintroduced as a canvas-level input. It is a purely additive UI affordance over the same canvas-level routing; no architecture change. We try radical-without first, measure, and bring it back only if the spatial model genuinely does not carry.
 
 ---
 
@@ -617,6 +699,8 @@ The handshake is the **first message exchange** after WebSocket-open. It is serv
 | Wire `TurnDispatcher` to honour `dispatchService` at boot | `middleware/src/index.ts:1700-1716` + `coreApi.ts:16-25` | small refactor |
 | Add `tenantId?: string` to `IncomingTurn` | `harness-channel-sdk/src/incoming.ts:6-19` | one optional field |
 | Add `targetContainerId?: string` to `IncomingTurn` (canvas-level vs. container-scoped prompt routing) | `harness-channel-sdk/src/incoming.ts:6-19` | one optional field |
+| Add annotation target fields to `IncomingTurn` (`targetSelection?`, `targetElementId?`, `targetRegion?`, `targetTextRange?`) for annotation-as-prompt granularity | `harness-channel-sdk/src/incoming.ts:6-19` | optional fields |
+| Add `suggestedActions?` property to the container primitive schema (agent-pre-supplied contextual actions for the action panel, no turn on open) | omadia-canvas-protocol primitive schema (this repo) | schema addition |
 | Add `surface?: OutgoingSurface` to `SemanticAnswer` | `harness-channel-sdk/src/outgoing.ts:25-81` | one optional field + type |
 | Add `surface_*` event family (incl. `surface_local_action`) with revision metadata to `ChatStreamEvent` union | `harness-channel-sdk/src/chatAgent.ts:374-500` | seven new discriminated members |
 | Origin-metadata carry-through in sentinel extraction | `orchestrator.ts:903-919` + extractor signatures | small carry-through |
