@@ -368,8 +368,12 @@ canvas-output gate` — the pure parsers + deny-by-default gate, **not yet wired
 see PR-7 row); **PR-8 — [#170]** (`feat(plugin-api): structured? output +
 writeCapabilities contract` — the typed `structured?` envelope + the
 `WriteCapability` contract + `deriveMutabilityCapabilities`; `writeCapabilities`
-is **not** on `NativeToolSpec`, see §1.4 feed-back). Remaining: PR-7b (wiring),
-PR-9, PR-10.
+is **not** on `NativeToolSpec`, see §1.4 feed-back). **#167–#170 are merged to
+`main`** (the additive SDK foundation). **PR-9a — [#171]** (`feat(ui-orchestrator):
+skeleton plugin publishing canvasChatAgent@1` — the Tier-2 plugin as a delegating
+skeleton; auto-discovered; composition deferred). Remaining: PR-9b+ (the real
+Tier-2 build — UI Skill, surface_* synthesis, mutex, cache, + PR-7b/writeCaps/
+structured wiring; gated on the Phase-1 spike), PR-10 (omadia-ui-channel).
 
 | # | Title (conventional) | Scope (files + tests) | Depends on | Risk | Expected reviewer ask |
 |---|---|---|---|---|---|
