@@ -2,7 +2,7 @@
 
 > A persistent canvas surface for the Omadia Agentic OS. The agent synthesises UI live the way it synthesises prose today — on a blank canvas, in the layout and composition that fit the user's task and preferences in the moment.
 
-Version 0.13 — closes the remaining Codex blockers and cheap-wins on v0.12. **`TargetRef` as concrete discriminated union** (eight variants: container, element, rowField, item, point, textRange, region, buffer), used everywhere the older "TargetRef" stub appeared. **Write-tool capability contract** — concrete schema convention for how a Tier-3 sub-agent tool declares its write capabilities so Tier 2 can derive `editable` / `canAddItems` / `canRemoveItems` / `canReorder` deterministically. **Selection ownership reconciled** as client view-state across all sections (State Model + Authority Split + Local Operations Catalog now agree). Region addressing pinned to `bufferContentHash` + coordinate space; textrange anchoring escaped from fragile numeric offsets via content-hash + segment anchors. Class-D / Beam **same-target arbitration** rule. `viewState` token budget with changed-containers-only and truncation fallback. `surface_mutation_resolved` lifted into the canonical Event Grammar table. `basedOnRevision` typed as opaque `RevisionId` consistent with v0.5. `surface_mutation_resolved` reserves `originAuthor` / `originSession` for v2 multi-user conflict provenance. v0.12 — closes Codex review on v0.10+v0.11 (authority/state-boundary blocker, stable-reference blocker) and adds the fourth interaction class. Major additions: **Authority Model & Stable References** (LLM owns UI structure + which data was delivered; client owns view-state; stable IDs are the lingua franca for every datapoint). **Direct Data Mutation (Class D)** — inline edit/delete/draw with optimistic UI, mutability-capabilities declared per field by the agent, async resolve via new `_pendingMutation` sentinel and `surface_mutation_resolved` event. **Async Architecture & Element-Locking** — UI never freezes during LLM work; locks scope to the smallest element that could be inconsistent, not the whole canvas. Naming: **Beam** replaces "annotation-as-prompt" (active, gestural, fits Lume's light vocabulary), **Trace** replaces session-history / audit log. Reserves Flare and Spark in a documented light-vocabulary discipline so future concepts don't trigger naming round-trips. Plus six Codex quick-wins: state-boundary table per affordance, `suggestedActions` schema with revision-basis validity, long-press arbitration rules. v0.11 — interaction model defined: intent is spatial, not locked in a text box. Inherent affordances live client-side (hard rule, extends local-ops catalog to data-structure standard ops). Context-invoke gesture (long-press primary, right-click desktop shortcut, hover dropped, double-click stays edit). First-class action panel (deterministic affordances + agent-pre-supplied `suggestedActions` + beam field, no turn on open). Beam-as-prompt with target granularity; trace as a standard element, screen otherwise noise-free. No persistent bottom prompt bar in v1 (⌘K command layer + cold-start field instead); persistent bar documented as fallback. v0.10 — input model made explicit: three prompt-input classes (canvas-level prompt · container-internal inputs · container-scoped prompt), `targetContainerId` added to `IncomingTurn`, routing rules in Tier 2. v0.9 — typography architecture locked at the concept level: three registers (structural / prose / mono), bound to three families in `docs/visual-spec.md` v0.3 (Geist · Source Serif 4 · Geist Mono). UI Skill gains a `prose-vs-structure protocol` alongside the palette-binding protocol; `style` trait extends to carry `"prose"` and `"mono"` register markers. v0.8: material identity (Lume) named and locked; accent slot becomes user-bindable across three curated palettes (Petrol / Atelier / Lagoon, Lagoon default), bound via the existing context-aware prefs model. UI Skill gained a `palette-binding protocol`. Visual specification carved out to [`docs/visual-spec.md`](docs/visual-spec.md) v0.2. v0.7 baseline: DataRef lifecycle (content-addressed, buffer ownership, GC), per-mutation mutex semantics, sub-agent cancellation, Tier-2 data cache between turns, external-effect action classification with confirmation pattern, `canvas-activate` action type, Tier-2 statelessness wrt active canvas, referential-continuity contract. v0.6: direct-gesture vs. routed-local-op split, canonical `DataRef` shape, concrete boot handshake, editor-primitive required fields, preview-vs-durable ops, contextKey per canvas, sentinel mechanism, server-assigned `surfaceSeq`. v0.5: forward-compat hooks for shared canvases. v0.4: 2D architecture, editor primitives, local ops catalog, multiple canvases, context-aware prefs, protocol versioning.
+Version 0.14 — closes Codex v0.13 blockers (three remaining): Beam target fields collapsed into the unified `TargetRef` (the v0.13 unification only reached three of four call sites — Beam was missed). `selection` cross-cutting trait removed (fourth selection-ownership collision site that escaped the v0.13 pass). Revision notation in the event grammar table moved from `N` / `N+1` integer-arithmetic style to `R0` / `R1` opaque-identifier style, restoring the equality-only contract. Plus optional fixes: `TargetRef` now ten variants (added `timeRange` for media/timeline operations; corrected count); mixed-`dataClass` container guidance; `viewState`-budget heuristic changed from "drop smallest first" to "drop non-referenced + non-selection-bearing first" with budget numbers explicitly marked as spike-tunable initial defaults. v0.13 — closes the remaining Codex blockers and cheap-wins on v0.12. **`TargetRef` as concrete discriminated union**, used everywhere the older "TargetRef" stub appeared. **Write-tool capability contract** — concrete schema convention for how a Tier-3 sub-agent tool declares its write capabilities so Tier 2 can derive `editable` / `canAddItems` / `canRemoveItems` / `canReorder` deterministically. **Selection ownership reconciled** as client view-state across all sections (State Model + Authority Split + Local Operations Catalog now agree). Region addressing pinned to `bufferContentHash` + coordinate space; textrange anchoring escaped from fragile numeric offsets via content-hash + segment anchors. Class-D / Beam **same-target arbitration** rule. `viewState` token budget with changed-containers-only and truncation fallback. `surface_mutation_resolved` lifted into the canonical Event Grammar table. `basedOnRevision` typed as opaque `RevisionId` consistent with v0.5. `surface_mutation_resolved` reserves `originAuthor` / `originSession` for v2 multi-user conflict provenance. v0.12 — closes Codex review on v0.10+v0.11 (authority/state-boundary blocker, stable-reference blocker) and adds the fourth interaction class. Major additions: **Authority Model & Stable References** (LLM owns UI structure + which data was delivered; client owns view-state; stable IDs are the lingua franca for every datapoint). **Direct Data Mutation (Class D)** — inline edit/delete/draw with optimistic UI, mutability-capabilities declared per field by the agent, async resolve via new `_pendingMutation` sentinel and `surface_mutation_resolved` event. **Async Architecture & Element-Locking** — UI never freezes during LLM work; locks scope to the smallest element that could be inconsistent, not the whole canvas. Naming: **Beam** replaces "annotation-as-prompt" (active, gestural, fits Lume's light vocabulary), **Trace** replaces session-history / audit log. Reserves Flare and Spark in a documented light-vocabulary discipline so future concepts don't trigger naming round-trips. Plus six Codex quick-wins: state-boundary table per affordance, `suggestedActions` schema with revision-basis validity, long-press arbitration rules. v0.11 — interaction model defined: intent is spatial, not locked in a text box. Inherent affordances live client-side (hard rule, extends local-ops catalog to data-structure standard ops). Context-invoke gesture (long-press primary, right-click desktop shortcut, hover dropped, double-click stays edit). First-class action panel (deterministic affordances + agent-pre-supplied `suggestedActions` + beam field, no turn on open). Beam-as-prompt with target granularity; trace as a standard element, screen otherwise noise-free. No persistent bottom prompt bar in v1 (⌘K command layer + cold-start field instead); persistent bar documented as fallback. v0.10 — input model made explicit: three prompt-input classes (canvas-level prompt · container-internal inputs · container-scoped prompt), `targetContainerId` added to `IncomingTurn`, routing rules in Tier 2. v0.9 — typography architecture locked at the concept level: three registers (structural / prose / mono), bound to three families in `docs/visual-spec.md` v0.3 (Geist · Source Serif 4 · Geist Mono). UI Skill gains a `prose-vs-structure protocol` alongside the palette-binding protocol; `style` trait extends to carry `"prose"` and `"mono"` register markers. v0.8: material identity (Lume) named and locked; accent slot becomes user-bindable across three curated palettes (Petrol / Atelier / Lagoon, Lagoon default), bound via the existing context-aware prefs model. UI Skill gained a `palette-binding protocol`. Visual specification carved out to [`docs/visual-spec.md`](docs/visual-spec.md) v0.2. v0.7 baseline: DataRef lifecycle (content-addressed, buffer ownership, GC), per-mutation mutex semantics, sub-agent cancellation, Tier-2 data cache between turns, external-effect action classification with confirmation pattern, `canvas-activate` action type, Tier-2 statelessness wrt active canvas, referential-continuity contract. v0.6: direct-gesture vs. routed-local-op split, canonical `DataRef` shape, concrete boot handshake, editor-primitive required fields, preview-vs-durable ops, contextKey per canvas, sentinel mechanism, server-assigned `surfaceSeq`. v0.5: forward-compat hooks for shared canvases. v0.4: 2D architecture, editor primitives, local ops catalog, multiple canvases, context-aware prefs, protocol versioning.
 
 ---
 
@@ -105,12 +105,18 @@ viewState: {
 
 Tier 1 ↔ Tier 2 wire convention: `viewState` is part of the `IncomingTurn` (additive optional field, see SDK changes). Classic channels never set it.
 
-**Payload budget for `viewState`** — the snapshot must stay practical at scale:
+**Payload budget for `viewState`** — the snapshot must stay practical at scale. The numbers below are **initial defaults, spike-tunable**; they are not measurement-grounded yet.
 
-- **Changed-containers-only**: omit containers whose view-state has not changed since the agent last saw the canvas. Tier 1 tracks an `agentSeenViewStateRevision` per container; ships only deltas + containers actually referenced by the turn.
-- **Hard cap**: the serialised `viewState` blob is limited to **64 KB** per turn. Truncation rule below `64 KB` is "drop smallest containers first, keep selection-bearing containers always".
-- **Selection cap**: a single container's `selection` is limited to **100 stable IDs**. Beyond that, ship `selection: { kind: 'truncated', includedCount: 100, totalCount: N, sample: [first 100 IDs] }` — Tier 2 receives a clearly-marked sample and may decide to fetch full selection via a Tier-3 lookup if it really needs it.
+- **Inclusion priority** (when budget is tight, evict last-first from this list):
+  1. Containers explicitly referenced by the turn's `target` (or any `targets[]` in multi-target)
+  2. Containers carrying a non-empty `selection` (they are the most-common reference target)
+  3. Containers whose view-state has changed since the agent last saw the canvas
+  4. Everything else
+- **Changed-containers-only baseline**: Tier 1 tracks `agentSeenViewStateRevision` per container and ships only deltas by default (categories 1+2+3). Category 4 is dropped unless the budget has room.
+- **Hard cap (initial default)**: the serialised `viewState` blob is limited to **64 KB** per turn. Containers above the budget are evicted in reverse priority order.
+- **Selection cap (initial default)**: a single container's `selection` is limited to **100 stable IDs**. Beyond that, ship `selection: { kind: 'truncated', includedCount: 100, totalCount: N, sample: [first 100 IDs by viewState ordering] }` — Tier 2 receives a clearly-marked sample and may decide to fetch full selection via a Tier-3 lookup if it really needs it.
 - **Truncation fallback**: when truncation kicks in, the turn carries `viewStateTruncated: true` and Tier 2's skill rule is "ask before mutating across a truncated selection" — explicit user confirmation required.
+- **Spike calibration**: the spike measures real-world `viewState` sizes (typical, p95, p99) on the sample canvases from `docs/walkthroughs.md` and adjusts the 64 KB and 100-ID numbers if needed.
 
 ### Stable IDs — a hard rule on every datatype-carrying primitive
 
@@ -170,14 +176,14 @@ Buffer-native coordinates are **independent of zoom and pan** — the user can z
 ### Implications
 
 - **No "row 3" anywhere.** All targets address data via stable ID; positions are not addressable references.
-- **Beams carry stable IDs.** `targetSelection` is `rowKey[]`, never index-based.
-- **Mutations carry stable IDs.** Class-D edits target a specific `rowKey` + field, not "the row you can see in the third position".
+- **Beams carry stable IDs.** Beam target is a `TargetRef` (e.g. `{kind: 'item', containerId, itemKey}` or `{kind: 'rowField', containerId, rowKey, fieldKey}`), never index-based.
+- **Mutations carry stable IDs.** Class-D edits target a specific `rowKey` + field via `TargetRef`, not "the row you can see in the third position".
 - **The agent's `treeRevision` advances only on agent-driven changes.** Client view-state changes do not bump it.
 - **No round-trip just to see.** View-state lives client-side; the next genuine turn carries the snapshot for context.
 
 ### `TargetRef` — the discriminated union used everywhere
 
-Every place the concept refers to "a target" — beam targets, `_pendingMutation.target`, `suggestedActions.target`, `surface_local_action.target` — uses one canonical discriminated union:
+Every place the concept refers to "a target" — beam target, `_pendingMutation.target`, `suggestedActions.target`, `surface_local_action.target`, `surface_mutation_resolved` correlation — uses **one** canonical discriminated union with ten variants:
 
 ```ts
 type TargetRef =
@@ -188,11 +194,13 @@ type TargetRef =
   | { kind: 'item';       containerId: string; itemKey: string }    // list / tree node
   | { kind: 'point';      containerId: string; pointKey: string }   // chart data point
   | { kind: 'textRange';  anchor: textRangeAnchor }                 // see schema above
-  | { kind: 'region';     region: bufferRegion }                    // see schema above
-  | { kind: 'buffer';     primitiveId: string; bufferContentHash: string }  // whole-buffer reference for canvas-region / media
+  | { kind: 'region';     region: bufferRegion }                    // pixel/canvas-region — see schema above
+  | { kind: 'buffer';     primitiveId: string; bufferContentHash: string }  // whole-buffer reference (canvas-region / media)
+  | { kind: 'timeRange';  primitiveId: string; bufferContentHash: string;
+                          start: number; end: number; unit: 'seconds' | 'samples' | 'frames' }  // media / timeline trim/splice/scrub
 ```
 
-Tier 1 resolves a `TargetRef` against its current tree + view-state by switching on `kind`. Unknown `kind` is rejected. Tier 2 emits only the variants its operation needs. This is the single source for target addressing across the entire concept.
+Tier 1 resolves a `TargetRef` against its current tree + view-state by switching on `kind`. Unknown `kind` is rejected. Tier 2 emits only the variants its operation needs. **No other target-addressing scheme exists in the concept** — Beam, mutation, suggested-action and local-op targets are all `TargetRef`.
 
 ---
 
@@ -351,21 +359,21 @@ A canvas has more than one place a user can type. The vision-frame shows a globa
 
 | Class | Where it lives | What it does | Routing | Cost |
 |---|---|---|---|---|
-| **Canvas-level prompt** | ⌘K command layer (summon-anywhere) + cold-start field on an empty canvas. **No persistent bottom bar in v1** (see Interaction Model) | Speaks to the OS as a whole — summon a new container, modify/extend existing containers, cross-container operations, canvas-wide questions | `IncomingTurn` with `text`, **no** `targetContainerId` → Tier 2 decides scope, may go to Tier 3 | Tier-2 (always) + Tier-3 (if content-bound) |
+| **Canvas-level prompt** | ⌘K command layer (summon-anywhere) + cold-start field on an empty canvas. **No persistent bottom bar in v1** (see Interaction Model) | Speaks to the OS as a whole — summon a new container, modify/extend existing containers, cross-container operations, canvas-wide questions | `IncomingTurn` with `text`, `target.kind === 'canvas'` (or `target` absent) → Tier 2 decides scope, may go to Tier 3 | Tier-2 (always) + Tier-3 (if content-bound) |
 | **Container-internal input** | Standard UI inside a container — `input`, `form`, `choice`, `toggle`, text areas | Deterministic UI interaction. Filling a form field, ticking a checkbox, typing a note body, picking a dropdown value. **No agent invocation** until an explicit submit/action | `IncomingTurn` with an `action` (`effect: local \| internal`), no free-text prompt. Local-effect actions never leave Tier 1 | Tier-1 (local) or Tier-2 (on submit) |
-| **Container-scoped prompt** | A prompt field bound to one container ("Reply in thread", "summon agent" in a notes container) | "Make *this* container do something" — extend this thread, transform these rows, research into this note. The agent receives the prompt **with the container as context** | `IncomingTurn` with `text` **and** `targetContainerId` → Tier 2 scopes its work to that container | Tier-2 + Tier-3 (if content-bound) |
+| **Container-scoped prompt** | A prompt field bound to one container ("Reply in thread", "summon agent" in a notes container) | "Make *this* container do something" — extend this thread, transform these rows, research into this note. The agent receives the prompt **with the container as context** | `IncomingTurn` with `text` **and** `target: TargetRef` with `kind !== 'canvas'` → Tier 2 scopes its work to that target's subtree | Tier-2 + Tier-3 (if content-bound) |
 
 **Routing rule (Tier 2):**
 
-- `text` present, `targetContainerId` absent → **canvas-level**. Tier 2 may create new containers or patch any container.
-- `text` present, `targetContainerId` present → **container-scoped**. Tier 2 restricts its tree mutations to the named container's subtree (and may spawn a tightly-related sidecar, e.g. a confirmation modal).
+- `text` present, `target` absent or `target.kind === 'canvas'` → **canvas-level**. Tier 2 may create new containers or patch any container.
+- `text` present, `target` present with `kind !== 'canvas'` → **container-scoped** (or finer-scoped — `rowField`, `region`, `textRange`, etc.). Tier 2 restricts its tree mutations to the target's subtree (and may spawn a tightly-related sidecar, e.g. a confirmation modal).
 - `action` present, `text` absent → **container-internal**. Deterministic; resolves against the Tier-1 local catalog or a structured action handler, never free-form synthesis.
 
 **Why container-scoped is not just canvas-level with a hint:** scoping changes what the agent is allowed to touch. A canvas-level prompt can restructure the whole workspace; a container-scoped prompt must not. This is a permission boundary, not a convenience — it keeps "add a line to my note" from accidentally rebuilding the canvas. It is also the natural seam for v2+ shared canvases: a container-scoped prompt touches one container's state, which is the smallest unit a CRDT merge has to reconcile.
 
 **Not every container has a scoped prompt.** It is opt-in per component type. A static KPI grid has none. A chat-thread container has one ("Reply in thread"). A notes container has one ("Type to add a note · ⌘K to summon agent"). The component schema declares whether a container exposes a scoped-prompt affordance.
 
-**SDK change**: add `targetContainerId?: string` to `IncomingTurn` (`incoming.ts`), additive. Absent = canvas-level; present = container-scoped. Classic channels never set it.
+**SDK change**: add `target?: TargetRef` to `IncomingTurn` (`incoming.ts`), additive. `target` is the canonical address; absent (or `kind: 'canvas'`) means canvas-level, any other `kind` means scoped. Classic channels never set it. This single field replaces the v0.10/v0.11-era separate `targetContainerId`, `targetSelection`, `targetElementId`, `targetRegion`, `targetTextRange` placeholders.
 
 ---
 
@@ -470,14 +478,17 @@ The beam binds the prompt to a target, deterministically. No NLP inference about
 
 | Target | Example | Binding field on `IncomingTurn` |
 |---|---|---|
-| Container | "make this a kanban" | `targetContainerId` |
-| Region / row selection | "summarise these three" | `targetSelection: id[]` |
-| Cell / element | "why is this value so high?" | `targetElementId` |
-| Pixel region (editor) | "remove this" on an image area | `targetRegion: {bbox}` |
-| Text range | "make this shorter" | `targetTextRange` |
+| Container | "make this a kanban" | `target: {kind: 'container', containerId}` |
+| List/tree item | "follow up on this ticket" | `target: {kind: 'item', containerId, itemKey}` |
+| Row field | "set this priority to high" | `target: {kind: 'rowField', containerId, rowKey, fieldKey}` |
+| Cell / element | "why is this value so high?" | `target: {kind: 'element', elementId}` |
+| Chart data point | "what drove this spike?" | `target: {kind: 'point', containerId, pointKey}` |
+| Pixel region (editor) | "remove this" on an image area | `target: {kind: 'region', region: bufferRegion}` |
+| Time range (media/timeline) | "trim this section" | `target: {kind: 'timeRange', primitiveId, bufferContentHash, start, end, unit}` |
+| Text range | "make this shorter" | `target: {kind: 'textRange', anchor: textRangeAnchor}` |
 | Empty canvas area | "build a week overview here" | canvas-level, position = click point |
 
-Multi-target ("compare list A with list B") via multi-select before annotating → `targetContainerIds: id[]`. Deferred to v2 unless v1 use-cases demand it.
+Multi-target ("compare list A with list B") via multi-select before beaming → `target: TargetRef[]` carried as `targets: TargetRef[]` (plural variant on `IncomingTurn`). Deferred to v2 unless v1 use-cases demand it.
 
 ### Beam lifecycle + Trace
 
@@ -568,6 +579,17 @@ writeCapabilities:
 | `operation: "reorder"` | parent container gets `canReorder: true` |
 
 Tier 2 matches `dataClass` strings to its outgoing tree by an explicit `dataClass` annotation on each agent-emitted container (`container { dataClass: "jira.ticket", … }`). Without that annotation, the container is treated as read-only — strict default.
+
+**Mixed-`dataClass` containers** — a container may aggregate data from more than one source (e.g. a table joining Jira tickets with ERP budget data). In that case the agent declares per-column or per-field `dataClass`:
+
+```
+container {
+  dataClass: { default: "jira.ticket", fields: { hoursBudget: "erp.budget", hoursLeft: "erp.budget" } },
+  …
+}
+```
+
+Tier-2 derivation then applies the matching `writeCapabilities` per field: Jira fields editable via `jira.ticket.update`, ERP fields via `erp.budget.update`, fields without a matching write tool stay read-only. The same primary-key resolution (`idField` per dataClass) applies per row — a mixed-source row carries multiple stable ID fields, one per dataClass, and the agent declares which row-key is the canvas-side `rowKey`.
 
 **Why explicit manifest declarations, not inferred?** The Tier-2 Skill could in principle inspect free-form Tool schemas (input parameter names, JSON-Schema validators, etc.) and guess capabilities. That guess is unreliable and produces silent rollback-hell. The manifest annotation is the contract: a tool that wants its writes exposed to inline UI must say so explicitly, including which fields are editable. Tools that lack this annotation are simply not exposed for direct manipulation — they still work via beam ("change Anna's status to done"), which routes through the agent's full reasoning.
 
@@ -751,19 +773,21 @@ The content-addressed id is what makes durable editing tractable: every "blur ap
 
 | Event | Causal fields | Carries | Purpose |
 |---|---|---|---|
-| `surface_snapshot` | `producesRevision: N` | full primitive tree + active `omadia-canvas-protocol` + ops-catalog version | Initial render / full replace; starts new revision |
-| `surface_patch` | `basedOnRevision: N`, `producesRevision: N+1` | tree-path-targeted mutations | Incremental update; client rejects if `basedOnRevision` mismatches and requests snapshot |
-| `surface_data_ref_created` | `revision: N` | `DataRef + {schema, sizeHint}` | Bulk data available behind signed reference (canonical shape, see above) |
-| `surface_data_ref_invalidated` | `revision: N` | `{id, reason}` | Reference expired / changed |
-| `surface_action_result` | `forActionId, basedOnRevision: N` | `{status, message?, followUpPatch?}` | Result of a user-triggered action |
-| `surface_local_action` | `revision: N`, `effect: 'preview' \| 'durable'` | `{operation, params, target}` | Tier 2 instructs Tier 1 to execute a catalog operation. `effect: 'preview'` does **not** mutate `treeRevision` (transient visual, undo-able locally). `effect: 'durable'` is always followed by a `surface_patch` from Tier 2 that mutates `treeRevision` — so the durable result is reflected in canvas state and (in v2+) visible to all members. Durable ops on buffer-backed primitives (canvas-region, media, vector-path) trigger Tier 1 to report the new content-addressed `DataRef` back to Tier 2 via the next `IncomingTurn` |
-| `surface_error` | `revision: N` | `{severity, message, scope}` | Render-side validation / dataRef denied / catalog op unknown / protocol mismatch |
-| `surface_mutation_resolved` | `revision: N`, `forMutationId: string` | `{status: 'success' \| 'modified' \| 'rejected' \| 'invalid' \| 'conflict', actualValue?, error?, originAuthor?, originSession?}` | Resolution of a Class-D mutation. Reconciles a `_pendingMutation` by `mutationId`. v2+ multi-user reserves `originAuthor` / `originSession` so a member can be shown "who applied this and from which session" — empty in v1 single-user |
+| `surface_snapshot` | `producesRevision: Rn` | full primitive tree + active `omadia-canvas-protocol` + ops-catalog version | Initial render / full replace; starts new revision |
+| `surface_patch` | `basedOnRevision: Rn`, `producesRevision: Rm` | tree-path-targeted mutations | Incremental update; client rejects if `basedOnRevision` mismatches and requests snapshot |
+| `surface_data_ref_created` | `revision: Rn` | `DataRef + {schema, sizeHint}` | Bulk data available behind signed reference (canonical shape, see above) |
+| `surface_data_ref_invalidated` | `revision: Rn` | `{id, reason}` | Reference expired / changed |
+| `surface_action_result` | `forActionId, basedOnRevision: Rn` | `{status, message?, followUpPatch?}` | Result of a user-triggered action |
+| `surface_local_action` | `revision: Rn`, `effect: 'preview' \| 'durable'` | `{operation, params, target: TargetRef}` | Tier 2 instructs Tier 1 to execute a catalog operation. `effect: 'preview'` does **not** mutate `treeRevision` (transient visual, undo-able locally). `effect: 'durable'` is always followed by a `surface_patch` from Tier 2 that mutates `treeRevision` — so the durable result is reflected in canvas state and (in v2+) visible to all members. Durable ops on buffer-backed primitives (canvas-region, media, vector-path) trigger Tier 1 to report the new content-addressed `DataRef` back to Tier 2 via the next `IncomingTurn` |
+| `surface_error` | `revision: Rn` | `{severity, message, scope}` | Render-side validation / dataRef denied / catalog op unknown / protocol mismatch |
+| `surface_mutation_resolved` | `revision: Rn`, `forMutationId: string` | `{status: 'success' \| 'modified' \| 'rejected' \| 'invalid' \| 'conflict', actualValue?, error?, originAuthor?, originSession?}` | Resolution of a Class-D mutation. Reconciles a `_pendingMutation` by `mutationId`. v2+ multi-user reserves `originAuthor` / `originSession` so a member can be shown "who applied this and from which session" — empty in v1 single-user |
+
+`Rn` / `Rm` are **opaque `RevisionId` placeholders** in the table above — not integers, never compared with `<` / `>` / arithmetic. `Rm` produced from `Rn` is a successor in the revision lineage; equality (and only equality) is meaningful. v1 happens to implement `RevisionId` as a monotonic integer; v2+ may use Lamport timestamps, vector clocks, or CRDT op-ids without any wire-format change.
 
 **Client rules:**
 
 - Snapshots reset state to `producesRevision`.
-- Patches require matching `basedOnRevision`; otherwise drop and request snapshot.
+- Patches require equality match between `basedOnRevision` and the client's current revision; otherwise drop and request snapshot.
 - `surface_local_action` is processed against the current local state, no revision change unless followed by a patch.
 - `surfaceSeq` is the transport-layer tie-breaker; gaps trigger a snapshot request.
 
@@ -815,7 +839,7 @@ Every primitive optionally carries these:
 |---|---|---|
 | `id` | string | Stable reference (patches, actions, selections) |
 | `dataRef` | `DataRef` (see canonical shape above) | Reference to bulk data behind the primitive |
-| `selection` | `"none" \| "single" \| "multi"` + `selected: id[]` | Selection state |
+| `selectable` | `"none" \| "single" \| "multi"` | Declares the primitive's selection **mode** — whether the client may track 0, 1, or N selected items on this primitive. The agent **does not** carry the actual selected IDs; the current selection lives in `viewState.selection` (see Authority Model). This trait only governs the affordance, not the state |
 | `loading` | `"none" \| "skeleton" \| "spinner"` | Loading hint |
 | `error` | `{message, severity}` \| null | Per-primitive error |
 | `virtualized` | boolean | Lazy-render hint for large lists/tables |
@@ -1078,8 +1102,7 @@ The handshake is the **first message exchange** after WebSocket-open. It is serv
 | Service-name version-stripping convention in boot wiring | `middleware/src/index.ts:1700-1716`, `pluginContext.ts:213-216` | small additive helper |
 | Wire `TurnDispatcher` to honour `dispatchService` at boot | `middleware/src/index.ts:1700-1716` + `coreApi.ts:16-25` | small refactor |
 | Add `tenantId?: string` to `IncomingTurn` | `harness-channel-sdk/src/incoming.ts:6-19` | one optional field |
-| Add `targetContainerId?: string` to `IncomingTurn` (canvas-level vs. container-scoped prompt routing) | `harness-channel-sdk/src/incoming.ts:6-19` | one optional field |
-| Add beam target fields to `IncomingTurn` (`targetSelection?`, `targetElementId?`, `targetRegion?`, `targetTextRange?`) using stable IDs — beam-as-prompt granularity | `harness-channel-sdk/src/incoming.ts:6-19` | optional fields |
+| Add `target?: TargetRef` to `IncomingTurn` — the single canonical target field for canvas-level vs. scoped-prompt routing AND for beam target granularity. Replaces all earlier separate fields (`targetContainerId`, `targetSelection`, `targetElementId`, `targetRegion`, `targetTextRange`) — none of those ship | `harness-channel-sdk/src/incoming.ts:6-19` | one optional field |
 | Add `viewState?` to `IncomingTurn` — per-container client view-state snapshot (sort/filter/group/selection/etc.) for referential continuity | `harness-channel-sdk/src/incoming.ts:6-19` | optional field |
 | Add `suggestedActions?` property to the container primitive schema with `id`/`label`/`effect`/`target`/`validUntilRevision?`/`validWhileDataRefs?`/`prompt?` shape | omadia-canvas-protocol primitive schema (this repo) | schema addition |
 | Add stable-ID requirement to data-carrying primitives: `rowKey`, `itemKey`, `pointKey`, `bufferContentHash`, `textRangeAnchor` (hard requirement, not optional) | omadia-canvas-protocol primitive schema (this repo) | schema addition |
