@@ -124,6 +124,13 @@ concept revision can close them.
    fallback — there is no "soft requires" mechanism in the manifest.
 6. **`embeddings@1` (P2).** Not referenced in the concept's manifests, but the
    correct name is `embeddingClient@1` should it ever appear.
+6b. **`writeCapabilities` is not a `NativeToolSpec` field (found building #170).**
+   The concept's SDK-changes table puts `writeCapabilities` on `NativeToolSpec`,
+   but the whole spec is sent verbatim into the Anthropic tools list
+   (`buildToolsList` → `tools.push(entry.spec)`) and Anthropic rejects unknown
+   fields — the same reason `piiFields` lives on the `LocalSubAgentTool` wrapper,
+   not its spec. `writeCapabilities` must attach to a non-model-facing carrier
+   (manifest annotation / registration metadata), wired in PR-9.
 7. **Internal inconsistencies, cheap to close:** `TargetRef` is "ten variants"
    in the body but "eight variants" in the SDK-changes table (line ~1116);
    `README.md` / `tech-stack.md` still cite concept "v0.7" while the document is
@@ -358,7 +365,11 @@ types-only PR — [#167]** (`feat(channel-sdk): additive Omadia UI canvas interf
 surface`); **PR-6 — [#168]** (`feat(channels): per-channel dispatch_service
 routing`); **PR-7a — [#169]** (`feat(orchestrator): canvas sentinel parsers +
 canvas-output gate` — the pure parsers + deny-by-default gate, **not yet wired**;
-see PR-7 row). Remaining: PR-7b (wiring), PR-8..PR-10.
+see PR-7 row); **PR-8 — [#170]** (`feat(plugin-api): structured? output +
+writeCapabilities contract` — the typed `structured?` envelope + the
+`WriteCapability` contract + `deriveMutabilityCapabilities`; `writeCapabilities`
+is **not** on `NativeToolSpec`, see §1.4 feed-back). Remaining: PR-7b (wiring),
+PR-9, PR-10.
 
 | # | Title (conventional) | Scope (files + tests) | Depends on | Risk | Expected reviewer ask |
 |---|---|---|---|---|---|
