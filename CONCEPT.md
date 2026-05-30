@@ -2,7 +2,7 @@
 
 > A persistent canvas surface for the Omadia Agentic OS. The agent synthesises UI live the way it synthesises prose today — on a blank canvas, in the layout and composition that fit the user's task and preferences in the moment.
 
-Version 0.11 — interaction model defined: intent is spatial, not locked in a text box. Inherent affordances live client-side (hard rule, extends local-ops catalog to data-structure standard ops). Context-invoke gesture (long-press primary, right-click desktop shortcut, hover dropped, double-click stays edit). First-class action panel (deterministic affordances + agent-pre-supplied `suggestedActions` + annotation field, no turn on open). Annotation-as-prompt with target granularity; annotation history as a standard element, screen otherwise noise-free. No persistent bottom prompt bar in v1 (⌘K command layer + cold-start field instead); persistent bar documented as fallback. v0.10 — input model made explicit: three prompt-input classes (canvas-level prompt · container-internal inputs · container-scoped prompt), `targetContainerId` added to `IncomingTurn`, routing rules in Tier 2. v0.9 — typography architecture locked at the concept level: three registers (structural / prose / mono), bound to three families in `docs/visual-spec.md` v0.3 (Geist · Source Serif 4 · Geist Mono). UI Skill gains a `prose-vs-structure protocol` alongside the palette-binding protocol; `style` trait extends to carry `"prose"` and `"mono"` register markers. v0.8: material identity (Lume) named and locked; accent slot becomes user-bindable across three curated palettes (Petrol / Atelier / Lagoon, Lagoon default), bound via the existing context-aware prefs model. UI Skill gained a `palette-binding protocol`. Visual specification carved out to [`docs/visual-spec.md`](docs/visual-spec.md) v0.2. v0.7 baseline: DataRef lifecycle (content-addressed, buffer ownership, GC), per-mutation mutex semantics, sub-agent cancellation, Tier-2 data cache between turns, external-effect action classification with confirmation pattern, `canvas-activate` action type, Tier-2 statelessness wrt active canvas, referential-continuity contract. v0.6: direct-gesture vs. routed-local-op split, canonical `DataRef` shape, concrete boot handshake, editor-primitive required fields, preview-vs-durable ops, contextKey per canvas, sentinel mechanism, server-assigned `surfaceSeq`. v0.5: forward-compat hooks for shared canvases. v0.4: 2D architecture, editor primitives, local ops catalog, multiple canvases, context-aware prefs, protocol versioning.
+Version 0.12 — closes Codex review on v0.10+v0.11 (authority/state-boundary blocker, stable-reference blocker) and adds the fourth interaction class. Major additions: **Authority Model & Stable References** (LLM owns UI structure + which data was delivered; client owns view-state; stable IDs are the lingua franca for every datapoint). **Direct Data Mutation (Class D)** — inline edit/delete/draw with optimistic UI, mutability-capabilities declared per field by the agent, async resolve via new `_pendingMutation` sentinel and `surface_mutation_resolved` event. **Async Architecture & Element-Locking** — UI never freezes during LLM work; locks scope to the smallest element that could be inconsistent, not the whole canvas. Naming: **Beam** replaces "annotation-as-prompt" (active, gestural, fits Lume's light vocabulary), **Trace** replaces session-history / audit log. Reserves Flare and Spark in a documented light-vocabulary discipline so future concepts don't trigger naming round-trips. Plus six Codex quick-wins: state-boundary table per affordance, `suggestedActions` schema with revision-basis validity, long-press arbitration rules. v0.11 — interaction model defined: intent is spatial, not locked in a text box. Inherent affordances live client-side (hard rule, extends local-ops catalog to data-structure standard ops). Context-invoke gesture (long-press primary, right-click desktop shortcut, hover dropped, double-click stays edit). First-class action panel (deterministic affordances + agent-pre-supplied `suggestedActions` + beam field, no turn on open). Beam-as-prompt with target granularity; trace as a standard element, screen otherwise noise-free. No persistent bottom prompt bar in v1 (⌘K command layer + cold-start field instead); persistent bar documented as fallback. v0.10 — input model made explicit: three prompt-input classes (canvas-level prompt · container-internal inputs · container-scoped prompt), `targetContainerId` added to `IncomingTurn`, routing rules in Tier 2. v0.9 — typography architecture locked at the concept level: three registers (structural / prose / mono), bound to three families in `docs/visual-spec.md` v0.3 (Geist · Source Serif 4 · Geist Mono). UI Skill gains a `prose-vs-structure protocol` alongside the palette-binding protocol; `style` trait extends to carry `"prose"` and `"mono"` register markers. v0.8: material identity (Lume) named and locked; accent slot becomes user-bindable across three curated palettes (Petrol / Atelier / Lagoon, Lagoon default), bound via the existing context-aware prefs model. UI Skill gained a `palette-binding protocol`. Visual specification carved out to [`docs/visual-spec.md`](docs/visual-spec.md) v0.2. v0.7 baseline: DataRef lifecycle (content-addressed, buffer ownership, GC), per-mutation mutex semantics, sub-agent cancellation, Tier-2 data cache between turns, external-effect action classification with confirmation pattern, `canvas-activate` action type, Tier-2 statelessness wrt active canvas, referential-continuity contract. v0.6: direct-gesture vs. routed-local-op split, canonical `DataRef` shape, concrete boot handshake, editor-primitive required fields, preview-vs-durable ops, contextKey per canvas, sentinel mechanism, server-assigned `surfaceSeq`. v0.5: forward-compat hooks for shared canvases. v0.4: 2D architecture, editor primitives, local ops catalog, multiple canvases, context-aware prefs, protocol versioning.
 
 ---
 
@@ -63,6 +63,68 @@ flowchart TB
 | **D — Content request** | "which of them are on vacation?", "regenerate this background with AI", "fetch the Q1 invoices from ERP" | Tier 1 → Channel → Tier 2 → Tier 3 → Tier 2 → Tier 1 | seconds+; Tier 1 shows skeletons, rest of canvas stays responsive |
 
 **Class A vs Class B is the most-violated boundary in early implementations.** A direct gesture (the user dragging the brush across pixels) is Class A — it must never round-trip the server. Triggering a named operation from a semantic intent (the agent applying that brush stroke after a user prompt, or the user clicking a "Blur Selection" button) is Class B — Tier 2 decides which operation, Tier 1 executes from its local catalog. The first Tier-1 implementation must encode this split.
+
+---
+
+## Authority Model & Stable References
+
+The single most important architectural rule, and the answer to "who knows what about the canvas":
+
+### Authority split
+
+| Authority | What it owns |
+|---|---|
+| **LLM (Tier 2)** | UI structure: which canvases exist, which containers / sections / elements live in each canvas, **which data set each element was delivered with**, all schema for mutability and suggested actions. The agent is the canonical source of truth for the *structure*. |
+| **Client (Tier 1)** | View-state inside elements: local sort, filter, group, pagination, hidden columns, current selection, scroll position, expand/collapse, hover, unsubmitted form input. The client is the canonical source of truth for the *current presentation*. |
+| **Both communicate over** | **stable IDs/hashes on every datapoint** — the lingua franca |
+
+The agent does **not** know how the client is currently displaying the data (sorted by which column, filtered to which subset). It does **not** need to know. The agent's references always target stable data IDs ("row with `rowKey: anna-becker`"), never view positions ("row 3 on screen"). When the user beams "summarise these three", the beam carries the three stable `rowKey`s — regardless of where they sit on screen.
+
+This is also what keeps the agent free of view-state churn: a hundred client-side sorts produce zero turns, zero tokens. The agent only sees the view state when *it next has reason to run* — via the view-state channel below.
+
+### View-state channel
+
+When the client triggers a turn (because the user beamed something, submitted a form, ran an external action — all things that *do* need the agent), the request carries the relevant **`viewState`** snapshot alongside it. Tier 2 reads it for referential continuity, never writes it. Tier 2 mutating `viewState` would violate the authority split.
+
+`viewState` is per-container, scoped to what matters for the next decision:
+
+```ts
+viewState: {
+  [containerId]: {
+    sort?:       { columnKey, direction },
+    filter?:     { predicate },
+    group?:      { columnKey },
+    hiddenColumns?: columnKey[],
+    page?:       { index, size },
+    selection?:  rowKey[] | itemKey[] | { textRange } | { regionBbox },
+    expanded?:   itemKey[],   // tree nodes / accordion-open rows
+    scrollTop?:  number       // optional; only when referentially meaningful
+  }
+}
+```
+
+Tier 1 ↔ Tier 2 wire convention: `viewState` is part of the `IncomingTurn` (additive optional field, see SDK changes). Classic channels never set it.
+
+### Stable IDs — a hard rule on every datatype-carrying primitive
+
+| Carrier | Required stable-ID field | Vergeben von |
+|---|---|---|
+| `table` row | `rowKey: string` | Agent at build time; immutable across patches |
+| `list` / `tree` item | `itemKey: string` | same |
+| `chart` data point | `pointKey: string` | same |
+| `canvas-region` buffer | `bufferContentHash: string` (content-addressed) | derived at write |
+| `text` content segment | `textRangeAnchor: {start, end}` | offset within the text primitive |
+| Container | `containerId: string` (already in v0.7) | same |
+
+Without stable IDs, every beam, every mutation, every referential continuity fails the first time the data reorders or the client filters. The IDs are not optional, not a nice-to-have. They are the contract.
+
+### Implications
+
+- **No "row 3" anywhere.** All targets address data via stable ID; positions are not addressable references.
+- **Beams carry stable IDs.** `targetSelection` is `rowKey[]`, never index-based.
+- **Mutations carry stable IDs.** Class-D edits target a specific `rowKey` + field, not "the row you can see in the third position".
+- **The agent's `treeRevision` advances only on agent-driven changes.** Client view-state changes do not bump it.
+- **No round-trip just to see.** View-state lives client-side; the next genuine turn carries the snapshot for context.
 
 ---
 
@@ -248,7 +310,7 @@ The Prompt Input Classes above define *what happens* to an input. This section d
 | Layer | When | Determinism | Agent turn? |
 |---|---|---|---|
 | **Direct manipulation + inherent affordances** | the common case — sort, filter, select, drag, resize, edit a field | full (client) | no |
-| **Annotation-as-prompt** | contextual intent for what no affordance covers — bind a prompt directly to a target | hard-bound to the annotated target | yes, on submit |
+| **Beam** (= "annotation-as-prompt", renamed) | contextual intent for what no affordance covers — *beam* a prompt directly at a target | hard-bound to the beamed target | yes, on submit |
 | **Cold-start / new-surface prompt** | empty canvas, or a brand-new container from scratch | canvas-level | yes |
 
 ### Inherent affordances — a hard client-side rule
@@ -266,6 +328,18 @@ Every primitive type carries its deterministic standard operations **client-side
 
 "Sortiere die mittlere Liste um" is therefore **not a prompt** — the user clicks that list's sort header. No agent, no turn, deterministic. The prompt channel is only for what inherent affordances cannot do.
 
+#### State boundary per affordance
+
+Inherent affordances split into two classes by where their effect lives — and crucially, **none of them produce a server turn**. The distinction is whether the result is purely render-detail or whether it is also visible to Tier 2 on the next turn (via the View-State channel, see Authority Model):
+
+| Affordance class | Examples | Effect lives in | Visible to Tier 2 next turn? |
+|---|---|---|---|
+| **View-state** (client view-transform) | sort, filter, group-by, paginate, hide/show column, resize column, expand/collapse tree node | Tier-1 client; serialised into the per-container `viewState` blob carried alongside `IncomingTurn` | yes, via `viewState` — Tier 2 reads it for referential continuity, never writes it |
+| **Selection** (intent-relevant view-state) | row select, item select, text-range select, region select | Tier-1 client; serialised into `viewState.selection` | yes — selections are the most common reference target for beams |
+| **Editor-local-ops** (mutates a Tier-1-owned buffer) | brush, blur, curves, audio-trim, magic-wand-select on canvas-region | Tier-1 client buffer; produces a new content-hashed DataRef | yes, via the new DataRef (`surface_data_ref_created`) |
+
+The state-drift question — "if the client sorts and the agent runs later, what does the agent see?" — is answered by the `viewState` channel: the client always reports its current view-state with the next turn, never changes the underlying data, never produces a turn just to sort. Sort and filter are pure presentation; the agent's reference is always to stable data IDs, never to "row 3 on screen".
+
 ### Context-invoke gesture
 
 | Gesture | Role | Platform |
@@ -278,6 +352,18 @@ Every primitive type carries its deterministic standard operations **client-side
 
 Long-press is the anchor: the only gesture identical across mouse, trackpad, and touch that collides with nothing learned. Right-click is just the mouse shortcut to it. The gesture is defined abstractly as **context-invoke**, not hard-bound to "right mouse button", so a touch future maps cleanly (long-press is already the touch idiom for context actions).
 
+**Long-press arbitration** — needed because drag, resize, selection-drag, and brush-stroke also start with press-and-hold. Rules:
+
+| Condition during hold | Result |
+|---|---|
+| Pointer moves > **6 px** before 400 ms | cancel context-invoke, treat as drag (move container, select range, brush stroke, …) |
+| Hold completes 400 ms with ≤ 6 px movement | open action panel |
+| Hold starts inside an active text/input editable area | always edit selection — never context-invoke (text-selection gesture wins) |
+| Hold starts inside an explicit drag-handle zone (`pane` title bar, corner resize affordance) | always drag/resize — never context-invoke |
+| Hold starts inside a `canvas-region` while a drawing tool (brush, lasso, magic-wand) is active | always tool gesture — never context-invoke |
+
+Right-click bypasses all of this — instant context-invoke (existing OS convention, never collides with drag because right-click has no drag semantics).
+
 ### The action panel — a first-class citizen, not an OS context menu
 
 Context-invoke opens not a thin grey Windows/Mac menu but a **wide, Lume-styled panel**, positioned beside the target (never covering it). Three zones:
@@ -286,15 +372,33 @@ Context-invoke opens not a thin grey Windows/Mac menu but a **wide, Lume-styled 
 |---|---|---|---|
 | **Deterministic affordances** | the primitive's inherent affordances (Sort · Filter · Group · Select · Export …) | client-side, always | no |
 | **Contextual suggestions** | agent-proposed actions that fit *this* element ("Summarise these 3", "Reassign to Daniel") | **pre-supplied in the tree** via a `suggestedActions` property on the container | no |
-| **Annotation field** | "Ask omadia about this…" — free intent, deterministically bound to the target | — | yes, on submit |
+| **Beam field** | "Beam omadia about this…" — free intent, deterministically bound to the target | — | yes, on submit |
 
-**Critical: no turn on panel open.** If contextual suggestions were generated when the panel opens, every context-invoke would cost ~400ms + a turn — fatal. Instead the agent supplies `suggestedActions` when it *builds* the container. The panel opens instantly with deterministic affordances + pre-supplied suggestions; a turn happens only when the user types into the annotation field and submits.
+**Critical: no turn on panel open.** If contextual suggestions were generated when the panel opens, every context-invoke would cost ~400ms + a turn — fatal. Instead the agent supplies `suggestedActions` when it *builds* the container. The panel opens instantly with deterministic affordances + pre-supplied suggestions; a turn happens only when the user types into the beam field and submits.
 
 Trade-off, made deliberately: `suggestedActions` costs output tokens per container (more tree content) and demands an "anticipate next actions" discipline in the Tier-2 Skill. Worth it — instant panel response is more UX-critical than the token saving.
 
-### Annotation-as-prompt — target granularity
+#### `suggestedActions` schema
 
-The annotation binds the prompt to a target, deterministically. No NLP inference about "which of the three lists":
+Each entry in the `suggestedActions` array on a container carries:
+
+```ts
+{
+  id: string;                      // stable per (treeRevision, container) for idempotency
+  label: string;                   // agent-authored, in the user's language
+  effect: 'local' | 'internal' | 'external-effect';
+  target: TargetRef;               // typically the container itself, but may scope to a sub-element
+  validUntilRevision?: number;     // optional; suggestion is dropped on the client when treeRevision exceeds this
+  validWhileDataRefs?: string[];   // optional; suggestion is dropped if any listed DataRef is invalidated
+  prompt?: string;                 // pre-filled prompt text if the action expands into a beam on click
+}
+```
+
+**Validity binding** is essential to avoid stale suggestions: when a patch lands that touches the container's data, suggestions whose `validWhileDataRefs` reference dropped refs are dropped client-side without a turn. Same for `validUntilRevision` — purely client-side garbage collection of obsolete suggestions.
+
+### Beam-as-prompt — target granularity
+
+The beam binds the prompt to a target, deterministically. No NLP inference about "which of the three lists":
 
 | Target | Example | Binding field on `IncomingTurn` |
 |---|---|---|
@@ -307,17 +411,163 @@ The annotation binds the prompt to a target, deterministically. No NLP inference
 
 Multi-target ("compare list A with list B") via multi-select before annotating → `targetContainerIds: id[]`. Deferred to v2 unless v1 use-cases demand it.
 
-### Annotation lifecycle + history
+### Beam lifecycle + Trace
 
-A pending annotation sticks visibly to its target while the agent works (like a pending comment). On resolution it disappears — the screen stays noise-free, which is non-negotiable. The command history (what was asked, what the agent built in response) lives in a **session-history / audit element**, reachable on demand via a standard affordance (like Miro's activity log). This is the *command* history, distinct from the *result* state (the current canvas). Related to `crossChannelConversationMemory@1`.
+A pending beam sticks visibly to its target while the agent works. On resolution (success, error, or user-cancel) it disappears — the screen stays noise-free, which is non-negotiable. Failure semantics: on `surface_error` for the beam's spawning turn the beam shows an inline error chip for a few seconds and then fades; on sub-agent cancellation the beam disappears without trace.
+
+The command history (what was beamed, what the agent built in response) lives in a **Trace** — a standard canvas-level element reachable on demand. The Trace is the *command* record, distinct from the *result* state (which is the current canvas itself). Related to `crossChannelConversationMemory@1`. Standard state of the canvas is Trace-collapsed; the user opens it to audit or replay.
 
 ### No persistent bottom prompt bar in v1 — with a documented fallback
 
 v1 ships **without** a persistent bottom prompt bar. The canvas-level channel is ⌘K (summon-anywhere command layer) plus the cold-start field. Rationale: a persistent always-visible text field pulls the concept back toward chat — the thing we are deliberately leaving behind.
 
-**Cold-start mechanic**: a canvas is never empty. An empty canvas shows one system-supplied prompt field, centred, Google-search style. The first agent return replaces it with materialised UI. After that, intent flows through annotation + inherent affordances + ⌘K.
+**Cold-start mechanic**: a canvas is never empty. An empty canvas shows one system-supplied prompt field, centred, Google-search style. The first agent return replaces it with materialised UI. After that, intent flows through beams + inherent affordances + ⌘K.
 
 **Fallback (documented, not built)**: if real-world use shows the spatial-only model is too indirect — users hunting for where to type, or rebelling against the absence of a familiar input bar — a persistent bottom bar can be reintroduced as a canvas-level input. It is a purely additive UI affordance over the same canvas-level routing; no architecture change. We try radical-without first, measure, and bring it back only if the spatial model genuinely does not carry.
+
+---
+
+## Direct Data Mutation (Class D)
+
+Read-only views are not enough. A user must be able to **inline-edit a field, delete an item, add a row, draw onto a region** — and the UI must feel snappy doing it. This is the fourth interaction class, alongside View-State manipulation (A), Editor-local-ops (B), and Beam (C).
+
+### Mutability capabilities
+
+The agent declares per-field and per-collection what the client may mutate. Without an explicit `editable: true` (or `canAddItems`, `canRemoveItems`, `canReorder`), the client treats the data as read-only — no inline UI, no edit affordance shown. **Default is read-only**, opt-in to mutable, deliberately strict to avoid rollback-hell.
+
+```ts
+// On a row field:
+{
+  value: 14,
+  editable: true,
+  type: "integer",
+  min: 0,
+  max: 999,
+  pattern?: "…"      // optional client-checkable constraint
+}
+
+// On a list/table container:
+{
+  canAddItems: true,
+  canRemoveItems: false,
+  canReorder: true
+}
+```
+
+**Capability source**: Tier 2 derives capabilities from the **Tier-3 tool schemas it has available**. If a Jira sub-agent exposes `update_ticket(id, fields)`, the listed fields are flagged editable on the corresponding row. If no write tool exists for a data class, every field is read-only. Tier 2 is the translator from "Tier 3 can do this" to "client may offer this".
+
+### Optimistic update flow
+
+1. User edits an editable field (e.g. clicks a `status` cell with `editable: true`, picks a new enum value).
+2. Client writes the new value locally **immediately** and marks the field with the **pending treatment** — subtle `accent.glow` underline / pulsing border (Lume-soft, never aggressive).
+3. Client emits `_pendingMutation` sentinel back through the channel:
+   ```ts
+   {
+     mutationId: string,        // client-generated UUID, used for resolution correlation
+     target: TargetRef,         // rowKey + field, or itemKey, or regionBbox, or textRange
+     oldValue: unknown,
+     newValue: unknown,
+     basedOnRevision: number    // the treeRevision the client saw when the user edited
+   }
+   ```
+4. Tier 2 receives the mutation, validates against the capability schema, then dispatches to the Tier-3 tool that owns the data class (`update_ticket(…)` or similar).
+5. Tier 3 confirms / transforms / rejects.
+6. Tier 2 emits **`surface_mutation_resolved`** stream event back to the client:
+   ```ts
+   {
+     mutationId: string,
+     status: 'success' | 'modified' | 'rejected' | 'invalid' | 'conflict',
+     actualValue?: unknown,     // present when modified or conflict
+     error?: { message, code }  // present when rejected or invalid
+   }
+   ```
+7. Client clears the pending treatment and reconciles by status.
+
+### Resolution status
+
+| Status | Client behaviour |
+|---|---|
+| `success` | clear pending, show the value as normal |
+| `modified` | take the server's `actualValue`, clear pending, briefly hint "value normalised" (e.g. trimmed string, validated number) |
+| `rejected` | revert to `oldValue`, show inline error chip with `error.message` for a few seconds, then fade |
+| `invalid` | revert, surface the validation message in-place; if the field is still focused, the user can correct without re-clicking |
+| `conflict` | take server `actualValue`, hint "agent changed this concurrently"; the user can choose to re-apply via a one-click affordance |
+
+### Pending pipeline
+
+The user may keep editing while a previous mutation is still pending. The client stacks mutations in a pipeline ordered by `mutationId`. Each resolution arrives independently. If a later mutation depends on a value the server hasn't yet seen, the client serialises submission per (target, field) so the server always sees a coherent sequence.
+
+### Validation depth — where the line is drawn
+
+The capability schema carries only **client-checkable constraints**: `type`, `min`, `max`, `pattern`, `enum`, `required`. The client rejects user input that fails these without ever submitting (snappy). Complex business rules ("value must be unique across the list", "cannot exceed remaining budget") are **server-only** — the client submits optimistically, and a `rejected` / `invalid` status comes back if the server disagrees. Trying to ship business rules client-side would be a maintenance disaster.
+
+### Why edit-as-prompt was rejected
+
+Some tools (Claude Design among them) treat inline edits as auto-generated prompts ("edit text xyz to 'yadda'"). That is universal but never snappy — every keystroke roundtrip is a full LLM turn. Class D is the deliberate trade: declare capabilities once, then run client-side optimistic updates that hit Tier 3 directly, bypassing Tier-2 LLM cost. Tier 2 still routes; it does not synthesise.
+
+---
+
+## Async Architecture & Element-Locking
+
+The canvas never freezes while the LLM works. This is non-negotiable for the "snappy OS" feel.
+
+### Async by default
+
+Every Tier-2 turn — beam submission, Class-D mutation, Class-B routed local-op, canvas-level command — runs **asynchronously**. The user keeps interacting with the rest of the canvas while a turn is in flight: scrolling, sorting other containers, drawing in a canvas-region, beaming a different element, opening Trace.
+
+The pending state is local-to-the-affected-thing, not local-to-the-canvas:
+- A beam pin is animated on its target.
+- A pending mutation is marked on its field.
+- Everything else is unaffected.
+
+### Element-locking — minimal scope, never the whole canvas
+
+When a turn is going to **mutate or replace** part of the tree, the client locks **only the smallest scope that could become inconsistent**:
+
+| Operation | Locked scope |
+|---|---|
+| Class-D mutation on a single field | that field on that row only (other fields, other rows, other containers stay interactive) |
+| Class-D delete of a list item | that item only |
+| Beam on a container that the agent is rebuilding | the entire container (because the rebuild may replace any sub-element) |
+| Sub-agent stream emitting a series of `surface_patch` events into a container | the patched sub-tree, as patches land; siblings stay unlocked |
+| Editor local-op (Class B) that produces a new DataRef | the primitive whose buffer is being recomputed |
+
+Locked = receives a subtle `pending` treatment + blocks edits and beams to that scope until resolved. The rest of the canvas including unrelated containers, View-State changes, Trace, ⌘K, all stay fully interactive.
+
+### Edge case: user interacts with something the agent is changing
+
+Three sub-cases, simplest to hardest:
+
+1. **User reads the locked thing while it's locked**: allowed. Selection, hover, even copy-to-clipboard work. Only mutation/beam is gated.
+2. **User submits a beam or mutation targeting a locked element**: client rejects locally with a one-line hint ("still updating — try in a moment") and does **not** stack it in the pipeline. The user can retry once the lock releases.
+3. **Agent finishes mutating, but the user has meanwhile changed local view-state on that element**: view-state is preserved across the mutation; the patch lands, but the client re-applies its sort/filter/selection on top of the new data using stable IDs. Selection survives if the underlying ID still exists; falls back to empty selection if the ID was removed by the patch.
+
+### Spike research items
+
+Edge cases that need empirical resolution in the spike — flagged but not fully specified now:
+
+- **Stale-DataRef during mutation**: a mutation targets a row whose underlying DataRef just expired. Spike measures whether the practical incidence justifies a richer reconciliation path.
+- **Reordering during stream**: a sub-agent streams 50 row-appends while the user is sorting locally. Stable IDs ensure correctness; UX-perception (does it feel coherent?) needs measurement.
+- **Burst of Class-D edits**: power-user edits 20 cells in 5 seconds; does the resolution pipeline keep up, or do we need throttling? Spike.
+
+These are research items, not unspecified holes. The architecture above carries them; tuning happens with real numbers.
+
+---
+
+## Light Vocabulary — Discipline, Not Theme Park
+
+The system uses a small, disciplined set of light-domain names because Lume is the material. New light-domain names enter the vocabulary **only when** (a) the concept they label is eigenständig genug to deserve a name, and (b) the light word makes the meaning more precise or more thinkable. Coolness alone does not qualify. Cumulative light-naming becomes marketing-speak and erodes meaning.
+
+| Term | Means | Status |
+|---|---|---|
+| **Lume** | the material identity of the OS — UI condensed out of light | locked, conceptual core |
+| **Glow / Halo / Aura** | visual effects in the material (selection, focus, modal aura) | locked, descriptive |
+| **Beam** | a directed user-intent on a spatial target — the "annotation-as-prompt" replacement | introduced v0.12 |
+| **Trace** | the command history / audit log of a canvas — a "trace of light" through what the user asked and the agent answered | introduced v0.12 |
+| **Flare** | reserved — for agent-initiated attention signals (e.g. notifications, "needs your input") | reserved, may activate if and when we introduce notification concepts |
+| **Spark** | reserved — for a discrete generative-initiation event distinguishable from a beam | reserved, may activate if a use case clearly differs from Beam |
+
+Anything else from the light domain (Photon, Shadow, Beacon, Cast, Lens, Prism, Reflection, Ray, Shine, Glimmer, …) does **not** enter the vocabulary unless it earns its slot by labelling something that has no good name yet. The default answer to "should we call this X?" is no.
 
 ---
 
@@ -699,8 +949,13 @@ The handshake is the **first message exchange** after WebSocket-open. It is serv
 | Wire `TurnDispatcher` to honour `dispatchService` at boot | `middleware/src/index.ts:1700-1716` + `coreApi.ts:16-25` | small refactor |
 | Add `tenantId?: string` to `IncomingTurn` | `harness-channel-sdk/src/incoming.ts:6-19` | one optional field |
 | Add `targetContainerId?: string` to `IncomingTurn` (canvas-level vs. container-scoped prompt routing) | `harness-channel-sdk/src/incoming.ts:6-19` | one optional field |
-| Add annotation target fields to `IncomingTurn` (`targetSelection?`, `targetElementId?`, `targetRegion?`, `targetTextRange?`) for annotation-as-prompt granularity | `harness-channel-sdk/src/incoming.ts:6-19` | optional fields |
-| Add `suggestedActions?` property to the container primitive schema (agent-pre-supplied contextual actions for the action panel, no turn on open) | omadia-canvas-protocol primitive schema (this repo) | schema addition |
+| Add beam target fields to `IncomingTurn` (`targetSelection?`, `targetElementId?`, `targetRegion?`, `targetTextRange?`) using stable IDs — beam-as-prompt granularity | `harness-channel-sdk/src/incoming.ts:6-19` | optional fields |
+| Add `viewState?` to `IncomingTurn` — per-container client view-state snapshot (sort/filter/group/selection/etc.) for referential continuity | `harness-channel-sdk/src/incoming.ts:6-19` | optional field |
+| Add `suggestedActions?` property to the container primitive schema with `id`/`label`/`effect`/`target`/`validUntilRevision?`/`validWhileDataRefs?`/`prompt?` shape | omadia-canvas-protocol primitive schema (this repo) | schema addition |
+| Add stable-ID requirement to data-carrying primitives: `rowKey`, `itemKey`, `pointKey`, `bufferContentHash`, `textRangeAnchor` (hard requirement, not optional) | omadia-canvas-protocol primitive schema (this repo) | schema addition |
+| Add per-field/per-container mutability capabilities (`editable: true/false` + `type/min/max/pattern/enum`, `canAddItems`, `canRemoveItems`, `canReorder`) to data-carrying primitives | omadia-canvas-protocol primitive schema (this repo) | schema addition |
+| Add `_pendingMutation:{…}` sentinel for Class-D optimistic updates (client → orchestrator) | `orchestrator.ts:514-590` extractor + `harness-channel-sdk/src/incoming.ts` correlation field | new sentinel + parser |
+| Add `surface_mutation_resolved` event to `ChatStreamEvent` union — resolution of a Class-D mutation by `mutationId` with status (success / modified / rejected / invalid / conflict) | `harness-channel-sdk/src/chatAgent.ts:374-500` | one new discriminated member |
 | Add `surface?: OutgoingSurface` to `SemanticAnswer` | `harness-channel-sdk/src/outgoing.ts:25-81` | one optional field + type |
 | Add `surface_*` event family (incl. `surface_local_action`) with revision metadata to `ChatStreamEvent` union | `harness-channel-sdk/src/chatAgent.ts:374-500` | seven new discriminated members |
 | Origin-metadata carry-through in sentinel extraction | `orchestrator.ts:903-919` + extractor signatures | small carry-through |
