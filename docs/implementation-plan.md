@@ -451,8 +451,10 @@ WebSocket, so this is a hard prerequisite for PR-10b. It is cleanly additive.
      close(code?: number, reason?: string): void;
      readonly request: { url: string; headers: Record<string, string | string[] | undefined> };
    }
-   type ChannelSocketHandler = (socket: ChannelSocket) => void;
+   type ChannelSocketHandler = (socket: ChannelSocket, identity: ResolvedIdentity) => void;
    ```
+   The handler only ever receives an **already-authenticated** socket (see Auth);
+   the resolved identity is handed in, so the channel never re-derives it.
    and one new optional method on `CoreApi`:
    ```ts
    registerWebSocket?(channelId: string, path: string, handler: ChannelSocketHandler): void;
@@ -464,15 +466,21 @@ WebSocket, so this is a hard prerequisite for PR-10b. It is cleanly additive.
    mirrors `ExpressRouteRegistry`): per-channel path registrations + an
    `activeByChannel` flag. `attach(server)` hooks `server.on('upgrade')`; on an
    upgrade it matches `req.url`'s path → if registered **and** the channel is
-   active → completes the handshake via a single `ws.Server` in
-   `noServer` mode (`wss.handleUpgrade(...)`), wraps the raw socket in a
-   `ChannelSocket`, and calls the channel's handler. Unmatched path or inactive
-   channel → `socket.destroy()`. Deactivate flips the flag (new upgrades
-   rejected) and closes that channel's live sockets — the same lifecycle
-   `registerRoute` already has.
+   active → **authenticates the request first** (core `resolveIdentity` over the
+   cookie/JWT in `req.headers`, before the socket is touched); on success it
+   completes the handshake via a single `ws.Server` in `noServer` mode
+   (`wss.handleUpgrade(...)`), wraps the raw socket in a `ChannelSocket`, and
+   calls the channel's handler **with the resolved identity**. Unmatched path or
+   inactive channel → `socket.destroy()`; **failed auth → write `HTTP/1.1 401`
+   and `socket.destroy()` before any `101`** — no WebSocket is ever established
+   for an unauthenticated peer. Deactivate flips the flag (new upgrades rejected)
+   and closes that channel's live sockets — the same lifecycle `registerRoute`
+   already has.
 
 3. **Wiring** (`index.ts`): `const wsRegistry = new WebSocketRegistry()`, pass it
-   to `createCoreApi({ …, webSockets: wsRegistry })`, and after
+   to `createCoreApi({ …, webSockets: wsRegistry })` — which also hands the
+   registry the core `resolveIdentity` so the upgrade-time auth gate reuses the
+   exact same identity resolution as the HTTP routes — and after
    `const server = app.listen(...)` (`index.ts:2447`) call `wsRegistry.attach(server)`.
    `createCoreApi.registerWebSocket` delegates to it; when no `webSockets` is
    supplied the method is simply absent (channels feature-detect).
@@ -487,10 +495,17 @@ that builds a `CoreApi` without WS. The canvas frames are text JSON, so the
 narrow `send(string)`/`onMessage(string)` surface is sufficient — no binary or
 backpressure API needed in v1.
 
-**Auth.** The WebSocket upgrade carries the session cookie/JWT in
-`request.headers`; the channel's handler validates it (reusing core auth, as the
-concept requires) before entering the streaming phase, and `close()`s on failure.
-Kernel-side pre-upgrade validation is a possible hardening but not required for v1.
+**Auth — before the upgrade, not after.** The upgrade request carries the session
+cookie/JWT in `req.headers`. The registry validates it with core `resolveIdentity`
+**inside the `upgrade` handler, before `wss.handleUpgrade`**: a failed check writes
+`HTTP/1.1 401` and `socket.destroy()`s the raw socket, so an unauthenticated peer
+never completes the WebSocket handshake (no `101` is ever sent). Only authenticated
+upgrades become `ChannelSocket`s, and the resolved identity is passed into the
+channel handler. This is a deliberate change from an earlier draft that validated
+*inside* the handler after `handleUpgrade` — that is post-handshake teardown, which
+allocates a live socket for an unauthorized peer before dropping it; rejecting
+pre-`101` is strictly better and costs nothing, since the headers are already on
+`req` at upgrade time.
 
 **Risks / falsification.** (a) A second `upgrade` consumer would conflict — none
 exists today (grep: no `server.on('upgrade')`), so a single registry owns it;
