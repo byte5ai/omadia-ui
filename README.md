@@ -28,7 +28,7 @@ Designed to be ready for the next 1–2 LLM generations without architectural re
 | [`docs/architecture-3tier.svg`](docs/architecture-3tier.svg) | Visual three-tier architecture |
 | [`docs/walkthroughs.md`](docs/walkthroughs.md) | Use-case walkthroughs — multi-source comparison + editor micro-task |
 | [`docs/tech-stack.md`](docs/tech-stack.md) | Tech-stack decision for the Tier 1 Host App — Electron, with reasoning and spike plan |
-| `docs/protocol/1.0.md` | Protocol specification (written during spike — TBD) |
+| [`docs/protocol/1.0.md`](docs/protocol/1.0.md) | Protocol specification (`omadia-canvas-protocol/1.0`) + machine-validatable JSON Schemas under `docs/protocol/schema/` |
 
 ## Relationship to omadia core
 
