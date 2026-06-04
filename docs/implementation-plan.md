@@ -397,7 +397,7 @@ structured wiring; gated on the Phase-1 spike), PR-10 (omadia-ui-channel).
 | PR-8 | `feat(plugin-api): structured? envelope + writeCapabilities tool annotation` | extend `LocalSubAgentToolResult` (`localSubAgentTool.ts:32-41`) with optional `structured?` (do **not** fork a parallel envelope); `writeCapabilities` optional field on `NativeToolSpec` (`pluginContext.ts:347-365`); loader + system-prompt emission; doc in handoff §8. Tests: `structured?` round-trips through `localSubAgent.ts` downcast; `writeCapabilities` parses from manifest and the P-Class-D derivation table (update→`editable`, create→`canAddItems`, …) produces the expected per-field flags; absent annotation ⇒ read-only | — | **M** | "Native tools too?" — explicitly scope native-tool `structured?` **out** (handler is `Promise<string>`-only; the earlier native extension was dropped in migration); native tools keep `_pendingX`. |
 | PR-9 | `feat(orchestrator): omadia-ui-orchestrator extension plugin` | new `middleware/packages/omadia-ui-orchestrator/`; manifest `kind: extension`, `provides: ["canvasChatAgent@1"]`; **CCM omitted from `requires`** (late-resolved bare `ctx.services.get('crossChannelConversationMemory')` + in-memory fallback, P15); publish under **bare** key `'canvasChatAgent'` via a shared exported constant (mirror `CHAT_AGENT_SERVICE`); append package to lint glob + typecheck `-w` chain (P12). Tests: **plugin activates with no CCM provider registered** (boot test); `canvasChatAgent` resolves via bare `ctx.services.get` and `chatAgent` is left untouched (no `replace`) | PR-2, PR-4, PR-7, PR-8 | **M** | "Why not `replace('chatAgent')`?" — global swap / cross-channel bleed (P9); a separate bare key is correct. |
 | PR-10a ✅ **landed (#173)** | `feat(ui-channel): skeleton channel plugin (canvas surface)` | new `@omadia/ui-channel` (kind: channel, `capabilities: [text, canvas]`, `dispatch_service: canvasChatAgent`); auto-discovered; `activate` registers a `GET /omadia-ui/info` discovery route. The **WebSocket** part of PR-10 is blocked on **PR-11** (see §6c / §3.2) and the Electron client — so it split out as the skeleton | PR-1, PR-6, PR-9a | **M** | landed; 0 Codex findings |
-| **PR-11** (new — found building #173) | `feat(channel-sdk): WebSocket transport for channel plugins` | the CoreApi WS extension the concept omitted (§6c). channel-sdk: new `ChannelSocket` + `ChannelSocketHandler` + `CoreApi.registerWebSocket?` (additive, decoupled from `ws`). kernel: new `WebSocketRegistry` (mirrors `ExpressRouteRegistry` — per-channel scope + active-flag) hooking `server.on('upgrade')` at `index.ts:2447`; `createCoreApi` gains `webSockets`; `ws` dep added. Design in §3.2. Tests: upgrade routing by path, per-channel active-flag reject, deactivate closes sockets, no-WS-config is inert | PR-3 (`IncomingTurn`) | **H** | "Does hooking `upgrade` conflict with anything? Where does session auth run — before or in the handler?" — pre-empt: no existing upgrade hook; auth runs in the channel's handler from the upgrade request (reuses core auth). |
+| **PR-11** (new — found building #173) | `feat(channel-sdk): WebSocket transport for channel plugins` | the CoreApi WS extension the concept omitted (§6c). channel-sdk: new `ChannelSocket` + `ChannelSocketHandler` + `CoreApi.registerWebSocket?` (additive, decoupled from `ws`). kernel: new `WebSocketRegistry` (mirrors `ExpressRouteRegistry` — per-channel scope + active-flag) hooking `server.on('upgrade')` at `index.ts:2592`; `createCoreApi` gains `webSockets`; `ws` dep added. Design in §3.2. **Built as PR #205 (CI green, unmerged).** Tests: upgrade routing by path, per-channel active-flag reject, deactivate closes sockets, no-WS-config is inert, auth-before-upgrade (401/403) | PR-3 (`IncomingTurn`) | **H** | "Does hooking `upgrade` conflict with anything? Where does session auth run — before or in the handler?" — resolved: no existing upgrade hook (single-owner); auth runs **pre-upgrade in the registry** — `verifySession` + the Entra `EmailWhitelist`, `401`/`403` before the `101` (mirrors `requireAuth`, **not** `resolveIdentity`). |
 | PR-10b | `feat(ui-channel): canvas WebSocket transport` | the real channel over PR-11's `registerWebSocket`: handshake (`offer`→`select`→`ack`), `IncomingTurn` forming (incl. `tenantId`/`target`/`viewState`), `surface_*` 1:1 fan-out, session auth on upgrade. Tests: handshake state machine (incl. version-mismatch downgrade-then-close); a turn routes to `canvasChatAgent`; one existing channel byte-for-byte unaffected | PR-11, PR-10a, PR-9a | **M** | "Does it touch any existing channel?" — `## Intentionally unchanged`. |
 
 Notes that cut across the series:
@@ -451,10 +451,12 @@ WebSocket, so this is a hard prerequisite for PR-10b. It is cleanly additive.
      close(code?: number, reason?: string): void;
      readonly request: { url: string; headers: Record<string, string | string[] | undefined> };
    }
-   type ChannelSocketHandler = (socket: ChannelSocket, identity: ResolvedIdentity) => void;
+   type ChannelSocketHandler = (socket: ChannelSocket, session: ChannelSessionClaims) => void;
    ```
    The handler only ever receives an **already-authenticated** socket (see Auth);
-   the resolved identity is handed in, so the channel never re-derives it.
+   the verified `ChannelSessionClaims` (`subject` / `email` / `displayName` /
+   `provider` / `omadiaUserId?`) are handed in, so the channel never re-derives
+   identity.
    and one new optional method on `CoreApi`:
    ```ts
    registerWebSocket?(channelId: string, path: string, handler: ChannelSocketHandler): void;
@@ -466,24 +468,32 @@ WebSocket, so this is a hard prerequisite for PR-10b. It is cleanly additive.
    mirrors `ExpressRouteRegistry`): per-channel path registrations + an
    `activeByChannel` flag. `attach(server)` hooks `server.on('upgrade')`; on an
    upgrade it matches `req.url`'s path → if registered **and** the channel is
-   active → **authenticates the request first** (core `resolveIdentity` over the
-   cookie/JWT in `req.headers`, before the socket is touched); on success it
-   completes the handshake via a single `ws.Server` in `noServer` mode
-   (`wss.handleUpgrade(...)`), wraps the raw socket in a `ChannelSocket`, and
-   calls the channel's handler **with the resolved identity**. Unmatched path or
-   inactive channel → `socket.destroy()`; **failed auth → write `HTTP/1.1 401`
-   and `socket.destroy()` before any `101`** — no WebSocket is ever established
-   for an unauthenticated peer. Deactivate flips the flag (new upgrades rejected)
-   and closes that channel's live sockets — the same lifecycle `registerRoute`
-   already has.
+   active → **authenticates the request first** — there is no `cookie-parser` in
+   front of a raw `upgrade`, so the registry parses the `omadia_session` cookie by
+   hand and runs the *same* gate `requireAuth` enforces:
+   `verifySession(token, sessionSigningKey)` (signature + expiry) plus the Entra
+   `EmailWhitelist` check (an OIDC `entra` session whose email is no longer
+   whitelisted → `403`). On success it completes the handshake via a single
+   `ws.Server` in `noServer` mode (`wss.handleUpgrade(...)`), wraps the raw socket
+   in a `ChannelSocket`, and calls the channel's handler **with the verified
+   `ChannelSessionClaims`**. Unmatched path → `404`; inactive channel → `503`;
+   **failed auth → `401` (missing/invalid cookie) or `403` (de-whitelisted Entra
+   email) written raw + `socket.destroy()` before any `101`** — no WebSocket is
+   ever established for an unauthenticated or unauthorized peer. Deactivate flips
+   the flag (new upgrades rejected) and closes that channel's live sockets — the
+   same lifecycle `registerRoute` already has.
 
-3. **Wiring** (`index.ts`): `const wsRegistry = new WebSocketRegistry()`, pass it
-   to `createCoreApi({ …, webSockets: wsRegistry })` — which also hands the
-   registry the core `resolveIdentity` so the upgrade-time auth gate reuses the
-   exact same identity resolution as the HTTP routes — and after
-   `const server = app.listen(...)` (`index.ts:2447`) call `wsRegistry.attach(server)`.
-   `createCoreApi.registerWebSocket` delegates to it; when no `webSockets` is
-   supplied the method is simply absent (channels feature-detect).
+3. **Wiring** (`index.ts`): `const wsRegistry = new WebSocketRegistry({ signingKey:
+   sessionSigningKey, whitelist: emailWhitelist })` — the *same* signing key and
+   Entra whitelist `requireAuth` is built with (≈ `index.ts:777`), so the WS auth
+   gate is byte-for-byte the HTTP one. Pass it to `createCoreApi({ …, webSockets:
+   wsRegistry })` (≈ `index.ts:2505`, alongside `routeRegistry`@`2467`) and to the
+   `DefaultChannelRegistry` (its lifecycle mirror of `routes`, so channel
+   deactivate closes sockets too); then after
+   `const server = app.listen(config.PORT, '::')` (`index.ts:2592`) call
+   `wsRegistry.attach(server)`. `createCoreApi.registerWebSocket` delegates to it;
+   when no `webSockets` is supplied the method is simply absent (channels
+   feature-detect).
 
 4. **Dependency:** add `ws` + `@types/ws` to the middleware kernel (NOT to the
    SDK — the SDK stays implementation-agnostic via `ChannelSocket`).
@@ -495,17 +505,22 @@ that builds a `CoreApi` without WS. The canvas frames are text JSON, so the
 narrow `send(string)`/`onMessage(string)` surface is sufficient — no binary or
 backpressure API needed in v1.
 
-**Auth — before the upgrade, not after.** The upgrade request carries the session
-cookie/JWT in `req.headers`. The registry validates it with core `resolveIdentity`
-**inside the `upgrade` handler, before `wss.handleUpgrade`**: a failed check writes
-`HTTP/1.1 401` and `socket.destroy()`s the raw socket, so an unauthenticated peer
-never completes the WebSocket handshake (no `101` is ever sent). Only authenticated
-upgrades become `ChannelSocket`s, and the resolved identity is passed into the
-channel handler. This is a deliberate change from an earlier draft that validated
-*inside* the handler after `handleUpgrade` — that is post-handshake teardown, which
-allocates a live socket for an unauthorized peer before dropping it; rejecting
-pre-`101` is strictly better and costs nothing, since the headers are already on
-`req` at upgrade time.
+**Auth — before the upgrade, not after, and identical to `requireAuth`.** The
+upgrade request carries the `omadia_session` cookie in `req.headers`. The WS auth
+primitive is **not** `CoreApi.resolveIdentity` — that is channel-native user
+mapping (a passthrough), not session auth. The registry instead mirrors
+`requireAuth` exactly, **inside the `upgrade` handler, before `wss.handleUpgrade`**:
+parse the cookie by hand (no `cookie-parser` runs on a raw upgrade),
+`verifySession(token, sessionSigningKey)`, then the Entra `EmailWhitelist` gate
+(`provider === 'entra' && !whitelist.isAllowed(email)` → `403`). A failed check
+writes a raw `401`/`403` and `socket.destroy()`s the socket, so an unauthenticated
+or de-whitelisted peer never completes the handshake (no `101` is ever sent). Only
+accepted upgrades become `ChannelSocket`s, with the verified `ChannelSessionClaims`
+passed to the handler. (Earlier drafts said "auth in the channel handler" and "core
+`resolveIdentity`" — both wrong: post-`handleUpgrade` teardown allocates a live
+socket for an unauthorized peer before dropping it, and `resolveIdentity` skips the
+whitelist gate, so a de-whitelisted Entra user would keep WS access while HTTP
+returns `403`. Caught in PR-11 build + Codex review.)
 
 **Risks / falsification.** (a) A second `upgrade` consumer would conflict — none
 exists today (grep: no `server.on('upgrade')`), so a single registry owns it;
