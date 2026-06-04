@@ -131,6 +131,16 @@ concept revision can close them.
    fields — the same reason `piiFields` lives on the `LocalSubAgentTool` wrapper,
    not its spec. `writeCapabilities` must attach to a non-model-facing carrier
    (manifest annotation / registration metadata), wired in PR-9.
+6c. **The WebSocket transport is missing from the SDK-changes list (found
+   building #173).** The concept's Tier-1 channel "hosts the WebSocket endpoint
+   the Host App connects to", but the `CoreApi` handed to a channel plugin
+   exposes only `handleTurnStream` + Express `registerRoute` / `registerRouter`
+   — **no WebSocket / `upgrade` registration**. A channel cannot host a
+   WebSocket today. The concept's "SDK changes" table and "Critical files" both
+   omit the CoreApi extension that makes the canvas WebSocket possible. It is a
+   first-class additive SDK change — see the new **PR-11** in §3 and its design
+   in §3.2. Until it lands, `omadia-ui-channel` can only advertise itself over
+   an HTTP discovery route (#173).
 7. **Internal inconsistencies, cheap to close:** `TargetRef` is "ten variants"
    in the body but "eight variants" in the SDK-changes table (line ~1116);
    `README.md` / `tech-stack.md` still cite concept "v0.7" while the document is
@@ -386,7 +396,9 @@ structured wiring; gated on the Phase-1 spike), PR-10 (omadia-ui-channel).
 | PR-7 **(split)** | `feat(orchestrator): canvas-output capability + origin-gated canvas sentinel extractors` | **Split during build.** **PR-7a landed [#169]**: the pure parsers `parseToolEmitted{StructuredPayload,CanvasTree,Mutation}` + the deny-by-default `canvas-output` gate (`isCanvasOutputAuthorized`) as a self-contained `canvasSentinels.ts` module — no tool-loop wiring, zero behaviour change. **PR-7b deferred into PR-9**: wiring the gated extractors into the tool loop needs the boot-computed allow-set of `canvas-output` tools threaded into the orchestrator (cross-layer), which only has a consumer once the canvas tools exist (PR-9). Original full scope below. — **define the `canvas-output` tool capability** (the gate's vocabulary — `admin-v1.ts` permissions block + manifest validation; concept SDK-change "Document canvas-output tool capability"), since no earlier PR introduces it; then `orchestrator.ts:640-755` (new `parseToolEmitted{CanvasTree,StructuredPayload,Mutation}` mirroring the existing parsers) + `1176-1239` (per-turn `extractToolEmitted*` scans) + origin-metadata `{toolName,pluginId,declaredCapabilities}` carry-through (`~903-919`); reject sentinels whose origin lacks `canvas-output`. Tests: malformed-JSON tolerance; **positive** (declared origin accepted) **and negative** (undeclared origin rejected) origin-gating; existing `_pendingUserChoice`/`RoutineList` unchanged | PR-4 | **M** | "Does origin-gating change existing `_pendingUserChoice`/`RoutineList` behaviour?" — no; existing keys untouched. |
 | PR-8 | `feat(plugin-api): structured? envelope + writeCapabilities tool annotation` | extend `LocalSubAgentToolResult` (`localSubAgentTool.ts:32-41`) with optional `structured?` (do **not** fork a parallel envelope); `writeCapabilities` optional field on `NativeToolSpec` (`pluginContext.ts:347-365`); loader + system-prompt emission; doc in handoff §8. Tests: `structured?` round-trips through `localSubAgent.ts` downcast; `writeCapabilities` parses from manifest and the P-Class-D derivation table (update→`editable`, create→`canAddItems`, …) produces the expected per-field flags; absent annotation ⇒ read-only | — | **M** | "Native tools too?" — explicitly scope native-tool `structured?` **out** (handler is `Promise<string>`-only; the earlier native extension was dropped in migration); native tools keep `_pendingX`. |
 | PR-9 | `feat(orchestrator): omadia-ui-orchestrator extension plugin` | new `middleware/packages/omadia-ui-orchestrator/`; manifest `kind: extension`, `provides: ["canvasChatAgent@1"]`; **CCM omitted from `requires`** (late-resolved bare `ctx.services.get('crossChannelConversationMemory')` + in-memory fallback, P15); publish under **bare** key `'canvasChatAgent'` via a shared exported constant (mirror `CHAT_AGENT_SERVICE`); append package to lint glob + typecheck `-w` chain (P12). Tests: **plugin activates with no CCM provider registered** (boot test); `canvasChatAgent` resolves via bare `ctx.services.get` and `chatAgent` is left untouched (no `replace`) | PR-2, PR-4, PR-7, PR-8 | **M** | "Why not `replace('chatAgent')`?" — global swap / cross-channel bleed (P9); a separate bare key is correct. |
-| PR-10 | `feat(channels): omadia-ui-channel channel plugin (canvas surface)` | new `middleware/packages/omadia-ui-channel/`; manifest `kind: channel`, `capabilities: [text, canvas]`, `dispatch_service: canvasChatAgent` (bare key); WebSocket endpoint + handshake (`offer`→`select`→`ack`) + 1:1 fan-out; append to lint/typecheck lists. Tests: handshake state machine (incl. version-mismatch downgrade-then-close); a turn routes to `canvasChatAgent` not `chatAgent`; smoke test proving one existing channel (e.g. Telegram) is byte-for-byte unaffected | PR-1, PR-6, PR-9 | **M** | "Does it touch any existing channel?" — `## Intentionally unchanged` section listing Teams/Slack/Telegram. |
+| PR-10a ✅ **landed (#173)** | `feat(ui-channel): skeleton channel plugin (canvas surface)` | new `@omadia/ui-channel` (kind: channel, `capabilities: [text, canvas]`, `dispatch_service: canvasChatAgent`); auto-discovered; `activate` registers a `GET /omadia-ui/info` discovery route. The **WebSocket** part of PR-10 is blocked on **PR-11** (see §6c / §3.2) and the Electron client — so it split out as the skeleton | PR-1, PR-6, PR-9a | **M** | landed; 0 Codex findings |
+| **PR-11** (new — found building #173) | `feat(channel-sdk): WebSocket transport for channel plugins` | the CoreApi WS extension the concept omitted (§6c). channel-sdk: new `ChannelSocket` + `ChannelSocketHandler` + `CoreApi.registerWebSocket?` (additive, decoupled from `ws`). kernel: new `WebSocketRegistry` (mirrors `ExpressRouteRegistry` — per-channel scope + active-flag) hooking `server.on('upgrade')` at `index.ts:2447`; `createCoreApi` gains `webSockets`; `ws` dep added. Design in §3.2. Tests: upgrade routing by path, per-channel active-flag reject, deactivate closes sockets, no-WS-config is inert | PR-3 (`IncomingTurn`) | **H** | "Does hooking `upgrade` conflict with anything? Where does session auth run — before or in the handler?" — pre-empt: no existing upgrade hook; auth runs in the channel's handler from the upgrade request (reuses core auth). |
+| PR-10b | `feat(ui-channel): canvas WebSocket transport` | the real channel over PR-11's `registerWebSocket`: handshake (`offer`→`select`→`ack`), `IncomingTurn` forming (incl. `tenantId`/`target`/`viewState`), `surface_*` 1:1 fan-out, session auth on upgrade. Tests: handshake state machine (incl. version-mismatch downgrade-then-close); a turn routes to `canvasChatAgent`; one existing channel byte-for-byte unaffected | PR-11, PR-10a, PR-9a | **M** | "Does it touch any existing channel?" — `## Intentionally unchanged`. |
 
 Notes that cut across the series:
 
@@ -417,6 +429,91 @@ needs to work in a minimal deployment. PR-6's body should present (b) as the
 considered alternative and state the DB-gating as the deciding factor, so the
 reviewer who knows about `channelResolver@1` sees it was not missed. If the team
 prefers (b), Phase 3 changes but the rest of the plan is unaffected.
+
+### 3.2 WebSocket transport for channel plugins (PR-11) — the missing SDK piece
+
+Building the channel skeleton (#173) surfaced a gap the concept's SDK-changes
+list missed (§6c): the `CoreApi` a channel plugin receives exposes only
+`handleTurnStream`, `registerRoute`, `registerRouter`, `resolveIdentity`, `log`
+— **no way to host a WebSocket**. The canvas channel's whole transport is a
+WebSocket, so this is a hard prerequisite for PR-10b. It is cleanly additive.
+
+**Design — mirror the existing `registerRoute` machinery, one layer up.**
+
+1. **SDK contract** (`harness-channel-sdk`, additive, no new dep): a minimal,
+   `ws`-agnostic socket abstraction so the SDK never depends on the WebSocket
+   implementation —
+   ```ts
+   interface ChannelSocket {
+     send(data: string): void;             // canvas frames are text JSON
+     onMessage(cb: (data: string) => void): void;
+     onClose(cb: () => void): void;
+     close(code?: number, reason?: string): void;
+     readonly request: { url: string; headers: Record<string, string | string[] | undefined> };
+   }
+   type ChannelSocketHandler = (socket: ChannelSocket, identity: ResolvedIdentity) => void;
+   ```
+   The handler only ever receives an **already-authenticated** socket (see Auth);
+   the resolved identity is handed in, so the channel never re-derives it.
+   and one new optional method on `CoreApi`:
+   ```ts
+   registerWebSocket?(channelId: string, path: string, handler: ChannelSocketHandler): void;
+   ```
+   Optional (`?`) so existing channels and any non-WS `createCoreApi` wiring are
+   untouched.
+
+2. **Kernel `WebSocketRegistry`** (`middleware/src/channels/webSocketRegistry.ts`,
+   mirrors `ExpressRouteRegistry`): per-channel path registrations + an
+   `activeByChannel` flag. `attach(server)` hooks `server.on('upgrade')`; on an
+   upgrade it matches `req.url`'s path → if registered **and** the channel is
+   active → **authenticates the request first** (core `resolveIdentity` over the
+   cookie/JWT in `req.headers`, before the socket is touched); on success it
+   completes the handshake via a single `ws.Server` in `noServer` mode
+   (`wss.handleUpgrade(...)`), wraps the raw socket in a `ChannelSocket`, and
+   calls the channel's handler **with the resolved identity**. Unmatched path or
+   inactive channel → `socket.destroy()`; **failed auth → write `HTTP/1.1 401`
+   and `socket.destroy()` before any `101`** — no WebSocket is ever established
+   for an unauthenticated peer. Deactivate flips the flag (new upgrades rejected)
+   and closes that channel's live sockets — the same lifecycle `registerRoute`
+   already has.
+
+3. **Wiring** (`index.ts`): `const wsRegistry = new WebSocketRegistry()`, pass it
+   to `createCoreApi({ …, webSockets: wsRegistry })` — which also hands the
+   registry the core `resolveIdentity` so the upgrade-time auth gate reuses the
+   exact same identity resolution as the HTTP routes — and after
+   `const server = app.listen(...)` (`index.ts:2447`) call `wsRegistry.attach(server)`.
+   `createCoreApi.registerWebSocket` delegates to it; when no `webSockets` is
+   supplied the method is simply absent (channels feature-detect).
+
+4. **Dependency:** add `ws` + `@types/ws` to the middleware kernel (NOT to the
+   SDK — the SDK stays implementation-agnostic via `ChannelSocket`).
+
+**Why this shape.** It reuses the proven per-channel active-flag lifecycle, keeps
+the SDK free of a `ws` dependency (so the kernel could swap `ws` for another
+implementation), and is inert for every existing channel and for any embedder
+that builds a `CoreApi` without WS. The canvas frames are text JSON, so the
+narrow `send(string)`/`onMessage(string)` surface is sufficient — no binary or
+backpressure API needed in v1.
+
+**Auth — before the upgrade, not after.** The upgrade request carries the session
+cookie/JWT in `req.headers`. The registry validates it with core `resolveIdentity`
+**inside the `upgrade` handler, before `wss.handleUpgrade`**: a failed check writes
+`HTTP/1.1 401` and `socket.destroy()`s the raw socket, so an unauthenticated peer
+never completes the WebSocket handshake (no `101` is ever sent). Only authenticated
+upgrades become `ChannelSocket`s, and the resolved identity is passed into the
+channel handler. This is a deliberate change from an earlier draft that validated
+*inside* the handler after `handleUpgrade` — that is post-handshake teardown, which
+allocates a live socket for an unauthorized peer before dropping it; rejecting
+pre-`101` is strictly better and costs nothing, since the headers are already on
+`req` at upgrade time.
+
+**Risks / falsification.** (a) A second `upgrade` consumer would conflict — none
+exists today (grep: no `server.on('upgrade')`), so a single registry owns it;
+falsifies if another subsystem later needs raw upgrades. (b) Dual-stack `::`
+binding must still accept WS — `ws` attaches to the same `http.Server`, so this
+holds; falsifies if a WS client cannot connect on the bound address. (c) The
+`noServer`-mode handshake must not interfere with Express routing — Express
+handles `request`, `ws` handles `upgrade`; disjoint events, no overlap.
 
 ---
 
