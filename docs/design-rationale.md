@@ -347,15 +347,14 @@ When v0.1 first asked "which colour?", four candidates were presented:
 
 Outcome: Petrol locked as the leading candidate for the v0.1 default.
 
-### 6.2 Iteration 2 — user pushback: "boring"
+### 6.2 Iteration 2 — review feedback: under-powered
 
-User feedback after seeing Petrol in the v0.1 preview:
-> "Farbschema wirkt eher langweilig, nicht inspirierend."
-
-This forced a re-examination. The Apple-lineage research (§3 above) was
-triggered by this exact feedback. The conclusion: the problem wasn't
-Petrol specifically — it was that **a single accent on flat material has
-no story.** Material identity (§4) needed to come *before* palette
+Review of the v0.1 preview flagged the single-accent approach as
+visually under-powered: defensible but uninspiring. That feedback forced
+a re-examination. The Apple-lineage research (§3 above) was triggered
+by this exact gap. The conclusion: the problem wasn't Petrol
+specifically — it was that **a single accent on flat material has no
+story.** Material identity (§4) needed to come *before* palette
 selection, not after.
 
 This ordering is now baked into the design rationale: material first,
@@ -382,14 +381,14 @@ All three were positioned to:
 
 ### 6.4 Iteration 4 — Botanical refinement to Lagoon
 
-User feedback after seeing the three-palette preview:
-> "Botanic ist ganz gut, könnte noch einen leichten Twist gebrauchen,
-> um nicht zu nüchtern zu sein und die Licht-Metapher eine Idee stärker
-> zu spielen. Im Darkmode derzeit stärker als im Light-Mode."
+Review of the three-palette preview surfaced a real implementation gap
+in the third palette (Botanical): the colour read as under-utilised in
+light mode (too austere) and out of balance against the stronger
+dark-mode rendering. The recommendation was a twist that would lean
+harder into the light metaphor.
 
-The user identified a *real implementation gap* — the light-mode glow
-was reading as a tinted shadow, not as emitted light. Two changes
-followed:
+The diagnosis: the light-mode glow was reading as a tinted *shadow*,
+not as emitted *light*. Two changes followed:
 
 1. **Hue shift** 195° → 200°: cyan-leaning shift from "deep pool" to
    "lit water surface".
@@ -443,19 +442,17 @@ dynamic-skinning distinction); `CONCEPT.md` §"The UI Skill"
 
 ### 7.1 The recognition
 
-The first draft of `visual-spec.md` had Inter + JetBrains Mono — selected
-casually, with the rationale "Inter for cross-platform consistency via
-Skia, JBM for distinguishable digits". User feedback after the
-material/palette decisions were locked:
+The first draft of `visual-spec.md` had Inter + JetBrains Mono —
+selected casually, with the rationale "Inter for cross-platform
+consistency via Skia, JBM for distinguishable digits". After the
+material and palette decisions had been locked, the typography choice
+was flagged in review as under-researched relative to the rest of the
+spec — closer to placeholder than to deliberate decision.
 
-> "Ich habe vergessen, mit Dir über das Thema Schriftarten zu sprechen.
-> Ist das im Konzept auch schon bewusst behandelt oder sind das nur
-> Platzhalter-Fonts?"
-
-The honest answer: not platzhalter, but **not researched at the same
-depth as material and palette either.** Inter + JBM is the *Startup
-Blue of typography* — the same defensive choice the palette work
-explicitly rejected.
+The honest assessment: not pure placeholder, but **not researched at
+the same depth as material and palette either.** Inter + JBM is the
+*Startup Blue of typography* — the same defensive choice the palette
+work explicitly rejected.
 
 ### 7.2 The research
 
@@ -487,14 +484,14 @@ acts (prose, structure, data) get three typographic registers.
 
 ### 7.4 The Anthropic-adjacency check
 
-User pushback on C:
-> "C ist schon ganz gut, sehr ähnlich zum Ansatz von Anthropic."
-
-True. The *architectural pattern* (modern sans + editorial serif) is the
-same as Anthropic's. The specific fonts differ (Geist vs Styrene,
-Source Serif 4 vs Tiempos), and the typographic register lands
-differently (Geist's Swiss precision vs Styrene's warm grotesque; Source
-Serif's neutral body face vs Tiempos's refined editorial).
+Review of Architecture C flagged its architectural similarity to
+Anthropic's typography pattern (modern grotesque sans + editorial
+serif). True observation. The *architectural pattern* (modern sans +
+editorial serif) is the same as Anthropic's. The specific fonts differ
+(Geist vs Styrene, Source Serif 4 vs Tiempos), and the typographic
+register lands differently (Geist's Swiss precision vs Styrene's warm
+grotesque; Source Serif's neutral body face vs Tiempos's refined
+editorial).
 
 The deeper question raised: how much Anthropic-adjacency is acceptable?
 The same question that ruled Atelier out as the default palette.
@@ -511,15 +508,16 @@ Lume-lit chrome surfaces, SOFT 70 on prose panes — typography
 participating in the material story. Conceptually the strongest Lume
 match.
 
-User reaction after seeing Fraunces in the preview:
-> "Boah, nein, D geht gar nicht. Zu fett, zu verknörkelt, zu breit,
-> nicht leicht und fluide. C ist am besten."
+Field-test feedback on Fraunces was decisive: too heavy in stroke
+weight, too ornate in character, too broad in proportion, not fluid
+enough for productivity-tool prose. Architecture C (Source Serif 4)
+was preferred unambiguously.
 
-Clear field-test rejection. Fraunces' old-style-revival character was
-genuinely too heavy for productivity-tool prose, regardless of the
-SOFT-axis cleverness. The lesson: theoretical material coherence cannot
-override actual reading-feel. Source Serif 4's neutral character was the
-right call all along.
+Fraunces' old-style-revival character was genuinely too heavy for
+productivity-tool prose, regardless of the SOFT-axis cleverness. The
+lesson: theoretical material coherence cannot override actual
+reading-feel. Source Serif 4's neutral character was the right call
+all along.
 
 ### 7.6 Decision locked
 
