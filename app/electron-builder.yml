@@ -1,0 +1,12 @@
+appId: ai.omadia.ui
+productName: Omadia UI
+directories:
+  output: dist
+files:
+  - out/**
+mac:
+  target: [dmg, zip]
+  category: public.app-category.productivity
+  # Signing/notarization (high5 Developer ID, notarytool) lands with the GA
+  # release pipeline — implementation-plan.md §7 / references/apple_dev.md.
+  identity: null
