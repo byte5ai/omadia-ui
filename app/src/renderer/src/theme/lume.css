@@ -1,0 +1,147 @@
+/* Lume baseline tokens — concrete shippable defaults; final values are aligned
+   to docs/visual-spec.md v0.3 in the GA visual-polish phase. */
+:root {
+  --lume-bg: #101417;
+  --lume-surface: #1a2126;
+  --lume-surface-raised: #222b31;
+  --lume-text: #e8edef;
+  --lume-text-dim: #9fb0b5;
+  --lume-accent: #3aa6b9; /* Lagoon — default palette */
+  --lume-border: #2c373e;
+  --lume-radius: 10px;
+  --lume-font-structural: 'Geist', system-ui, sans-serif;
+  --lume-font-prose: 'Source Serif 4', Georgia, serif;
+  --lume-font-mono: 'Geist Mono', ui-monospace, monospace;
+}
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  background: var(--lume-bg);
+  color: var(--lume-text);
+  font-family: var(--lume-font-structural);
+}
+.lume-prose {
+  font-family: var(--lume-font-prose);
+  line-height: 1.55;
+}
+.lume-mono {
+  font-family: var(--lume-font-mono);
+}
+.lume-container {
+  background: var(--lume-surface);
+  border: 1px solid var(--lume-border);
+  border-radius: var(--lume-radius);
+  padding: 16px;
+  margin: 12px;
+}
+.lume-container-title {
+  color: var(--lume-text-dim);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+.lume-layout-stack > * + * {
+  margin-top: 10px;
+}
+.lume-heading {
+  margin: 0;
+  font-weight: 600;
+}
+.lume-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.lume-table th,
+.lume-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--lume-border);
+}
+.lume-table th {
+  color: var(--lume-text-dim);
+  font-weight: 500;
+  font-size: 13px;
+}
+.lume-skeleton-cell {
+  display: inline-block;
+  width: 70%;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--lume-surface-raised);
+  animation: lume-pulse 1.2s ease-in-out infinite;
+}
+@keyframes lume-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+.lume-toolbar {
+  display: flex;
+  gap: 8px;
+}
+.lume-button {
+  background: var(--lume-surface-raised);
+  color: var(--lume-text);
+  border: 1px solid var(--lume-border);
+  border-radius: 8px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.lume-button:hover {
+  border-color: var(--lume-accent);
+}
+.lume-status {
+  color: var(--lume-text-dim);
+  font-size: 13px;
+}
+.lume-divider {
+  border: none;
+  border-top: 1px solid var(--lume-border);
+}
+.lume-list {
+  margin: 0;
+  padding-left: 20px;
+}
+.lume-unknown {
+  border: 1px dashed #b34a4a;
+  color: #d98c8c;
+  padding: 8px;
+  border-radius: 8px;
+}
+.lume-notices {
+  position: fixed;
+  bottom: 8px;
+  right: 8px;
+  max-width: 360px;
+  font-size: 11px;
+  color: var(--lume-text-dim);
+  font-family: var(--lume-font-mono);
+}
+.lume-coldstart {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+.lume-coldstart input {
+  width: min(560px, 70vw);
+  padding: 14px 18px;
+  font-size: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--lume-border);
+  background: var(--lume-surface);
+  color: var(--lume-text);
+  outline: none;
+}
+.lume-coldstart input:focus {
+  border-color: var(--lume-accent);
+}
+.lume-prose-strip {
+  padding: 10px 16px;
+  border-top: 1px solid var(--lume-border);
+}
