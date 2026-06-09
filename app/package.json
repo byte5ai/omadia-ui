@@ -1,0 +1,42 @@
+{
+  "name": "@omadia/ui-host-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Omadia UI — Tier-1 Canvas Host App (Electron)",
+  "author": "byte5 GmbH <info@omadia.ai>",
+  "type": "module",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "stub-server": "tsx tools/stub-server/stubServer.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "lint": "eslint src test tools",
+    "lint:fix": "eslint src test tools --fix",
+    "dist": "electron-vite build && electron-builder --mac dmg zip"
+  },
+  "dependencies": {
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/node": "^25.9.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^5.2.0",
+    "ajv": "^8.20.0",
+    "electron": "^42.4.0",
+    "electron-builder": "^26.15.2",
+    "electron-vite": "^5.0.0",
+    "eslint": "^9.39.4",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.0",
+    "vite": "^7.3.5",
+    "vitest": "^4.1.8",
+    "ws": "^8.21.0"
+  }
+}
