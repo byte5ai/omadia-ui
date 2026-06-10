@@ -2,7 +2,7 @@ import './wsEnv.js';
 import { app, BrowserWindow, ipcMain, Menu, nativeTheme, safeStorage, session } from 'electron';
 import { join } from 'node:path';
 import { IPC, type AppSettings, type ConnectOptions } from '../shared/ipc.js';
-import type { CanvasListEntry, ClientTurn } from '../shared/protocol.js';
+import type { CanvasListEntry, ClientCanvasRefresh, ClientTurn } from '../shared/protocol.js';
 import { acquireSessionCookie } from './auth.js';
 import { discoverProviders, loginWithPassword, validateSession, wsToHttpOrigin } from './authApi.js';
 import { CanvasSocket } from './canvasSocket.js';
@@ -155,6 +155,9 @@ ipcMain.handle(IPC.disconnectAll, () => {
 
 ipcMain.on(IPC.turn, (_e, slotKey: string, turn: ClientTurn) =>
   sockets.get(slotKey)?.sendTurn(turn),
+);
+ipcMain.on(IPC.refresh, (_e, slotKey: string, refresh: ClientCanvasRefresh) =>
+  sockets.get(slotKey)?.sendMessage(refresh),
 );
 ipcMain.on(IPC.resync, (_e, slotKey: string) => sockets.get(slotKey)?.resync());
 ipcMain.on(IPC.canvasListGet, (_e, slotKey: string) =>

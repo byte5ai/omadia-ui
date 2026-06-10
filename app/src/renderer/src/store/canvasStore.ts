@@ -125,8 +125,18 @@ function applySurfaceEvent(state: CanvasState, ev: SurfaceEvent, now: number): A
   // be gap-checked against the previous turn's seq, or the second turn's
   // snapshot is wrongly rejected. The gap check applies only to patches,
   // which must be contiguous within a snapshot's run.
+  // A surface_patch with surfaceSeq 0 whose basedOnRevision matches the local
+  // revision opens a fresh run too: the deterministic-refresh path (protocol
+  // 1.1 canvas_refresh, issue #5) patches the EXISTING tree without a
+  // preceding snapshot — revision equality is the integrity guard there.
+  const opensRun =
+    ev.type === 'surface_snapshot' ||
+    (ev.type === 'surface_patch' &&
+      ev.surfaceSeq === 0 &&
+      state.revision !== null &&
+      String(ev['basedOnRevision']) === state.revision);
   if (
-    ev.type !== 'surface_snapshot' &&
+    !opensRun &&
     state.lastSurfaceSeq !== null &&
     ev.surfaceSeq !== state.lastSurfaceSeq + 1
   ) {

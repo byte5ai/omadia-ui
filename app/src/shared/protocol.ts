@@ -132,7 +132,27 @@ export interface ClientCanvasListPut {
   canvases: CanvasListEntry[];
 }
 
-export type ClientMessage = HandshakeSelect | ClientTurn | ClientCanvasListGet | ClientCanvasListPut;
+/** client → server: deterministic refresh (protocol 1.1 additive, issue #5) —
+ *  re-resolve the data behind the current tree's containers; the server
+ *  answers with ordinary surface_patch events (first publish per container
+ *  REPLACES its rows) and turn_complete/turn_error signal completion. */
+export interface ClientCanvasRefresh {
+  type: 'canvas_refresh';
+  turnId?: string;
+  /** the revision the client's tree is at — refresh patches build on it */
+  basedOnRevision: string;
+  /** the client's current canvas tree (Tier 2 is stateless across turns) */
+  currentTree: unknown;
+  /** optional containerId — refresh one table/chart instead of the surface */
+  scope?: string;
+}
+
+export type ClientMessage =
+  | HandshakeSelect
+  | ClientTurn
+  | ClientCanvasListGet
+  | ClientCanvasListPut
+  | ClientCanvasRefresh;
 
 const NON_SURFACE_SERVER_TYPES: ReadonlySet<string> = new Set([
   'handshake_offer',

@@ -48,6 +48,38 @@ describe('applyServerMessage', () => {
     expect(r.resync).toBe(true);
   });
 
+  it('accepts a seq-0 patch run on the current revision (canvas_refresh, issue #5)', () => {
+    // turn 1: snapshot + patch leave lastSurfaceSeq at 1, revision '1'
+    let r = applyServerMessage(initialCanvasState, snapshot(0, '0'));
+    r = applyServerMessage(
+      r.state,
+      patch(1, '0', '1', [{ op: 'replace', path: '/children/0/text', value: 'stale' }]),
+    );
+    // refresh: a fresh patch run restarts at seq 0 WITHOUT a snapshot — the
+    // matching basedOnRevision is the integrity guard
+    r = applyServerMessage(
+      r.state,
+      patch(0, '1', '2', [{ op: 'replace', path: '/children/0/text', value: 'fresh' }]),
+    );
+    expect(r.resync).toBe(false);
+    expect(r.state.revision).toBe('2');
+    expect(JSON.stringify(r.state.tree)).toContain('"fresh"');
+    // follow-up refresh batches stay contiguous within the run
+    r = applyServerMessage(
+      r.state,
+      patch(1, '2', '3', [{ op: 'replace', path: '/children/0/text', value: 'fresher' }]),
+    );
+    expect(r.resync).toBe(false);
+  });
+
+  it('still resyncs on a seq-0 patch whose basedOnRevision mismatches', () => {
+    let r = applyServerMessage(initialCanvasState, snapshot(0, '0'));
+    r = applyServerMessage(r.state, patch(1, '0', '1', []));
+    const stale = applyServerMessage(r.state, patch(0, '0', '2', []));
+    expect(stale.resync).toBe(true);
+    expect(stale.state.revision).toBe('1'); // unchanged
+  });
+
   it('accepts a second-turn snapshot whose seq resets to 0 (no false gap)', () => {
     let r = applyServerMessage(initialCanvasState, snapshot(0, '0'));
     r = applyServerMessage(r.state, patch(1, '0', '1', []));

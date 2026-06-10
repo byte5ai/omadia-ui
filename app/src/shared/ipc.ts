@@ -1,4 +1,9 @@
-import type { CanvasListEntry, ClientTurn, ServerMessage } from './protocol.js';
+import type {
+  CanvasListEntry,
+  ClientCanvasRefresh,
+  ClientTurn,
+  ServerMessage,
+} from './protocol.js';
 
 export interface ConnectOptions {
   /** ws(s)://host/omadia-ui/canvas */
@@ -70,6 +75,9 @@ export interface OmadiaCanvasApi {
   /** tear down every socket (server change from the setup card) */
   disconnectAll(): Promise<void>;
   sendTurn(slotKey: string, turn: ClientTurn): void;
+  /** deterministic refresh (issue #5) — re-resolve the data behind the
+   *  current tree; answered with ordinary surface_patch events */
+  refreshCanvas(slotKey: string, refresh: ClientCanvasRefresh): void;
   requestResync(slotKey: string): void;
   /** per-user canvas registry sync (multi-canvas sidebar) */
   requestCanvasList(slotKey: string): void;
@@ -97,6 +105,7 @@ export const IPC = {
   disconnect: 'canvas:disconnect',
   disconnectAll: 'canvas:disconnect-all',
   turn: 'canvas:turn',
+  refresh: 'canvas:refresh',
   resync: 'canvas:resync',
   canvasListGet: 'canvas:list-get',
   canvasListPut: 'canvas:list-put',

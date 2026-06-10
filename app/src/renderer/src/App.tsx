@@ -431,6 +431,22 @@ export function App() {
     }
   };
 
+  /** Deterministic refresh (issue #5): same canvas, same query, newer data —
+   *  no new view is composed. The client sends its current tree + revision;
+   *  the server re-resolves the data and answers with patches that REPLACE
+   *  the stale rows. Reuses the turn-pending strip; no toasts. */
+  const refreshCanvas = () => {
+    if (!canvas.tree || canvas.revision === null || canvas.turnPending) return;
+    if ((canvas.tree as { id?: string }).id === 'local-pending') return;
+    window.omadiaCanvas.refreshCanvas(activeSlotId, {
+      type: 'canvas_refresh',
+      turnId: crypto.randomUUID(),
+      basedOnRevision: canvas.revision,
+      currentTree: canvas.tree,
+    });
+    setCanvas((c) => ({ ...c, turnPending: true, turnError: null, prose: '' }));
+  };
+
   const submitPrompt = () => {
     const text = draft.trim();
     if (!text) return;
@@ -541,13 +557,34 @@ export function App() {
         </div>
       )}
       <div style={{ flex: 1, overflow: 'auto' }}>
-        {/* view-only back navigation — in flow, above the tree; Layer-2
-            persistence is a later slice */}
-        {canvas.tree !== null && canvas.history.length > 0 && (
-          <button className="lume-button lume-back-button" onClick={() => setCanvas((c) => goBack(c))}>
-            ← Zurück
-          </button>
-        )}
+        {/* canvas chrome — view-only back navigation + deterministic refresh
+            (issue #5); in flow, above the tree */}
+        {canvas.tree !== null &&
+          (canvas.history.length > 0 ||
+            (canvas.revision !== null &&
+              (canvas.tree as { id?: string }).id !== 'local-pending')) && (
+            <div className="lume-canvas-chrome">
+              {canvas.history.length > 0 && (
+                <button
+                  className="lume-button lume-back-button"
+                  onClick={() => setCanvas((c) => goBack(c))}
+                >
+                  ← Zurück
+                </button>
+              )}
+              {canvas.revision !== null &&
+                (canvas.tree as { id?: string }).id !== 'local-pending' && (
+                  <button
+                    className="lume-button lume-refresh-button"
+                    title="Daten neu laden — gleiche Ansicht, frische Daten"
+                    disabled={canvas.turnPending || status.state !== 'ready'}
+                    onClick={refreshCanvas}
+                  >
+                    ↻ Aktualisieren
+                  </button>
+                )}
+            </div>
+          )}
         {canvas.tree ? (
           // §6.1 motion split: snapshot → full-canvas crossfade (key per
           // snapshot run, so patches never remount the tree); patch →

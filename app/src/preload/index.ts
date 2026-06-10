@@ -9,7 +9,12 @@ import {
   type ConnectionStatus,
   type OmadiaCanvasApi,
 } from '../shared/ipc.js';
-import type { CanvasListEntry, ClientTurn, ServerMessage } from '../shared/protocol.js';
+import type {
+  CanvasListEntry,
+  ClientCanvasRefresh,
+  ClientTurn,
+  ServerMessage,
+} from '../shared/protocol.js';
 
 const subscribeKeyed = <T>(
   channel: string,
@@ -28,6 +33,8 @@ const api: OmadiaCanvasApi = {
   disconnect: (slotKey: string) => ipcRenderer.invoke(IPC.disconnect, slotKey) as Promise<void>,
   disconnectAll: () => ipcRenderer.invoke(IPC.disconnectAll) as Promise<void>,
   sendTurn: (slotKey: string, turn: ClientTurn) => ipcRenderer.send(IPC.turn, slotKey, turn),
+  refreshCanvas: (slotKey: string, refresh: ClientCanvasRefresh) =>
+    ipcRenderer.send(IPC.refresh, slotKey, refresh),
   requestResync: (slotKey: string) => ipcRenderer.send(IPC.resync, slotKey),
   requestCanvasList: (slotKey: string) => ipcRenderer.send(IPC.canvasListGet, slotKey),
   saveCanvasList: (slotKey: string, canvases: CanvasListEntry[]) =>
