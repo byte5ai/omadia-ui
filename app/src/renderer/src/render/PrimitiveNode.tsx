@@ -1,4 +1,7 @@
 import { useState, type JSX, type ReactNode } from 'react';
+import { ChoiceNode, InputNode, ToggleNode } from './controlNodes.js';
+import { ChartNode, TreePrimitiveNode } from './dataNodes.js';
+import { CanvasRegionNode, MediaNode, TimelineNode, VectorPathNode } from './editorNodes.js';
 
 /** A validated primitive-tree node. The Ajv whitelist runs BEFORE render;
  *  this component trusts the shape but still fails soft on the unexpected. */
@@ -197,6 +200,98 @@ export function PrimitiveNode({ node, onAction, onRowMenu }: Props): ReactNode {
         </button>
       );
     }
+
+    case 'choice':
+      return <ChoiceNode node={node} onAction={onAction} />;
+
+    case 'input':
+      return <InputNode node={node} onAction={onAction} />;
+
+    case 'toggle':
+      return <ToggleNode node={node} onAction={onAction} />;
+
+    case 'form':
+      return (
+        <form
+          className="lume-form"
+          data-id={node['id'] as string}
+          onSubmit={(e) => e.preventDefault()}
+        >
+          {typeof node['title'] === 'string' && (
+            <div className="lume-container-title">{node['title']}</div>
+          )}
+          {children(node, onAction, onRowMenu)}
+        </form>
+      );
+
+    case 'menubar': {
+      const items = (node['items'] as Array<Record<string, unknown>>) ?? [];
+      return (
+        <div className="lume-menubar" data-id={node['id'] as string}>
+          {items.map((item, i) => {
+            const action = item['action'] as { type?: string; payload?: unknown } | undefined;
+            return (
+              <button
+                key={(item['id'] as string) ?? i}
+                type="button"
+                className="lume-menubar-item"
+                onClick={() =>
+                  action?.type &&
+                  onAction({ type: action.type, payload: action.payload, sourceId: node['id'] as string })
+                }
+              >
+                {(item['label'] as string) ?? String(item['id'] ?? i)}
+              </button>
+            );
+          })}
+        </div>
+      );
+    }
+
+    case 'tree':
+      return <TreePrimitiveNode node={node} />;
+
+    case 'chart':
+      return <ChartNode node={node} />;
+
+    case 'image':
+      return (
+        <img
+          className="lume-image"
+          data-id={node['id'] as string}
+          src={(node['src'] as string) ?? ''}
+          alt={(node['altText'] as string) ?? ''}
+        />
+      );
+
+    case 'progress': {
+      if (node['indeterminate'] === true) {
+        return (
+          <div className="lume-progress lume-progress-indeterminate" data-id={node['id'] as string}>
+            <span className="lume-progress-bar" />
+          </div>
+        );
+      }
+      const raw = Number(node['value'] ?? 0);
+      const pct = Math.min(Math.max(raw <= 1 ? raw * 100 : raw, 0), 100);
+      return (
+        <div className="lume-progress" data-id={node['id'] as string}>
+          <span className="lume-progress-bar" style={{ width: `${pct}%` }} />
+        </div>
+      );
+    }
+
+    case 'media':
+      return <MediaNode node={node} />;
+
+    case 'canvas-region':
+      return <CanvasRegionNode node={node} />;
+
+    case 'timeline':
+      return <TimelineNode node={node} />;
+
+    case 'vector-path':
+      return <VectorPathNode node={node} />;
 
     case 'status':
       return (
