@@ -324,11 +324,9 @@ export function App() {
             <button
               key={a.id}
               className="lume-row-menu-item"
-              onClick={() =>
-                a.prompt !== undefined && a.prompt !== ''
-                  ? setBeamDraft(a.prompt) // expands into a beam — user confirms
-                  : submitBeam(rowMenu, a.label, a.target)
-              }
+              // fires immediately — the prompt is the turn text, deterministically
+              // bound to the clicked row's TargetRef (no confirm round-trip).
+              onClick={() => submitBeam(rowMenu, a.prompt?.trim() ? a.prompt : a.label)}
             >
               {a.label}
             </button>
