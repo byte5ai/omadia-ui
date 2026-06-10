@@ -435,7 +435,7 @@ export function App() {
    *  no new view is composed. The client sends its current tree + revision;
    *  the server re-resolves the data and answers with patches that REPLACE
    *  the stale rows. Reuses the turn-pending strip; no toasts. */
-  const refreshCanvas = () => {
+  const refreshCanvas = (scope?: string) => {
     if (!canvas.tree || canvas.revision === null || canvas.turnPending) return;
     if ((canvas.tree as { id?: string }).id === 'local-pending') return;
     window.omadiaCanvas.refreshCanvas(activeSlotId, {
@@ -443,6 +443,7 @@ export function App() {
       turnId: crypto.randomUUID(),
       basedOnRevision: canvas.revision,
       currentTree: canvas.tree,
+      ...(scope ? { scope } : {}),
     });
     setCanvas((c) => ({ ...c, turnPending: true, turnError: null, prose: '' }));
   };
@@ -578,7 +579,7 @@ export function App() {
                     className="lume-button lume-refresh-button"
                     title="Daten neu laden — gleiche Ansicht, frische Daten"
                     disabled={canvas.turnPending || status.state !== 'ready'}
-                    onClick={refreshCanvas}
+                    onClick={() => refreshCanvas()}
                   >
                     ↻ Aktualisieren
                   </button>
@@ -667,6 +668,17 @@ export function App() {
               Details anzeigen
             </button>
           )}
+          {/* per-primitive refresh (issue #5): scoped to THIS table — a local
+              affordance, present regardless of agent-supplied actions */}
+          <button
+            className="lume-row-menu-item"
+            onClick={() => {
+              setRowMenu(null);
+              refreshCanvas(rowMenu.tableId);
+            }}
+          >
+            ↻ Tabelle aktualisieren
+          </button>
           {rowMenu.suggestedActions.map((a) => (
             <button
               key={a.id}
