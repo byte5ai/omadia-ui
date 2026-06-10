@@ -82,4 +82,45 @@ describe('applyServerMessage', () => {
     expect(r.state.notices.some((n) => n.includes('boom'))).toBe(true);
     expect(r.state.turnPending).toBe(false);
   });
+
+  it('exposes turn_error for the beam chip and clears it on turn_complete', () => {
+    let r = applyServerMessage(initialCanvasState, snapshot(0, '0'));
+    r = applyServerMessage(r.state, { type: 'turn_error', forTurn: 't1', message: 'boom' });
+    expect(r.state.turnError).toBe('boom');
+    r = applyServerMessage(r.state, snapshot(0, '1'));
+    r = applyServerMessage(r.state, { type: 'turn_complete', forTurn: 't2' });
+    expect(r.state.turnError).toBe(null);
+  });
+
+  it('records a snapshot apply as a crossfade run (visual-spec §6.1)', () => {
+    const r = applyServerMessage(initialCanvasState, snapshot(0, '0'));
+    expect(r.state.snapshotRevision).toBe('0');
+    expect(r.state.lastApply).toMatchObject({ kind: 'snapshot', revision: '0', rapid: false });
+  });
+
+  it('marks the deepest patched node for condensation (visual-spec §3.5)', () => {
+    let r = applyServerMessage(initialCanvasState, snapshot(0, '0'));
+    r = applyServerMessage(
+      r.state,
+      patch(1, '0', '1', [{ op: 'replace', path: '/children/0/text', value: 'done' }]),
+    );
+    expect(r.state.lastApply).toMatchObject({ kind: 'patch', revision: '1', rapid: false });
+    expect(r.state.lastApply?.changedIds).toEqual(['s']);
+    // the snapshot run stays open — patches must not remount the canvas
+    expect(r.state.snapshotRevision).toBe('0');
+  });
+
+  it('flags rapid-stream when more than 5 patches land within a second', () => {
+    let r = applyServerMessage(initialCanvasState, snapshot(0, '0'), 0);
+    for (let i = 1; i <= 6; i += 1) {
+      r = applyServerMessage(
+        r.state,
+        patch(i, String(i - 1), String(i), [
+          { op: 'replace', path: '/children/0/text', value: `v${i}` },
+        ]),
+        i * 50, // all six inside the 1s sliding window
+      );
+    }
+    expect(r.state.lastApply?.rapid).toBe(true);
+  });
 });

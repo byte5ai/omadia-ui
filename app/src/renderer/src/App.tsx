@@ -3,11 +3,14 @@ import type { AppSettings, ConnectOptions, ConnectionStatus } from '../../shared
 import { applyServerMessage, goBack, initialCanvasState, type CanvasState } from './store/canvasStore.js';
 import {
   PrimitiveNode,
+  type BeamTarget,
   type PrimitiveAction,
   type PrimitiveJson,
   type RowMenuRequest,
 } from './render/PrimitiveNode.js';
 import { Onboarding } from './onboarding/Onboarding.js';
+import { initPalette } from './theme/palette.js';
+import { PalettePicker } from './theme/PalettePicker.js';
 
 const DEFAULT_WS_URL: string =
   import.meta.env.VITE_OMADIA_WS_URL ?? 'ws://127.0.0.1:8181/omadia-ui/canvas';
@@ -54,14 +57,35 @@ export function App() {
   const [draft, setDraft] = useState('');
   // turn prose is debug-only: hidden behind the bottom-right marker
   const [showTurnLog, setShowTurnLog] = useState(false);
-  // right-click row context menu (closed on any outside click)
+  // ⌥⌘P palette quick-picker (VS-Code-Quick-Pick idiom, §3.6 modal)
+  const [showPalettePicker, setShowPalettePicker] = useState(false);
+  // right-click context-invoke panel (closed on any outside click)
   const [rowMenu, setRowMenu] = useState<RowMenuRequest | null>(null);
+  // free-intent text in the panel's beam field
+  const [beamDraft, setBeamDraft] = useState('');
+  // a pending beam sticks to its target until the turn resolves; on
+  // turn_error it carries the message as an inline chip for a few seconds
+  const [beam, setBeam] = useState<(BeamTarget & { x: number; y: number; error?: string }) | null>(
+    null,
+  );
   useEffect(() => {
     if (!rowMenu) return;
     const close = () => setRowMenu(null);
     window.addEventListener('click', close);
     return () => window.removeEventListener('click', close);
   }, [rowMenu]);
+
+  // beam lifecycle (concept §Beam lifecycle + Trace): resolve → pin disappears;
+  // error → inline chip for a few seconds, then fades without trace.
+  useEffect(() => {
+    if (!beam || canvas.turnPending) return;
+    if (canvas.turnError && !beam.error) {
+      setBeam({ ...beam, error: canvas.turnError });
+      return;
+    }
+    const t = setTimeout(() => setBeam(null), beam.error ? 4000 : 0);
+    return () => clearTimeout(t);
+  }, [beam, canvas.turnPending, canvas.turnError]);
   const stateRef = useRef(canvas);
   stateRef.current = canvas;
   const promptRef = useRef<HTMLInputElement>(null);
@@ -83,10 +107,19 @@ export function App() {
       setSettings(saved);
       if (saved) void window.omadiaCanvas.connect(toConnectOptions(saved));
     });
+    initPalette();
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         promptRef.current?.focus();
+      }
+      // ⌥⌘P opens the palette quick-picker (§2.5.4) — local stand-in until
+      // the conversational Tier-2 ui-prefs binding lands; e.code because ⌥
+      // remaps e.key on macOS. While the picker is open it owns the keyboard
+      // (capture-phase handler), so this never double-fires.
+      if ((e.metaKey || e.ctrlKey) && e.altKey && e.code === 'KeyP') {
+        e.preventDefault();
+        setShowPalettePicker(true);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -132,11 +165,28 @@ export function App() {
     setCanvas((c) => ({
       ...c,
       turnPending: true,
+      turnError: null,
       prose: '',
       // jump to the canvas immediately on cold start — local skeleton, no wait
       ...(c.tree === null ? { tree: LOCAL_PENDING_TREE } : {}),
     }));
     setDraft('');
+  };
+
+  /** Beam-as-prompt (concept §Interaction Model): free intent deterministically
+   *  bound to the row's stable TargetRef — `{kind:'item', containerId, itemKey}`,
+   *  never view positions. The pin sticks to the row until the turn resolves. */
+  const submitBeam = (menu: RowMenuRequest, text: string, target?: unknown) => {
+    setRowMenu(null);
+    setBeamDraft('');
+    window.omadiaCanvas.sendTurn({
+      type: 'turn',
+      turnId: crypto.randomUUID(),
+      text,
+      target: target ?? { kind: 'item', containerId: menu.tableId, itemKey: menu.rowKey },
+    });
+    setBeam({ containerId: menu.tableId, rowKey: menu.rowKey, x: menu.x, y: menu.y });
+    setCanvas((c) => ({ ...c, turnPending: true, turnError: null, prose: '' }));
   };
 
   const onAction = (action: PrimitiveAction) => {
@@ -148,24 +198,20 @@ export function App() {
     });
   };
 
-  // context-menu action: details for the clicked row, rendered as panes by
-  // the next composed canvas (the previous view stays back-navigable).
+  // deterministic affordance: details for the clicked row, rendered as panes
+  // by the next composed canvas (the previous view stays back-navigable).
+  // Routed through the beam path so the pin sticks to the row while pending.
   const showRowDetails = (menu: RowMenuRequest) => {
-    setRowMenu(null);
     const summary = Object.entries(menu.cells)
       .filter(([, v]) => v !== '' && v !== null && v !== undefined)
       .map(([k, v]) => `${k}: ${String(v)}`)
       .join(', ');
-    window.omadiaCanvas.sendTurn({
-      type: 'turn',
-      turnId: crypto.randomUUID(),
-      text:
-        `Zeige die Details zu diesem Datensatz inklusive der Teilnehmerliste ` +
+    submitBeam(
+      menu,
+      `Zeige die Details zu diesem Datensatz inklusive der Teilnehmerliste ` +
         `(${summary}; rowKey ${menu.rowKey}). Stelle die Ansicht als Panes dar: ` +
         `eine Übersicht und eine Teilnehmer-Tabelle.`,
-      target: { kind: 'element', elementId: menu.tableId },
-    });
-    setCanvas((c) => ({ ...c, turnPending: true, prose: '' }));
+    );
   };
 
   // settings load is a local file read — sub-300ms, so no skeleton (spec §7.2)
@@ -174,22 +220,57 @@ export function App() {
     const defaults = pending ??
       settings ?? { serverUrl: DEFAULT_WS_URL, useAuth: DEFAULT_USE_AUTH };
     return (
-      <Onboarding
-        defaults={defaults}
-        status={status}
-        busy={pending !== null}
-        canCancel={settings !== null}
-        onSubmit={submitSetup}
-        onCancel={cancelSetup}
-      />
+      <>
+        <Onboarding
+          defaults={defaults}
+          status={status}
+          busy={pending !== null}
+          canCancel={settings !== null}
+          onSubmit={submitSetup}
+          onCancel={cancelSetup}
+        />
+        {showPalettePicker && <PalettePicker onClose={() => setShowPalettePicker(false)} />}
+      </>
     );
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ flex: 1, overflow: 'auto' }}>
+        {/* view-only back navigation — in flow, above the tree; Layer-2
+            persistence is a later slice */}
+        {canvas.tree !== null && canvas.history.length > 0 && (
+          <button className="lume-button lume-back-button" onClick={() => setCanvas((c) => goBack(c))}>
+            ← Zurück
+          </button>
+        )}
         {canvas.tree ? (
-          <PrimitiveNode node={canvas.tree as PrimitiveJson} onAction={onAction} onRowMenu={setRowMenu} />
+          // §6.1 motion split: snapshot → full-canvas crossfade (key per
+          // snapshot run, so patches never remount the tree); patch →
+          // per-node condensation via the condense prop.
+          <div
+            key={canvas.snapshotRevision ?? 'local-pending'}
+            className={canvas.lastApply?.kind === 'snapshot' ? 'lume-crossfade' : undefined}
+          >
+            <PrimitiveNode
+              node={canvas.tree as PrimitiveJson}
+              onAction={onAction}
+              onRowMenu={(req) => {
+                setBeamDraft('');
+                setRowMenu(req);
+              }}
+              condense={
+                canvas.lastApply?.kind === 'patch'
+                  ? {
+                      ids: new Set(canvas.lastApply.changedIds),
+                      revision: canvas.lastApply.revision,
+                      rapid: canvas.lastApply.rapid,
+                    }
+                  : undefined
+              }
+              beamTarget={beam}
+            />
+          </div>
         ) : (
           // Cold-start: a canvas is never empty (concept §Interaction Model).
           // Spotlight treatment per visual-spec §5.3 — the stage itself glows.
@@ -224,17 +305,47 @@ export function App() {
           </div>
         )}
       </div>
-      {/* view-only back navigation — Layer-2 persistence is a later slice */}
-      {canvas.tree !== null && canvas.history.length > 0 && (
-        <button className="lume-button lume-back-button" onClick={() => setCanvas((c) => goBack(c))}>
-          ← Zurück
-        </button>
-      )}
       {rowMenu && (
-        <div className="lume-row-menu" style={{ left: rowMenu.x, top: rowMenu.y }}>
+        // context-invoke action panel: deterministic affordances first, then
+        // agent-pre-supplied suggestedActions (no turn on open!), then the
+        // beam field. Clicks inside must not bubble to the window-closer.
+        <div
+          className="lume-row-menu"
+          style={{ left: rowMenu.x, top: rowMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
           <button className="lume-row-menu-item" onClick={() => showRowDetails(rowMenu)}>
             Details anzeigen (inkl. Teilnehmer)
           </button>
+          {rowMenu.suggestedActions.map((a) => (
+            <button
+              key={a.id}
+              className="lume-row-menu-item"
+              onClick={() =>
+                a.prompt !== undefined && a.prompt !== ''
+                  ? setBeamDraft(a.prompt) // expands into a beam — user confirms
+                  : submitBeam(rowMenu, a.label, a.target)
+              }
+            >
+              {a.label}
+            </button>
+          ))}
+          <input
+            className="lume-input lume-beam-field"
+            placeholder="Beam omadia about this…"
+            value={beamDraft}
+            onChange={(e) => setBeamDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && beamDraft.trim()) submitBeam(rowMenu, beamDraft.trim());
+              if (e.key === 'Escape') setRowMenu(null);
+            }}
+          />
+        </div>
+      )}
+      {/* beam error chip — inline at the beam origin, fades after a few seconds */}
+      {beam?.error && (
+        <div className="lume-beam-chip lume-beam-chip-error" style={{ left: beam.x, top: beam.y }}>
+          {beam.error}
         </div>
       )}
       {/* The canvas is the surface of record — raw turn prose is debug-only,
@@ -285,6 +396,7 @@ export function App() {
           ))}
         </div>
       )}
+      {showPalettePicker && <PalettePicker onClose={() => setShowPalettePicker(false)} />}
     </div>
   );
 }
