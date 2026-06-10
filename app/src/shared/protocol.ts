@@ -43,11 +43,15 @@ export interface TurnError {
   message: string;
 }
 
-/** One entry of the per-user canvas registry (multi-canvas sidebar sync). */
+/** One entry of the per-user canvas registry (multi-canvas sidebar sync).
+ *  `tree`/`revision` materialise the canvas on app start across installs —
+ *  the last server-authoritative snapshot state, replaced by the next turn. */
 export interface CanvasListEntry {
   sessionId: string;
   title: string;
   color: number;
+  tree?: unknown;
+  revision?: string;
 }
 
 /** server → client: the user's persisted canvas list (answer to canvas_list_get). */

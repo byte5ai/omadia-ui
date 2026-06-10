@@ -790,6 +790,22 @@ body {
   border-radius: 50%;
   flex: none;
 }
+/* in-flight turn on this canvas — the dot becomes a working beacon */
+.lume-sidebar-dot-busy {
+  animation: lume-sidebar-busy 1.1s var(--lume-ease-standard) infinite;
+}
+@keyframes lume-sidebar-busy {
+  50% {
+    opacity: 0.35;
+    box-shadow: 0 0 8px var(--lume-accent-glow);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lume-sidebar-dot-busy {
+    animation: none;
+    box-shadow: 0 0 6px var(--lume-accent-glow);
+  }
+}
 .lume-canvas-dot-0 { background: #6fc8d6; }
 .lume-canvas-dot-1 { background: #e0a26b; }
 .lume-canvas-dot-2 { background: #7bb37b; }

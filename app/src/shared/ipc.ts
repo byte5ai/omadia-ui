@@ -30,21 +30,27 @@ export interface AppSettings {
   loginUrl?: string;
 }
 
+/** One socket per canvas slot — streams keep flowing for BACKGROUND
+ *  canvases, so switching mid-turn never loses a response. Every call and
+ *  every event is keyed by the renderer's slot id. */
 export interface OmadiaCanvasApi {
-  connect(opts: ConnectOptions): Promise<void>;
-  sendTurn(turn: ClientTurn): void;
-  requestResync(): void;
+  connect(slotKey: string, opts: ConnectOptions): Promise<void>;
+  /** tear down every socket (server change from the setup card) */
+  disconnectAll(): Promise<void>;
+  sendTurn(slotKey: string, turn: ClientTurn): void;
+  requestResync(slotKey: string): void;
   /** per-user canvas registry sync (multi-canvas sidebar) */
-  requestCanvasList(): void;
-  saveCanvasList(canvases: CanvasListEntry[]): void;
-  onServerMessage(cb: (msg: ServerMessage) => void): () => void;
-  onStatus(cb: (status: ConnectionStatus) => void): () => void;
+  requestCanvasList(slotKey: string): void;
+  saveCanvasList(slotKey: string, canvases: CanvasListEntry[]): void;
+  onServerMessage(cb: (slotKey: string, msg: ServerMessage) => void): () => void;
+  onStatus(cb: (slotKey: string, status: ConnectionStatus) => void): () => void;
   getSettings(): Promise<AppSettings | null>;
   saveSettings(settings: AppSettings): Promise<void>;
 }
 
 export const IPC = {
   connect: 'canvas:connect',
+  disconnectAll: 'canvas:disconnect-all',
   turn: 'canvas:turn',
   resync: 'canvas:resync',
   canvasListGet: 'canvas:list-get',

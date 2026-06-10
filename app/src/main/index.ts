@@ -13,7 +13,17 @@ import { createFileSettingsStore } from './settingsStore.js';
 const LOCAL_OPERATIONS: string[] = [];
 
 let win: BrowserWindow | null = null;
-let socket: CanvasSocket | null = null;
+/** One socket per canvas slot — background canvases keep their streams
+ *  flowing while another canvas is in front (multi-canvas sidebar). */
+const sockets = new Map<string, CanvasSocket>();
+
+/** webContents.send AFTER the window died throws "Object has been destroyed"
+ *  (late socket close events during app quit) — guard every push. */
+function safeSend(channel: string, ...args: unknown[]): void {
+  if (win && !win.isDestroyed() && !win.webContents.isDestroyed()) {
+    win.webContents.send(channel, ...args);
+  }
+}
 
 function createWindow(): void {
   win = new BrowserWindow({
@@ -62,8 +72,9 @@ function createWindow(): void {
   }
 }
 
-ipcMain.handle(IPC.connect, async (_e, opts: ConnectOptions) => {
-  socket?.close();
+ipcMain.handle(IPC.connect, async (_e, slotKey: string, opts: ConnectOptions) => {
+  sockets.get(slotKey)?.close();
+  sockets.delete(slotKey);
   let cookie: string | undefined;
   if (opts.useAuth) {
     const httpOrigin = opts.url.replace(/^ws/, 'http').replace(/\/omadia-ui\/canvas$/, '');
@@ -71,15 +82,15 @@ ipcMain.handle(IPC.connect, async (_e, opts: ConnectOptions) => {
       cookie = await acquireSessionCookie(opts.loginUrl ?? httpOrigin);
     } catch (err) {
       // aborted login window — surface as failed status so onboarding stays open
-      win?.webContents.send(IPC.status, {
+      safeSend(IPC.status, slotKey, {
         state: 'failed',
         detail: err instanceof Error ? err.message : String(err),
       });
       return;
     }
   }
-  // Multi-canvas: the renderer may pin a specific session (sidebar switch)
-  // or force a fresh one (new canvas) — the file store stays the fallback
+  // Multi-canvas: the renderer pins a specific session per slot (sidebar)
+  // or forces a fresh one (new canvas) — the file store stays the fallback
   // and always tracks the LAST-ACTIVE session for cold app starts.
   const fileStore = createFileSessionStore(app.getPath('userData'));
   const session = opts.freshSession
@@ -87,22 +98,32 @@ ipcMain.handle(IPC.connect, async (_e, opts: ConnectOptions) => {
     : opts.canvasSessionId
       ? { load: (): string | undefined => opts.canvasSessionId, save: (id: string) => fileStore.save(id) }
       : fileStore;
-  socket = new CanvasSocket({
+  const socket = new CanvasSocket({
     url: opts.url,
     cookie,
     localOperations: LOCAL_OPERATIONS,
     session,
-    onMessage: (msg) => win?.webContents.send(IPC.serverMessage, msg),
-    onStatus: (status) => win?.webContents.send(IPC.status, status),
+    onMessage: (msg) => safeSend(IPC.serverMessage, slotKey, msg),
+    onStatus: (status) => safeSend(IPC.status, slotKey, status),
   });
+  sockets.set(slotKey, socket);
   socket.connect();
 });
 
-ipcMain.on(IPC.turn, (_e, turn: ClientTurn) => socket?.sendTurn(turn));
-ipcMain.on(IPC.resync, () => socket?.resync());
-ipcMain.on(IPC.canvasListGet, () => socket?.sendMessage({ type: 'canvas_list_get' }));
-ipcMain.on(IPC.canvasListPut, (_e, canvases: CanvasListEntry[]) =>
-  socket?.sendMessage({ type: 'canvas_list_put', canvases }),
+ipcMain.handle(IPC.disconnectAll, () => {
+  for (const s of sockets.values()) s.close();
+  sockets.clear();
+});
+
+ipcMain.on(IPC.turn, (_e, slotKey: string, turn: ClientTurn) =>
+  sockets.get(slotKey)?.sendTurn(turn),
+);
+ipcMain.on(IPC.resync, (_e, slotKey: string) => sockets.get(slotKey)?.resync());
+ipcMain.on(IPC.canvasListGet, (_e, slotKey: string) =>
+  sockets.get(slotKey)?.sendMessage({ type: 'canvas_list_get' }),
+);
+ipcMain.on(IPC.canvasListPut, (_e, slotKey: string, canvases: CanvasListEntry[]) =>
+  sockets.get(slotKey)?.sendMessage({ type: 'canvas_list_put', canvases }),
 );
 
 ipcMain.handle(IPC.settingsGet, () => createFileSettingsStore(app.getPath('userData')).load());
@@ -118,6 +139,7 @@ void app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  socket?.close();
+  for (const s of sockets.values()) s.close();
+  sockets.clear();
   if (process.platform !== 'darwin') app.quit();
 });

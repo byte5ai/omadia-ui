@@ -8,8 +8,11 @@ import {
 } from '../shared/ipc.js';
 import type { CanvasListEntry, ClientTurn, ServerMessage } from '../shared/protocol.js';
 
-const subscribe = <T>(channel: string, cb: (payload: T) => void): (() => void) => {
-  const listener = (_e: IpcRendererEvent, payload: T) => cb(payload);
+const subscribeKeyed = <T>(
+  channel: string,
+  cb: (slotKey: string, payload: T) => void,
+): (() => void) => {
+  const listener = (_e: IpcRendererEvent, slotKey: string, payload: T) => cb(slotKey, payload);
   ipcRenderer.on(channel, listener);
   return () => {
     ipcRenderer.removeListener(channel, listener);
@@ -17,13 +20,18 @@ const subscribe = <T>(channel: string, cb: (payload: T) => void): (() => void) =
 };
 
 const api: OmadiaCanvasApi = {
-  connect: (opts: ConnectOptions) => ipcRenderer.invoke(IPC.connect, opts) as Promise<void>,
-  sendTurn: (turn: ClientTurn) => ipcRenderer.send(IPC.turn, turn),
-  requestResync: () => ipcRenderer.send(IPC.resync),
-  requestCanvasList: () => ipcRenderer.send(IPC.canvasListGet),
-  saveCanvasList: (canvases: CanvasListEntry[]) => ipcRenderer.send(IPC.canvasListPut, canvases),
-  onServerMessage: (cb: (msg: ServerMessage) => void) => subscribe(IPC.serverMessage, cb),
-  onStatus: (cb: (status: ConnectionStatus) => void) => subscribe(IPC.status, cb),
+  connect: (slotKey: string, opts: ConnectOptions) =>
+    ipcRenderer.invoke(IPC.connect, slotKey, opts) as Promise<void>,
+  disconnectAll: () => ipcRenderer.invoke(IPC.disconnectAll) as Promise<void>,
+  sendTurn: (slotKey: string, turn: ClientTurn) => ipcRenderer.send(IPC.turn, slotKey, turn),
+  requestResync: (slotKey: string) => ipcRenderer.send(IPC.resync, slotKey),
+  requestCanvasList: (slotKey: string) => ipcRenderer.send(IPC.canvasListGet, slotKey),
+  saveCanvasList: (slotKey: string, canvases: CanvasListEntry[]) =>
+    ipcRenderer.send(IPC.canvasListPut, slotKey, canvases),
+  onServerMessage: (cb: (slotKey: string, msg: ServerMessage) => void) =>
+    subscribeKeyed(IPC.serverMessage, cb),
+  onStatus: (cb: (slotKey: string, status: ConnectionStatus) => void) =>
+    subscribeKeyed(IPC.status, cb),
   getSettings: () => ipcRenderer.invoke(IPC.settingsGet) as Promise<AppSettings | null>,
   saveSettings: (settings: AppSettings) =>
     ipcRenderer.invoke(IPC.settingsSave, settings) as Promise<void>,

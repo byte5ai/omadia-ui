@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { AppSettings, ConnectOptions, ConnectionStatus } from '../../shared/ipc.js';
 import { applyServerMessage, goBack, initialCanvasState, type CanvasState } from './store/canvasStore.js';
+import { validateTree } from './validate/validator.js';
 import {
   PrimitiveNode,
   type BeamTarget,
@@ -71,7 +72,15 @@ export function App() {
   const [activeSlotId, setActiveSlotId] = useState<string>(
     initialSlots.current.activeId || (initialSlots.current.slots[0]?.slotId ?? ''),
   );
-  const inactiveStates = useRef(new Map<string, CanvasState>());
+  // one canvas state per slot — background slots keep receiving their
+  // streams (one socket per slot), so switching mid-turn loses nothing
+  const slotStates = useRef(new Map<string, CanvasState>());
+  // slots whose socket exists — a switch to a connected slot is a pure view
+  // swap, NO reconnect (reconnect would kill the in-flight stream)
+  const connectedSlots = useRef(new Set<string>());
+  const statusBySlot = useRef(new Map<string, ConnectionStatus>());
+  // bump to re-render the sidebar when a BACKGROUND slot's state changes
+  const [, setBgTick] = useState(0);
   // true once the server's canvas list arrived — local pushes wait for the
   // merge so a fresh install never clobbers the user's server-side registry
   const canvasListSynced = useRef(false);
@@ -108,6 +117,10 @@ export function App() {
   }, [beam, canvas.turnPending, canvas.turnError]);
   const stateRef = useRef(canvas);
   stateRef.current = canvas;
+  const activeSlotIdRef = useRef(activeSlotId);
+  activeSlotIdRef.current = activeSlotId;
+  // the active slot's state always mirrors `canvas` (local mutations included)
+  slotStates.current.set(activeSlotId, canvas);
   const promptRef = useRef<HTMLInputElement>(null);
   const proseRef = useRef<HTMLDivElement>(null);
 
@@ -117,7 +130,7 @@ export function App() {
   }, [canvas.prose, showTurnLog]);
 
   useEffect(() => {
-    const offMsg = window.omadiaCanvas.onServerMessage((msg) => {
+    const offMsg = window.omadiaCanvas.onServerMessage((slotKey, msg) => {
       // per-user canvas registry (LVL2-persisted): server list is authoritative
       // for known sessions; local-only slots (never connected) are kept.
       if (msg.type === 'canvas_list') {
@@ -130,7 +143,7 @@ export function App() {
             );
             const merged: CanvasSlotMeta[] = server.map((e) => {
               const existing = bySession.get(e.sessionId);
-              return existing
+              const slot: CanvasSlotMeta = existing
                 ? { ...existing, title: e.title || existing.title, color: e.color }
                 : {
                     slotId: crypto.randomUUID(),
@@ -138,6 +151,23 @@ export function App() {
                     color: e.color,
                     sessionId: e.sessionId,
                   };
+              // materialise the canvas from its persisted snapshot — only if
+              // nothing live exists yet, and only when the tree passes the
+              // whitelist (the registry blob is data, not trusted shape)
+              const live = slotStates.current.get(slot.slotId);
+              if (e.tree && (!live || live.tree === null) && validateTree(e.tree).ok) {
+                const restored: CanvasState = {
+                  ...initialCanvasState,
+                  tree: e.tree,
+                  revision: e.revision ?? null,
+                  snapshotRevision: e.revision ?? 'restored',
+                };
+                slotStates.current.set(slot.slotId, restored);
+                if (slot.slotId === activeSlotIdRef.current && stateRef.current.tree === null) {
+                  setCanvas(restored);
+                }
+              }
+              return slot;
             });
             const serverIds = new Set(server.map((e) => e.sessionId));
             for (const s of prev) {
@@ -148,21 +178,55 @@ export function App() {
         }
         return;
       }
-      const { state, resync } = applyServerMessage(stateRef.current, msg);
-      setCanvas(state);
-      if (resync) window.omadiaCanvas.requestResync();
+      // route by SLOT: background streams land in their slot's state, the
+      // active slot additionally re-renders the visible canvas.
+      const prev =
+        slotKey === activeSlotIdRef.current
+          ? stateRef.current
+          : (slotStates.current.get(slotKey) ?? initialCanvasState);
+      const { state, resync } = applyServerMessage(prev, msg);
+      slotStates.current.set(slotKey, state);
+      if (slotKey === activeSlotIdRef.current) {
+        setCanvas(state);
+      } else {
+        setBgTick((t) => t + 1); // sidebar busy/title indicators
+      }
+      // background canvases name themselves too
+      if (state.tree !== null) {
+        const title = autoTitle(state.tree);
+        if (title) {
+          setSlots((p) => p.map((s) => (s.slotId === slotKey && s.title !== title ? { ...s, title } : s)));
+        }
+      }
+      if (resync) window.omadiaCanvas.requestResync(slotKey);
     });
-    const offStatus = window.omadiaCanvas.onStatus(setStatus);
+    const offStatus = window.omadiaCanvas.onStatus((slotKey, st) => {
+      statusBySlot.current.set(slotKey, st);
+      if (st.state === 'ready') {
+        connectedSlots.current.add(slotKey);
+        if (st.canvasSessionId) {
+          setSlots((p) =>
+            p.map((s) =>
+              s.slotId === slotKey && s.sessionId !== st.canvasSessionId
+                ? { ...s, sessionId: st.canvasSessionId }
+                : s,
+            ),
+          );
+        }
+        window.omadiaCanvas.requestCanvasList(slotKey);
+      }
+      if (slotKey === activeSlotIdRef.current) setStatus(st);
+    });
     void window.omadiaCanvas.getSettings().then((saved) => {
       setSettings(saved);
       // resume the ACTIVE slot's canvas session (not just the last-used file id)
-      const active = initialSlots.current.slots.find(
-        (s) => s.slotId === (initialSlots.current.activeId || initialSlots.current.slots[0]?.slotId),
-      );
-      if (saved)
-        void window.omadiaCanvas.connect({
+      const activeId =
+        initialSlots.current.activeId || (initialSlots.current.slots[0]?.slotId ?? '');
+      const active = initialSlots.current.slots.find((s) => s.slotId === activeId);
+      if (saved && active)
+        void window.omadiaCanvas.connect(active.slotId, {
           ...toConnectOptions(saved),
-          ...(active?.sessionId ? { canvasSessionId: active.sessionId } : {}),
+          ...(active.sessionId ? { canvasSessionId: active.sessionId } : { freshSession: true }),
         });
     });
     initPalette();
@@ -201,64 +265,55 @@ export function App() {
     }
   }, [pending, status]);
 
-  // bind the server-acked canvasSessionId to the active slot (first connect
-  // mints it; later connects echo it) and pull the user's server-side canvas
-  // registry — app-start sync across installs.
-  useEffect(() => {
-    if (status.state !== 'ready') return;
-    if (status.canvasSessionId) {
-      setSlots((prev) =>
-        prev.map((s) =>
-          s.slotId === activeSlotId && s.sessionId !== status.canvasSessionId
-            ? { ...s, sessionId: status.canvasSessionId }
-            : s,
-        ),
-      );
-    }
-    window.omadiaCanvas.requestCanvasList();
-  }, [status, activeSlotId]);
-
-  // push slot metadata to the LVL2 registry (debounced; only after the first
-  // server merge so we never overwrite the registry with a stale local view)
+  // push slot metadata + the last server-authoritative tree to the LVL2
+  // registry (debounced; only after the first server merge so we never
+  // overwrite the registry with a stale local view). The tree is what
+  // re-materialises the canvas on the next app start / other installs.
   useEffect(() => {
     if (!canvasListSynced.current) return;
     const t = setTimeout(() => {
       window.omadiaCanvas.saveCanvasList(
+        activeSlotIdRef.current,
         slots
           .filter((s) => s.sessionId)
-          .map((s) => ({ sessionId: s.sessionId as string, title: s.title, color: s.color })),
+          .map((s) => {
+            const st = slotStates.current.get(s.slotId);
+            const tree =
+              st?.tree && (st.tree as { id?: string }).id !== 'local-pending' ? st.tree : undefined;
+            return {
+              sessionId: s.sessionId as string,
+              title: s.title,
+              color: s.color,
+              ...(tree ? { tree, ...(st?.revision ? { revision: st.revision } : {}) } : {}),
+            };
+          }),
       );
     }, 800);
     return () => clearTimeout(t);
-  }, [slots]);
-
-  // the canvas names itself — first heading/title of the active tree
-  useEffect(() => {
-    if (canvas.tree === null) return;
-    const title = autoTitle(canvas.tree);
-    if (!title) return;
-    setSlots((prev) =>
-      prev.map((s) => (s.slotId === activeSlotId && s.title !== title ? { ...s, title } : s)),
-    );
-  }, [canvas.tree, activeSlotId]);
+  }, [slots, canvas.tree]);
 
   useEffect(() => {
     saveSlots(slots, activeSlotId);
   }, [slots, activeSlotId]);
 
-  /** park the current canvas, surface the target slot, reconnect its session */
+  /** Surface the target slot. A connected slot is a pure VIEW swap — its
+   *  socket (and any in-flight turn stream) keeps running untouched. Only a
+   *  never-connected slot dials a socket. */
   const switchCanvas = (slotId: string) => {
     if (slotId === activeSlotId || !settings) return;
-    inactiveStates.current.set(activeSlotId, stateRef.current);
     const target = slots.find((s) => s.slotId === slotId);
     setActiveSlotId(slotId);
-    setCanvas(inactiveStates.current.get(slotId) ?? initialCanvasState);
+    setCanvas(slotStates.current.get(slotId) ?? initialCanvasState);
     setBeam(null);
     setRowMenu(null);
     setShowPrompt(false);
     setDraft('');
+    if (connectedSlots.current.has(slotId)) {
+      setStatus(statusBySlot.current.get(slotId) ?? { state: 'connecting' });
+      return;
+    }
     setStatus({ state: 'connecting' });
-    void window.omadiaCanvas.connect({
+    void window.omadiaCanvas.connect(slotId, {
       ...toConnectOptions(settings),
       ...(target?.sessionId ? { canvasSessionId: target.sessionId } : { freshSession: true }),
     });
@@ -268,7 +323,6 @@ export function App() {
     if (!settings) return;
     const slot = newSlot(slots.length);
     setSlots((prev) => [...prev, slot]);
-    inactiveStates.current.set(activeSlotId, stateRef.current);
     setActiveSlotId(slot.slotId);
     setCanvas(initialCanvasState);
     setBeam(null);
@@ -276,15 +330,28 @@ export function App() {
     setShowPrompt(false);
     setDraft('');
     setStatus({ state: 'connecting' });
-    void window.omadiaCanvas.connect({ ...toConnectOptions(settings), freshSession: true });
+    void window.omadiaCanvas.connect(slot.slotId, {
+      ...toConnectOptions(settings),
+      freshSession: true,
+    });
   };
 
   const submitSetup = (candidate: AppSettings) => {
     setPending(candidate);
-    // optimistic: the last status may still be 'ready' from the old connection
+    // optimistic: the last status may still be 'ready' from the old connection.
+    // A server change invalidates EVERY slot's socket and parked tree.
     setStatus({ state: 'connecting' });
     setCanvas(initialCanvasState);
-    void window.omadiaCanvas.connect(toConnectOptions(candidate));
+    slotStates.current.clear();
+    connectedSlots.current.clear();
+    statusBySlot.current.clear();
+    void window.omadiaCanvas.disconnectAll().then(() => {
+      const active = slots.find((s) => s.slotId === activeSlotIdRef.current);
+      void window.omadiaCanvas.connect(activeSlotIdRef.current, {
+        ...toConnectOptions(candidate),
+        ...(active?.sessionId ? { canvasSessionId: active.sessionId } : { freshSession: true }),
+      });
+    });
   };
 
   const cancelSetup = () => {
@@ -293,14 +360,18 @@ export function App() {
       // a failed attempt replaced the socket — reconnect to the saved server
       setPending(null);
       setStatus({ state: 'connecting' });
-      void window.omadiaCanvas.connect(toConnectOptions(settings));
+      const active = slots.find((s) => s.slotId === activeSlotIdRef.current);
+      void window.omadiaCanvas.connect(activeSlotIdRef.current, {
+        ...toConnectOptions(settings),
+        ...(active?.sessionId ? { canvasSessionId: active.sessionId } : { freshSession: true }),
+      });
     }
   };
 
   const submitPrompt = () => {
     const text = draft.trim();
     if (!text) return;
-    window.omadiaCanvas.sendTurn({ type: 'turn', turnId: crypto.randomUUID(), text });
+    window.omadiaCanvas.sendTurn(activeSlotId, { type: 'turn', turnId: crypto.randomUUID(), text });
     setCanvas((c) => ({
       ...c,
       turnPending: true,
@@ -318,7 +389,7 @@ export function App() {
   const submitBeam = (menu: RowMenuRequest, text: string, target?: unknown) => {
     setRowMenu(null);
     setBeamDraft('');
-    window.omadiaCanvas.sendTurn({
+    window.omadiaCanvas.sendTurn(activeSlotId, {
       type: 'turn',
       turnId: crypto.randomUUID(),
       text,
@@ -329,7 +400,7 @@ export function App() {
   };
 
   const onAction = (action: PrimitiveAction) => {
-    window.omadiaCanvas.sendTurn({
+    window.omadiaCanvas.sendTurn(activeSlotId, {
       type: 'turn',
       turnId: crypto.randomUUID(),
       action: { type: action.type, payload: action.payload },
@@ -379,9 +450,24 @@ export function App() {
     );
   }
 
+  // sidebar busy indicator: every slot with an in-flight turn (active slot
+  // reads live state, background slots their parked-but-streaming state)
+  const busySlots = new Set<string>();
+  slotStates.current.forEach((st, id) => {
+    if (st.turnPending) busySlots.add(id);
+  });
+  if (canvas.turnPending) busySlots.add(activeSlotId);
+  else busySlots.delete(activeSlotId);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'row', height: '100%' }}>
-      <Sidebar slots={slots} activeSlotId={activeSlotId} onSelect={switchCanvas} onAdd={addCanvas} />
+      <Sidebar
+        slots={slots}
+        activeSlotId={activeSlotId}
+        busySlotIds={busySlots}
+        onSelect={switchCanvas}
+        onAdd={addCanvas}
+      />
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
       {/* instant feedback the moment a turn fires — the old view stays
           (back-navigable), the lit strip says "omadia is working" */}
@@ -446,7 +532,13 @@ export function App() {
                   className="lume-button"
                   onClick={() => {
                     setStatus({ state: 'connecting' });
-                    void window.omadiaCanvas.connect(toConnectOptions(settings));
+                    const active = slots.find((s) => s.slotId === activeSlotId);
+                    void window.omadiaCanvas.connect(activeSlotId, {
+                      ...toConnectOptions(settings),
+                      ...(active?.sessionId
+                        ? { canvasSessionId: active.sessionId }
+                        : { freshSession: true }),
+                    });
                   }}
                 >
                   Retry

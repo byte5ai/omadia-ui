@@ -4,13 +4,16 @@ import type { CanvasSlotMeta } from './store/canvasSlots.js';
 interface Props {
   slots: CanvasSlotMeta[];
   activeSlotId: string;
+  /** slots with an in-flight turn — their dot pulses (building/loading) */
+  busySlotIds: ReadonlySet<string>;
   onSelect: (slotId: string) => void;
   onAdd: () => void;
 }
 
-/** Warp-style canvas rail: one entry per canvas session (auto title + color),
- *  plus the new-canvas affordance. Pure view — slot state lives in App. */
-export function Sidebar({ slots, activeSlotId, onSelect, onAdd }: Props): ReactNode {
+/** Warp-style canvas rail: one entry per canvas session (auto title + color,
+ *  pulsing dot while its turn is building), plus the new-canvas affordance.
+ *  Pure view — slot state lives in App; switching is ALWAYS allowed. */
+export function Sidebar({ slots, activeSlotId, busySlotIds, onSelect, onAdd }: Props): ReactNode {
   return (
     <nav className="lume-sidebar">
       <div className="lume-sidebar-list">
@@ -19,10 +22,15 @@ export function Sidebar({ slots, activeSlotId, onSelect, onAdd }: Props): ReactN
             key={s.slotId}
             type="button"
             className={`lume-sidebar-item${s.slotId === activeSlotId ? ' lume-sidebar-active' : ''}`}
-            title={s.title}
+            title={busySlotIds.has(s.slotId) ? `${s.title} — arbeitet…` : s.title}
             onClick={() => onSelect(s.slotId)}
           >
-            <span className={`lume-sidebar-dot lume-canvas-dot-${s.color}`} aria-hidden="true" />
+            <span
+              className={`lume-sidebar-dot lume-canvas-dot-${s.color}${
+                busySlotIds.has(s.slotId) ? ' lume-sidebar-dot-busy' : ''
+              }`}
+              aria-hidden="true"
+            />
             <span className="lume-sidebar-title">{s.title}</span>
           </button>
         ))}
