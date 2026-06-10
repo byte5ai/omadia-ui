@@ -12,6 +12,9 @@ export interface CanvasState {
   connection: 'disconnected' | 'connecting' | 'ready' | 'failed';
   /** debug/UX strip: errors, rejections, not-yet-rendered event kinds */
   notices: string[];
+  /** client-side view history: previous server-authoritative trees, newest
+   *  last. Back is view-only — Layer-2 persistence is a later slice. */
+  history: Array<{ tree: unknown; revision: string }>;
 }
 
 export const initialCanvasState: CanvasState = {
@@ -22,7 +25,22 @@ export const initialCanvasState: CanvasState = {
   turnPending: false,
   connection: 'disconnected',
   notices: [],
+  history: [],
 };
+
+/** restore the previous view (no server round-trip). A later patch on the
+ *  restored revision will mismatch and trigger a resync — acceptable for the
+ *  view-only back slice. */
+export function goBack(state: CanvasState): CanvasState {
+  const prev = state.history.at(-1);
+  if (!prev) return state;
+  return {
+    ...state,
+    tree: prev.tree,
+    revision: prev.revision,
+    history: state.history.slice(0, -1),
+  };
+}
 
 export interface ApplyResult {
   state: CanvasState;
@@ -40,8 +58,16 @@ function applySurfaceEvent(state: CanvasState, ev: SurfaceEvent): ApplyResult {
   if (!valid.ok) {
     return { state: noticed(state, `surface event rejected: ${valid.errors}`), resync: false };
   }
-  // surfaceSeq is the transport tie-breaker — a gap means we missed frames.
-  if (state.lastSurfaceSeq !== null && ev.surfaceSeq !== state.lastSurfaceSeq + 1) {
+  // A surface_snapshot is a full authoritative replace and opens a fresh
+  // per-turn surfaceSeq run (server resets seq to 0 each turn) — it must NOT
+  // be gap-checked against the previous turn's seq, or the second turn's
+  // snapshot is wrongly rejected. The gap check applies only to patches,
+  // which must be contiguous within a snapshot's run.
+  if (
+    ev.type !== 'surface_snapshot' &&
+    state.lastSurfaceSeq !== null &&
+    ev.surfaceSeq !== state.lastSurfaceSeq + 1
+  ) {
     return {
       state: noticed(state, `surfaceSeq gap (${state.lastSurfaceSeq} → ${ev.surfaceSeq})`),
       resync: true,
@@ -57,7 +83,16 @@ function applySurfaceEvent(state: CanvasState, ev: SurfaceEvent): ApplyResult {
         return { state: noticed(seen, `snapshot tree rejected: ${treeValid.errors}`), resync: false };
       }
       return {
-        state: { ...seen, tree, revision: String(ev['producesRevision']) },
+        state: {
+          ...seen,
+          tree,
+          revision: String(ev['producesRevision']),
+          // a replaced server-authoritative view becomes back-navigable
+          history:
+            state.tree !== null && state.revision !== null
+              ? [...state.history.slice(-9), { tree: state.tree, revision: state.revision }]
+              : state.history,
+        },
         resync: false,
       };
     }
@@ -99,10 +134,20 @@ export function applyServerMessage(state: CanvasState, msg: ServerMessage): Appl
     case 'agent_text_delta':
       return { state: { ...state, prose: state.prose + msg.text }, resync: false };
     case 'turn_complete':
-      return { state: { ...state, turnPending: false }, resync: false };
+      return {
+        // revision === null → the tree is only the client-local pending
+        // skeleton (no server snapshot arrived); drop it back to cold start
+        // instead of leaving a forever-pulsing skeleton.
+        state: { ...state, turnPending: false, ...(state.revision === null ? { tree: null } : {}) },
+        resync: false,
+      };
     case 'turn_error':
       return {
-        state: { ...noticed(state, `turn_error: ${msg.message}`), turnPending: false },
+        state: {
+          ...noticed(state, `turn_error: ${msg.message}`),
+          turnPending: false,
+          ...(state.revision === null ? { tree: null } : {}),
+        },
         resync: false,
       };
     default:

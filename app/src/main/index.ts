@@ -1,10 +1,12 @@
+import './wsEnv.js';
 import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import { join } from 'node:path';
-import { IPC, type ConnectOptions } from '../shared/ipc.js';
+import { IPC, type AppSettings, type ConnectOptions } from '../shared/ipc.js';
 import type { ClientTurn } from '../shared/protocol.js';
 import { acquireSessionCookie } from './auth.js';
 import { CanvasSocket } from './canvasSocket.js';
 import { createFileSessionStore } from './sessionStore.js';
+import { createFileSettingsStore } from './settingsStore.js';
 
 /** the ops-catalog subset this build implements. M1 ships none; M2 adds
  *  brush/blur/select-magic-wand — extend here AND in the catalog handler. */
@@ -63,7 +65,16 @@ ipcMain.handle(IPC.connect, async (_e, opts: ConnectOptions) => {
   let cookie: string | undefined;
   if (opts.useAuth) {
     const httpOrigin = opts.url.replace(/^ws/, 'http').replace(/\/omadia-ui\/canvas$/, '');
-    cookie = await acquireSessionCookie(httpOrigin);
+    try {
+      cookie = await acquireSessionCookie(opts.loginUrl ?? httpOrigin);
+    } catch (err) {
+      // aborted login window — surface as failed status so onboarding stays open
+      win?.webContents.send(IPC.status, {
+        state: 'failed',
+        detail: err instanceof Error ? err.message : String(err),
+      });
+      return;
+    }
   }
   socket = new CanvasSocket({
     url: opts.url,
@@ -78,6 +89,11 @@ ipcMain.handle(IPC.connect, async (_e, opts: ConnectOptions) => {
 
 ipcMain.on(IPC.turn, (_e, turn: ClientTurn) => socket?.sendTurn(turn));
 ipcMain.on(IPC.resync, () => socket?.resync());
+
+ipcMain.handle(IPC.settingsGet, () => createFileSettingsStore(app.getPath('userData')).load());
+ipcMain.handle(IPC.settingsSave, (_e, settings: AppSettings) =>
+  createFileSettingsStore(app.getPath('userData')).save(settings),
+);
 
 void app.whenReady().then(() => {
   createWindow();

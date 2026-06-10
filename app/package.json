@@ -7,13 +7,18 @@
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
+    "gen:validator": "tsx tools/gen-validator/genValidator.ts",
+    "predev": "npm run gen:validator",
     "dev": "electron-vite dev",
+    "prebuild": "npm run gen:validator",
     "build": "electron-vite build",
     "stub-server": "tsx tools/stub-server/stubServer.ts",
+    "pretest": "npm run gen:validator",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "lint": "eslint src test tools",
     "lint:fix": "eslint src test tools --fix",
+    "predist": "npm run gen:validator",
     "dist": "electron-vite build && electron-builder --mac dmg zip"
   },
   "dependencies": {

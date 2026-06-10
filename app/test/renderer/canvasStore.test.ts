@@ -48,6 +48,18 @@ describe('applyServerMessage', () => {
     expect(r.resync).toBe(true);
   });
 
+  it('accepts a second-turn snapshot whose seq resets to 0 (no false gap)', () => {
+    let r = applyServerMessage(initialCanvasState, snapshot(0, '0'));
+    r = applyServerMessage(r.state, patch(1, '0', '1', []));
+    expect(r.state.lastSurfaceSeq).toBe(1);
+    // next turn: server restarts surfaceSeq at 0 — must be accepted, not gap-rejected
+    const next = applyServerMessage(r.state, snapshot(0, '2'));
+    expect(next.resync).toBe(false);
+    expect(next.state.revision).toBe('2');
+    // and the prior view is pushed to history (back-navigable)
+    expect(next.state.history.length).toBe(1);
+  });
+
   it('rejects an invalid snapshot tree hard, keeping prior state', () => {
     const s = applyServerMessage(initialCanvasState, snapshot(0, '0')).state;
     const bad = { ...snapshot(1, '1'), tree: { type: 'iframe' } } as ServerMessage;

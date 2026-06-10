@@ -1,5 +1,11 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import { IPC, type ConnectOptions, type ConnectionStatus, type OmadiaCanvasApi } from '../shared/ipc.js';
+import {
+  IPC,
+  type AppSettings,
+  type ConnectOptions,
+  type ConnectionStatus,
+  type OmadiaCanvasApi,
+} from '../shared/ipc.js';
 import type { ClientTurn, ServerMessage } from '../shared/protocol.js';
 
 const subscribe = <T>(channel: string, cb: (payload: T) => void): (() => void) => {
@@ -16,6 +22,9 @@ const api: OmadiaCanvasApi = {
   requestResync: () => ipcRenderer.send(IPC.resync),
   onServerMessage: (cb: (msg: ServerMessage) => void) => subscribe(IPC.serverMessage, cb),
   onStatus: (cb: (status: ConnectionStatus) => void) => subscribe(IPC.status, cb),
+  getSettings: () => ipcRenderer.invoke(IPC.settingsGet) as Promise<AppSettings | null>,
+  saveSettings: (settings: AppSettings) =>
+    ipcRenderer.invoke(IPC.settingsSave, settings) as Promise<void>,
 };
 
 contextBridge.exposeInMainWorld('omadiaCanvas', api);
