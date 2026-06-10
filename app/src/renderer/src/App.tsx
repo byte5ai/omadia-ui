@@ -84,6 +84,9 @@ export function App() {
   // true once the server's canvas list arrived — local pushes wait for the
   // merge so a fresh install never clobbers the user's server-side registry
   const canvasListSynced = useRef(false);
+  // sessions deleted this run (issue #8) — an in-flight canvas_list merge
+  // must never resurrect them before the shrunken registry put lands
+  const deletedSessions = useRef(new Set<string>());
   // turn prose is debug-only: hidden behind the bottom-right marker
   const [showTurnLog, setShowTurnLog] = useState(false);
   // ⌥⌘P palette quick-picker (VS-Code-Quick-Pick idiom, §3.6 modal)
@@ -135,7 +138,7 @@ export function App() {
       // for known sessions; local-only slots (never connected) are kept.
       if (msg.type === 'canvas_list') {
         canvasListSynced.current = true;
-        const server = msg.canvases;
+        const server = msg.canvases.filter((e) => !deletedSessions.current.has(e.sessionId));
         if (server.length > 0) {
           setSlots((prev) => {
             const bySession = new Map(
@@ -274,6 +277,23 @@ export function App() {
     }
   }, [pending, status]);
 
+  // the canvas_list_put payload — shared by the debounced push below and the
+  // immediate push on canvas delete
+  const toRegistryEntries = (list: CanvasSlotMeta[]) =>
+    list
+      .filter((s) => s.sessionId)
+      .map((s) => {
+        const st = slotStates.current.get(s.slotId);
+        const tree =
+          st?.tree && (st.tree as { id?: string }).id !== 'local-pending' ? st.tree : undefined;
+        return {
+          sessionId: s.sessionId as string,
+          title: s.title,
+          color: s.color,
+          ...(tree ? { tree, ...(st?.revision ? { revision: st.revision } : {}) } : {}),
+        };
+      });
+
   // push slot metadata + the last server-authoritative tree to the LVL2
   // registry (debounced; only after the first server merge so we never
   // overwrite the registry with a stale local view). The tree is what
@@ -281,22 +301,7 @@ export function App() {
   useEffect(() => {
     if (!canvasListSynced.current) return;
     const t = setTimeout(() => {
-      window.omadiaCanvas.saveCanvasList(
-        activeSlotIdRef.current,
-        slots
-          .filter((s) => s.sessionId)
-          .map((s) => {
-            const st = slotStates.current.get(s.slotId);
-            const tree =
-              st?.tree && (st.tree as { id?: string }).id !== 'local-pending' ? st.tree : undefined;
-            return {
-              sessionId: s.sessionId as string,
-              title: s.title,
-              color: s.color,
-              ...(tree ? { tree, ...(st?.revision ? { revision: st.revision } : {}) } : {}),
-            };
-          }),
-      );
+      window.omadiaCanvas.saveCanvasList(activeSlotIdRef.current, toRegistryEntries(slots));
     }, 800);
     return () => clearTimeout(t);
   }, [slots, canvas.tree]);
@@ -343,6 +348,52 @@ export function App() {
       ...toConnectOptions(settings),
       freshSession: true,
     });
+  };
+
+  /** Issue #8, pre-sharing v1: deleting a canvas is a COMPLETE delete — the
+   *  slot, its parked state, its socket (aborting any in-flight turn) and its
+   *  registry entry all go. The list reflecting the removal is the feedback
+   *  (no toasts). Grant-aware reference counting arrives with sharing (#6). */
+  const deleteCanvas = (slotId: string) => {
+    const target = slots.find((s) => s.slotId === slotId);
+    if (!target || !settings) return;
+    if (target.sessionId) deletedSessions.current.add(target.sessionId);
+    const remaining = slots.filter((s) => s.slotId !== slotId);
+    // push the shrunken registry NOW, before the doomed socket closes — the
+    // debounced push alone would race a reconnect's canvas_list and the
+    // tombstone set only guards THIS run. Carrier: the deleted slot's own
+    // socket if live (IPC send/invoke stay ordered), else any live socket.
+    if (canvasListSynced.current) {
+      const carrier = connectedSlots.current.has(slotId)
+        ? slotId
+        : (remaining.find((s) => connectedSlots.current.has(s.slotId))?.slotId ??
+          activeSlotIdRef.current);
+      window.omadiaCanvas.saveCanvasList(carrier, toRegistryEntries(remaining));
+    }
+    void window.omadiaCanvas.disconnect(slotId);
+    slotStates.current.delete(slotId);
+    connectedSlots.current.delete(slotId);
+    statusBySlot.current.delete(slotId);
+    if (remaining.length === 0) {
+      // a canvas is never empty (concept §Interaction Model) — the last
+      // delete detaches into a fresh cold-start slot with its spotlight
+      const fresh = newSlot(0);
+      setSlots([fresh]);
+      setActiveSlotId(fresh.slotId);
+      setCanvas(initialCanvasState);
+      setBeam(null);
+      setRowMenu(null);
+      setShowPrompt(false);
+      setDraft('');
+      setStatus({ state: 'connecting' });
+      void window.omadiaCanvas.connect(fresh.slotId, {
+        ...toConnectOptions(settings),
+        freshSession: true,
+      });
+      return;
+    }
+    setSlots(remaining);
+    if (slotId === activeSlotId) switchCanvas((remaining[0] as CanvasSlotMeta).slotId);
   };
 
   const submitSetup = (candidate: AppSettings) => {
@@ -476,6 +527,7 @@ export function App() {
         busySlotIds={busySlots}
         onSelect={switchCanvas}
         onAdd={addCanvas}
+        onDelete={deleteCanvas}
       />
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
       {/* instant feedback the moment a turn fires — the old view stays

@@ -22,6 +22,7 @@ const subscribeKeyed = <T>(
 const api: OmadiaCanvasApi = {
   connect: (slotKey: string, opts: ConnectOptions) =>
     ipcRenderer.invoke(IPC.connect, slotKey, opts) as Promise<void>,
+  disconnect: (slotKey: string) => ipcRenderer.invoke(IPC.disconnect, slotKey) as Promise<void>,
   disconnectAll: () => ipcRenderer.invoke(IPC.disconnectAll) as Promise<void>,
   sendTurn: (slotKey: string, turn: ClientTurn) => ipcRenderer.send(IPC.turn, slotKey, turn),
   requestResync: (slotKey: string) => ipcRenderer.send(IPC.resync, slotKey),

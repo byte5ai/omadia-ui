@@ -806,6 +806,37 @@ body {
     box-shadow: 0 0 6px var(--lume-accent-glow);
   }
 }
+/* per-canvas delete (issue #8) — hidden until hover/focus; the first click
+   arms the in-place confirm step (no dialog, no toast: the list shrinking
+   is the feedback) */
+.lume-sidebar-delete {
+  margin-left: auto;
+  flex: none;
+  background: none;
+  border: none;
+  color: var(--lume-text-tertiary);
+  font-family: var(--lume-font-structural);
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: var(--lume-radius-sm);
+  cursor: pointer;
+  visibility: hidden;
+}
+.lume-sidebar-item:hover .lume-sidebar-delete,
+.lume-sidebar-item:focus-within .lume-sidebar-delete {
+  visibility: visible;
+}
+.lume-sidebar-delete:hover {
+  color: var(--lume-text);
+}
+.lume-sidebar-delete-armed,
+.lume-sidebar-delete-armed:hover {
+  visibility: visible;
+  color: var(--lume-error-fg);
+  font-size: 11px;
+  white-space: nowrap;
+}
 .lume-canvas-dot-0 { background: #6fc8d6; }
 .lume-canvas-dot-1 { background: #e0a26b; }
 .lume-canvas-dot-2 { background: #7bb37b; }

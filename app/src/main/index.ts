@@ -110,6 +110,11 @@ ipcMain.handle(IPC.connect, async (_e, slotKey: string, opts: ConnectOptions) =>
   socket.connect();
 });
 
+ipcMain.handle(IPC.disconnect, (_e, slotKey: string) => {
+  sockets.get(slotKey)?.close();
+  sockets.delete(slotKey);
+});
+
 ipcMain.handle(IPC.disconnectAll, () => {
   for (const s of sockets.values()) s.close();
   sockets.clear();

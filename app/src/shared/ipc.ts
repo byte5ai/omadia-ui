@@ -35,6 +35,9 @@ export interface AppSettings {
  *  every event is keyed by the renderer's slot id. */
 export interface OmadiaCanvasApi {
   connect(slotKey: string, opts: ConnectOptions): Promise<void>;
+  /** tear down ONE slot's socket — canvas delete (issue #8); also aborts
+   *  that slot's in-flight turn stream */
+  disconnect(slotKey: string): Promise<void>;
   /** tear down every socket (server change from the setup card) */
   disconnectAll(): Promise<void>;
   sendTurn(slotKey: string, turn: ClientTurn): void;
@@ -50,6 +53,7 @@ export interface OmadiaCanvasApi {
 
 export const IPC = {
   connect: 'canvas:connect',
+  disconnect: 'canvas:disconnect',
   disconnectAll: 'canvas:disconnect-all',
   turn: 'canvas:turn',
   resync: 'canvas:resync',
