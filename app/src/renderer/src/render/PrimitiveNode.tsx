@@ -54,6 +54,14 @@ interface Props {
   beamTarget?: BeamTarget | null;
 }
 
+/** protocol §2: canvas content is PLAIN TEXT — agents still leak markdown
+ *  emphasis into values. Strip the inline markers defensively, keep the text. */
+const stripMd = (s: string): string =>
+  s
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/`([^`]+)`/g, '$1');
+
 /** schema style-trait enum → Lume theme classes (clipped — tokens only) */
 const styleClasses = (node: PrimitiveJson): string => {
   const style = Array.isArray(node['style']) ? (node['style'] as string[]) : [];
@@ -135,11 +143,11 @@ function renderNode(node: PrimitiveJson, ctx: Omit<Props, 'node'>): ReactNode {
     case 'heading': {
       const level = Math.min(Math.max(Number(node['level'] ?? 2), 1), 6);
       const Tag = `h${level}` as keyof JSX.IntrinsicElements;
-      return <Tag className="lume-heading">{node['content'] as string}</Tag>;
+      return <Tag className="lume-heading">{stripMd((node['content'] as string) ?? '')}</Tag>;
     }
 
     case 'text':
-      return <p className={`lume-text ${styleClasses(node)}`}>{(node['content'] as string) ?? ''}</p>;
+      return <p className={`lume-text ${styleClasses(node)}`}>{stripMd((node['content'] as string) ?? '')}</p>;
 
     case 'table': {
       const cols = (node['columns'] as Array<{ fieldKey: string; label: string }>) ?? [];
@@ -201,7 +209,7 @@ function renderNode(node: PrimitiveJson, ctx: Omit<Props, 'node'>): ReactNode {
                       }}
                     >
                       {cols.map((c) => (
-                        <td key={c.fieldKey}>{String(r.cells[c.fieldKey] ?? '')}</td>
+                        <td key={c.fieldKey}>{stripMd(String(r.cells[c.fieldKey] ?? ''))}</td>
                       ))}
                     </tr>
                   );

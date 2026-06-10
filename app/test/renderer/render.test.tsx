@@ -174,6 +174,32 @@ describe('PrimitiveNode', () => {
     expect(html).toContain('Z');
   });
 
+  it('strips stray markdown emphasis from text, heading and table cells (plain-text protocol)', () => {
+    const html = renderToStaticMarkup(
+      <PrimitiveNode
+        node={{
+          type: 'container',
+          id: 'root',
+          children: [
+            { type: 'heading', id: 'h', content: '**Startdatum**' },
+            { type: 'text', id: 't', content: '__wichtig__ und `code`' },
+            {
+              type: 'table',
+              id: 'tb',
+              columns: [{ fieldKey: 'a', label: 'A' }],
+              rows: [{ rowKey: 'r1', cells: { a: '**15.06.2026** 09:00' } }],
+            },
+          ],
+        }}
+        onAction={() => {}}
+      />,
+    );
+    expect(html).not.toContain('**');
+    expect(html).toContain('Startdatum');
+    expect(html).toContain('wichtig und code');
+    expect(html).toContain('15.06.2026 09:00');
+  });
+
   it('renders a defensive error box for an unknown type (validator is the real gate)', () => {
     const html = renderToStaticMarkup(<PrimitiveNode node={{ type: 'iframe' }} onAction={() => {}} />);
     expect(html).toContain('lume-unknown');

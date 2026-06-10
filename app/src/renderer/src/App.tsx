@@ -198,9 +198,9 @@ export function App() {
     });
   };
 
-  // deterministic affordance: details for the clicked row, rendered as panes
-  // by the next composed canvas (the previous view stays back-navigable).
-  // Routed through the beam path so the pin sticks to the row while pending.
+  // generic fallback affordance — shown ONLY when the agent supplied no
+  // suggestedActions for the container. What "details" means (and which
+  // actions fit the current view) is the agent's call, not the client's.
   const showRowDetails = (menu: RowMenuRequest) => {
     const summary = Object.entries(menu.cells)
       .filter(([, v]) => v !== '' && v !== null && v !== undefined)
@@ -208,9 +208,9 @@ export function App() {
       .join(', ');
     submitBeam(
       menu,
-      `Zeige die Details zu diesem Datensatz inklusive der Teilnehmerliste ` +
-        `(${summary}; rowKey ${menu.rowKey}). Stelle die Ansicht als Panes dar: ` +
-        `eine Übersicht und eine Teilnehmer-Tabelle.`,
+      `Zeige die Details zu diesem Datensatz (${summary}; rowKey ${menu.rowKey}). ` +
+        `Stelle die Ansicht als Panes dar — eine Übersicht und die zum Datensatz ` +
+        `passenden Detail-Tabellen.`,
     );
   };
 
@@ -306,17 +306,20 @@ export function App() {
         )}
       </div>
       {rowMenu && (
-        // context-invoke action panel: deterministic affordances first, then
-        // agent-pre-supplied suggestedActions (no turn on open!), then the
-        // beam field. Clicks inside must not bubble to the window-closer.
+        // context-invoke action panel: agent-pre-supplied suggestedActions
+        // (no turn on open!) own the menu; the generic details affordance is
+        // only the fallback when the agent supplied none. Clicks inside must
+        // not bubble to the window-closer.
         <div
           className="lume-row-menu"
           style={{ left: rowMenu.x, top: rowMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button className="lume-row-menu-item" onClick={() => showRowDetails(rowMenu)}>
-            Details anzeigen (inkl. Teilnehmer)
-          </button>
+          {rowMenu.suggestedActions.length === 0 && (
+            <button className="lume-row-menu-item" onClick={() => showRowDetails(rowMenu)}>
+              Details anzeigen
+            </button>
+          )}
           {rowMenu.suggestedActions.map((a) => (
             <button
               key={a.id}
