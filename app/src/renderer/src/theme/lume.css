@@ -806,6 +806,27 @@ body {
     box-shadow: 0 0 6px var(--lume-accent-glow);
   }
 }
+/* abort the in-flight turn (issue #13) — pinned top-right under the
+   progress strip, present only while a turn is pending */
+.lume-turn-abort {
+  position: fixed;
+  top: 10px;
+  right: 14px;
+  z-index: 40;
+  background: var(--lume-sunken-btm, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--lume-border-subtle-btm);
+  color: var(--lume-text-secondary);
+  font-family: var(--lume-font-structural);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--lume-radius-sm);
+  cursor: pointer;
+}
+.lume-turn-abort:hover {
+  color: var(--lume-error-fg);
+  border-color: var(--lume-error-edge);
+}
+
 /* canvas chrome row — back navigation + deterministic refresh (issue #5) */
 .lume-canvas-chrome {
   display: flex;

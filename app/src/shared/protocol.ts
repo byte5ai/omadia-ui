@@ -147,12 +147,21 @@ export interface ClientCanvasRefresh {
   scope?: string;
 }
 
+/** client → server: abort the named in-flight turn (issue #13, additive) —
+ *  the server stops the stream immediately and answers turn_error 'aborted';
+ *  surface events already applied stay (the canvas keeps what rendered). */
+export interface ClientTurnAbort {
+  type: 'turn_abort';
+  forTurn: string;
+}
+
 export type ClientMessage =
   | HandshakeSelect
   | ClientTurn
   | ClientCanvasListGet
   | ClientCanvasListPut
-  | ClientCanvasRefresh;
+  | ClientCanvasRefresh
+  | ClientTurnAbort;
 
 const NON_SURFACE_SERVER_TYPES: ReadonlySet<string> = new Set([
   'handshake_offer',

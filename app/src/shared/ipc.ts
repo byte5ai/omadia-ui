@@ -78,6 +78,8 @@ export interface OmadiaCanvasApi {
   /** deterministic refresh (issue #5) — re-resolve the data behind the
    *  current tree; answered with ordinary surface_patch events */
   refreshCanvas(slotKey: string, refresh: ClientCanvasRefresh): void;
+  /** abort the in-flight turn (issue #13) — answered with turn_error 'aborted' */
+  abortTurn(slotKey: string, forTurn: string): void;
   requestResync(slotKey: string): void;
   /** per-user canvas registry sync (multi-canvas sidebar) */
   requestCanvasList(slotKey: string): void;
@@ -106,6 +108,7 @@ export const IPC = {
   disconnectAll: 'canvas:disconnect-all',
   turn: 'canvas:turn',
   refresh: 'canvas:refresh',
+  abort: 'canvas:abort',
   resync: 'canvas:resync',
   canvasListGet: 'canvas:list-get',
   canvasListPut: 'canvas:list-put',

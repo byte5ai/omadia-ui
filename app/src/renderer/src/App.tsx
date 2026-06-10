@@ -79,6 +79,8 @@ export function App() {
   // swap, NO reconnect (reconnect would kill the in-flight stream)
   const connectedSlots = useRef(new Set<string>());
   const statusBySlot = useRef(new Map<string, ConnectionStatus>());
+  // the in-flight turn per slot — the abort affordance targets it (issue #13)
+  const pendingTurnIds = useRef(new Map<string, string>());
   // bump to re-render the sidebar when a BACKGROUND slot's state changes
   const [, setBgTick] = useState(0);
   // true once the server's canvas list arrived — local pushes wait for the
@@ -438,9 +440,11 @@ export function App() {
   const refreshCanvas = (scope?: string) => {
     if (!canvas.tree || canvas.revision === null || canvas.turnPending) return;
     if ((canvas.tree as { id?: string }).id === 'local-pending') return;
+    const turnId = crypto.randomUUID();
+    pendingTurnIds.current.set(activeSlotId, turnId);
     window.omadiaCanvas.refreshCanvas(activeSlotId, {
       type: 'canvas_refresh',
-      turnId: crypto.randomUUID(),
+      turnId,
       basedOnRevision: canvas.revision,
       currentTree: canvas.tree,
       ...(scope ? { scope } : {}),
@@ -451,7 +455,9 @@ export function App() {
   const submitPrompt = () => {
     const text = draft.trim();
     if (!text) return;
-    window.omadiaCanvas.sendTurn(activeSlotId, { type: 'turn', turnId: crypto.randomUUID(), text });
+    const turnId = crypto.randomUUID();
+    pendingTurnIds.current.set(activeSlotId, turnId);
+    window.omadiaCanvas.sendTurn(activeSlotId, { type: 'turn', turnId, text });
     setCanvas((c) => ({
       ...c,
       turnPending: true,
@@ -469,9 +475,11 @@ export function App() {
   const submitBeam = (menu: RowMenuRequest, text: string, target?: unknown) => {
     setRowMenu(null);
     setBeamDraft('');
+    const turnId = crypto.randomUUID();
+    pendingTurnIds.current.set(activeSlotId, turnId);
     window.omadiaCanvas.sendTurn(activeSlotId, {
       type: 'turn',
-      turnId: crypto.randomUUID(),
+      turnId,
       text,
       target: target ?? { kind: 'item', containerId: menu.tableId, itemKey: menu.rowKey },
     });
@@ -480,9 +488,11 @@ export function App() {
   };
 
   const onAction = (action: PrimitiveAction) => {
+    const turnId = crypto.randomUUID();
+    pendingTurnIds.current.set(activeSlotId, turnId);
     window.omadiaCanvas.sendTurn(activeSlotId, {
       type: 'turn',
-      turnId: crypto.randomUUID(),
+      turnId,
       action: { type: action.type, payload: action.payload },
       ...(action.sourceId ? { target: { kind: 'element', elementId: action.sourceId } } : {}),
     });
@@ -556,6 +566,20 @@ export function App() {
         <div className="lume-turn-progress" role="progressbar" aria-label="turn pending">
           <span className="lume-turn-progress-bar" />
         </div>
+      )}
+      {/* abort the in-flight turn (issue #13) — header affordance, rendered
+          ONLY while a turn is active; the canvas keeps what already rendered */}
+      {canvas.turnPending && (
+        <button
+          className="lume-turn-abort"
+          title="Laufenden Turn abbrechen"
+          onClick={() => {
+            const id = pendingTurnIds.current.get(activeSlotId);
+            if (id) window.omadiaCanvas.abortTurn(activeSlotId, id);
+          }}
+        >
+          ✕ Abbrechen
+        </button>
       )}
       <div style={{ flex: 1, overflow: 'auto' }}>
         {/* canvas chrome — view-only back navigation + deterministic refresh

@@ -35,6 +35,7 @@ const api: OmadiaCanvasApi = {
   sendTurn: (slotKey: string, turn: ClientTurn) => ipcRenderer.send(IPC.turn, slotKey, turn),
   refreshCanvas: (slotKey: string, refresh: ClientCanvasRefresh) =>
     ipcRenderer.send(IPC.refresh, slotKey, refresh),
+  abortTurn: (slotKey: string, forTurn: string) => ipcRenderer.send(IPC.abort, slotKey, forTurn),
   requestResync: (slotKey: string) => ipcRenderer.send(IPC.resync, slotKey),
   requestCanvasList: (slotKey: string) => ipcRenderer.send(IPC.canvasListGet, slotKey),
   saveCanvasList: (slotKey: string, canvases: CanvasListEntry[]) =>
