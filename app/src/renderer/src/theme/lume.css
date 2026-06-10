@@ -1,5 +1,10 @@
-/* Lume tokens — dark mode, Lagoon palette (default), per docs/visual-spec.md v0.3
-   §2.2 surfaces, §2.3 text, §2.4 directional borders, §2.5.3 Lagoon accent. */
+/* Lume tokens per docs/visual-spec.md v0.3 — §2.2 surfaces, §2.3 text,
+   §2.4 directional borders, §2.5 the three user-bindable palettes
+   (Petrol · Atelier · Lagoon, Lagoon default), §2.6 semantic states,
+   §2.9 radius scale, §2.10 elevation, §2.11 motion.
+   Dark mode is the base; light mode overrides via prefers-color-scheme
+   (macOS-first, follows the OS). Palettes bind via [data-palette] —
+   user-bound per §2.5.4, set by theme/palette.ts. */
 :root {
   --lume-bg-top: #232631;
   --lume-bg-btm: #1b1d24;
@@ -14,22 +19,53 @@
   --lume-text-tertiary: #888b95;
   --lume-text-disabled: #525561;
   --lume-text-inverse: #1f2127;
+  /* §2.5.3 Lagoon (default) — dark */
   --lume-accent: #6fc8d6;
   --lume-accent-hover: #88d2de;
+  --lume-accent-active: #a1dce6;
   --lume-accent-subtle: rgba(111, 200, 214, 0.2);
   --lume-accent-glow: rgba(111, 200, 214, 0.32);
   --lume-accent-glow-strong: rgba(111, 200, 214, 0.48);
   --lume-accent-glow-core: rgba(210, 245, 250, 0.5);
+  /* primary-button fill: lit top regardless of scheme (§1.2 — light comes
+     from above). Dark: hover is the lighter stop; light mode flips. */
+  --lume-accent-fill-top: var(--lume-accent-hover);
+  --lume-accent-fill-btm: var(--lume-accent);
   --lume-border-top: rgba(255, 255, 255, 0.1);
   --lume-border-btm: rgba(0, 0, 0, 0.5);
   --lume-border-subtle-top: rgba(255, 255, 255, 0.06);
   --lume-border-subtle-btm: rgba(0, 0, 0, 0.4);
-  --lume-error-edge: #b34a4a;
-  --lume-error-fg: #d98c8c;
-  --lume-radius: 10px;
-  --lume-font-structural: 'Geist', system-ui, sans-serif;
-  --lume-font-prose: 'Source Serif 4', Georgia, serif;
-  --lume-font-mono: 'Geist Mono', ui-monospace, monospace;
+  /* §2.6 semantic states (dark) — text-only, never pills */
+  --lume-error-edge: #c5685a;
+  --lume-error-fg: #e08577;
+  --lume-success-fg: #88c499;
+  --lume-warning-fg: #d6b468;
+  --lume-loading: #3e414c;
+  --lume-loading-hi: #525561;
+  /* §2.9 radius scale — editor-class surfaces stay at 0 */
+  --lume-radius-sm: 6px;
+  --lume-radius-md: 8px;
+  --lume-radius-lg: 12px;
+  --lume-radius-pill: 999px;
+  /* §2.10 elevation (dark) — cards get NO shadow, only popover/modal/drag */
+  --lume-elev-popover: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --lume-elev-modal:
+    0 4px 16px rgba(0, 0, 0, 0.55), 0 24px 48px rgba(0, 0, 0, 0.65),
+    0 0 32px var(--lume-accent-glow-core), 0 0 96px var(--lume-accent-glow);
+  --lume-elev-drag: 0 8px 24px rgba(0, 0, 0, 0.55);
+  /* §2.2 modal scrim */
+  --lume-modal-overlay: rgba(0, 0, 0, 0.6);
+  /* §2.11 motion */
+  --lume-motion-quick: 100ms;
+  --lume-motion-smooth: 200ms;
+  --lume-motion-deliberate: 320ms;
+  --lume-motion-condense: 800ms;
+  --lume-ease-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --lume-ease-emphasis: cubic-bezier(0.4, 0, 0.2, 1);
+  /* §2.7 three typographic registers (fontsource-variable family names) */
+  --lume-font-structural: 'Geist Variable', 'Geist', system-ui, sans-serif;
+  --lume-font-prose: 'Source Serif 4 Variable', 'Source Serif 4', Charter, Georgia, serif;
+  --lume-font-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
   /* legacy single-color aliases (pre-v0.3 classes keep working) */
   --lume-bg: var(--lume-bg-btm);
@@ -37,7 +73,111 @@
   --lume-surface-raised: var(--lume-raised-btm);
   --lume-text-dim: var(--lume-text-secondary);
   --lume-border: rgba(255, 255, 255, 0.08);
+  --lume-radius: var(--lume-radius-md);
 }
+
+/* §2.5.1 Petrol — computational ambient (dark) */
+:root[data-palette='petrol'] {
+  --lume-accent: #52b0e2;
+  --lume-accent-hover: #74c0e8;
+  --lume-accent-active: #90cfee;
+  --lume-accent-subtle: rgba(82, 176, 226, 0.16);
+  --lume-accent-glow: rgba(82, 176, 226, 0.28);
+  --lume-accent-glow-strong: rgba(82, 176, 226, 0.44);
+  --lume-accent-glow-core: rgba(197, 229, 245, 0.45);
+}
+/* §2.5.2 Atelier — studio warmth (dark) */
+:root[data-palette='atelier'] {
+  --lume-accent: #e0a26b;
+  --lume-accent-hover: #e5b080;
+  --lume-accent-active: #ebbe93;
+  --lume-accent-subtle: rgba(224, 162, 107, 0.18);
+  --lume-accent-glow: rgba(224, 162, 107, 0.3);
+  --lume-accent-glow-strong: rgba(224, 162, 107, 0.46);
+  --lume-accent-glow-core: rgba(250, 228, 200, 0.45);
+}
+
+/* §2.2–§2.6/§2.10 light mode — same physics, inverted lightness; light
+   still comes from above (§2.4). */
+@media (prefers-color-scheme: light) {
+  :root {
+    --lume-bg-top: #fdfdfe;
+    --lume-bg-btm: #f7f8fb;
+    --lume-surface-top: #ffffff;
+    --lume-surface-btm: #fafafd;
+    --lume-raised-top: #ffffff;
+    --lume-raised-btm: #fcfcfe;
+    --lume-sunken-top: #f2f3f7;
+    --lume-sunken-btm: #ecedf2;
+    --lume-text: #1b1d24;
+    --lume-text-secondary: #5b5f6b;
+    --lume-text-tertiary: #8d9099;
+    --lume-text-disabled: #bfc1c6;
+    --lume-text-inverse: #fcfcfd;
+    /* Lagoon — light */
+    --lume-accent: #1f8fa3;
+    --lume-accent-hover: #197d90;
+    --lume-accent-active: #146b7c;
+    --lume-accent-subtle: rgba(31, 143, 163, 0.12);
+    --lume-accent-glow: rgba(60, 175, 195, 0.32);
+    --lume-accent-glow-strong: rgba(60, 175, 195, 0.48);
+    --lume-accent-glow-core: rgba(180, 238, 248, 0.6);
+    /* light mode: base accent is the lighter stop → it sits on top */
+    --lume-accent-fill-top: var(--lume-accent);
+    --lume-accent-fill-btm: var(--lume-accent-hover);
+    --lume-border-top: rgba(20, 24, 36, 0.08);
+    --lume-border-btm: rgba(20, 24, 36, 0.14);
+    --lume-border-subtle-top: rgba(20, 24, 36, 0.05);
+    --lume-border-subtle-btm: rgba(20, 24, 36, 0.09);
+    --lume-error-edge: #c45a50;
+    --lume-error-fg: #a8443b;
+    --lume-success-fg: #3f7a55;
+    --lume-warning-fg: #8c6a1f;
+    --lume-loading: #dcdee3;
+    --lume-loading-hi: #efeff2;
+    --lume-elev-popover: 0 1px 2px rgba(20, 24, 36, 0.04), 0 8px 24px rgba(20, 24, 36, 0.06);
+    --lume-elev-modal:
+      0 4px 16px rgba(20, 24, 36, 0.06), 0 24px 48px rgba(20, 24, 36, 0.12),
+      0 0 32px var(--lume-accent-glow-core), 0 0 96px var(--lume-accent-glow);
+    --lume-elev-drag: 0 8px 24px rgba(20, 24, 36, 0.16);
+    /* minimally accent-tinted, never neutral black (§2.2) */
+    --lume-modal-overlay: rgba(20, 30, 50, 0.4);
+    --lume-border: rgba(20, 24, 36, 0.1);
+  }
+  :root[data-palette='petrol'] {
+    --lume-accent: #0f7ab8;
+    --lume-accent-hover: #0c6ca8;
+    --lume-accent-active: #0a5e94;
+    --lume-accent-subtle: rgba(15, 122, 184, 0.1);
+    --lume-accent-glow: rgba(15, 122, 184, 0.22);
+    --lume-accent-glow-strong: rgba(15, 122, 184, 0.36);
+    --lume-accent-glow-core: rgba(165, 215, 240, 0.55);
+  }
+  :root[data-palette='atelier'] {
+    --lume-accent: #b36b2e;
+    --lume-accent-hover: #9f5c26;
+    --lume-accent-active: #8a4e1f;
+    --lume-accent-subtle: rgba(179, 107, 46, 0.1);
+    --lume-accent-glow: rgba(179, 107, 46, 0.24);
+    --lume-accent-glow-strong: rgba(179, 107, 46, 0.38);
+    --lume-accent-glow-core: rgba(245, 215, 175, 0.55);
+  }
+}
+
+/* §6.6 palette switch — only color values cross-fade (200ms, standard
+   easing); tree structure is untouched. Applied for one motion.smooth
+   beat by theme/palette.ts, skipped under reduced-motion. */
+.lume-palette-switching,
+.lume-palette-switching *,
+.lume-palette-switching *::before,
+.lume-palette-switching *::after {
+  transition:
+    color var(--lume-motion-smooth) var(--lume-ease-standard),
+    background-color var(--lume-motion-smooth) var(--lume-ease-standard),
+    border-color var(--lume-motion-smooth) var(--lume-ease-standard),
+    box-shadow var(--lume-motion-smooth) var(--lume-ease-standard) !important;
+}
+
 html,
 body,
 #root {
@@ -51,16 +191,67 @@ body {
   font-family: var(--lume-font-structural);
 }
 
+/* §2.7 style-trait registers. Prose = type.prose (16px/1.65, optical sizing);
+   mono = type.mono.data (450 weight + tabular figures vs. gradient surfaces). */
+.lume-prose {
+  font-family: var(--lume-font-prose);
+  font-optical-sizing: auto;
+  font-size: 16px;
+  line-height: 1.65;
+}
+.lume-mono {
+  font-family: var(--lume-font-mono);
+  font-weight: 450;
+  font-feature-settings: 'tnum';
+}
+.lume-accent {
+  color: var(--lume-accent);
+}
+.lume-no-accent {
+  color: inherit;
+}
+/* §2.8 density variants shift one spacing step */
+.lume-compact {
+  font-size: 13px;
+}
+.lume-container.lume-compact {
+  padding: 12px;
+}
+.lume-container.lume-spacious {
+  padding: 24px;
+}
+/* §3.3 donut glow — centered-glyph surfaces; the glyph sits in a clear
+   accent-subtle pocket, the bright ring radiates outward (never glow-core
+   directly under the glyph, §7.6). Stops refined per spec §11.1: ring peak
+   pulled inward (62%) and faded out before the border (86%) so it no longer
+   clips on small surfaces (36px tool buttons); outer shadow tightened. */
+.lume-center-glyph {
+  background: radial-gradient(
+    circle at center,
+    var(--lume-accent-subtle) 0%,
+    var(--lume-accent-subtle) 42%,
+    var(--lume-accent-glow-core) 62%,
+    transparent 86%
+  );
+  box-shadow:
+    0 0 10px var(--lume-accent-glow-core),
+    0 0 20px -6px var(--lume-accent-glow-strong);
+}
+
 /* §4 input recipe: raised gradient, directional border, inset top-highlight;
-   focus = accent border + layered glow shadow. */
+   focus = accent border + layered glow shadow. radius.sm per §2.9. */
 .lume-input {
   background: linear-gradient(180deg, var(--lume-raised-top) 0%, var(--lume-raised-btm) 100%);
   border: 1px solid var(--lume-border-btm);
   border-top-color: var(--lume-border-top);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  border-radius: var(--lume-radius);
+  border-radius: var(--lume-radius-sm);
   color: var(--lume-text);
+  font-family: inherit;
   outline: none;
+  transition:
+    border-color var(--lume-motion-quick) var(--lume-ease-standard),
+    box-shadow var(--lume-motion-quick) var(--lume-ease-standard);
 }
 .lume-input::placeholder {
   color: var(--lume-text-tertiary);
@@ -80,17 +271,13 @@ body {
   border-color: var(--lume-error-edge);
   box-shadow: none; /* §4: no glow on error — the error is the salient signal */
 }
-.lume-prose {
-  font-family: var(--lume-font-prose);
-  line-height: 1.55;
-}
-.lume-mono {
-  font-family: var(--lume-font-mono);
-}
+
+/* §4.2 container: surface gradient, directional border.subtle, radius.md */
 .lume-container {
-  background: var(--lume-surface);
-  border: 1px solid var(--lume-border);
-  border-radius: var(--lume-radius);
+  background: linear-gradient(180deg, var(--lume-surface-top) 0%, var(--lume-surface-btm) 100%);
+  border: 1px solid var(--lume-border-subtle-btm);
+  border-top-color: var(--lume-border-subtle-top);
+  border-radius: var(--lume-radius-md);
   padding: 16px;
   margin: 12px;
 }
@@ -101,8 +288,28 @@ body {
   letter-spacing: 0.08em;
   margin-bottom: 8px;
 }
+/* container layout variants (schema: stack | split | grid | flow) */
 .lume-layout-stack > * + * {
   margin-top: 10px;
+}
+.lume-layout-split {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+.lume-layout-split > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.lume-layout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.lume-layout-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
 }
 .lume-heading {
   margin: 0;
@@ -116,41 +323,75 @@ body {
 .lume-table td {
   text-align: left;
   padding: 8px 10px;
-  border-bottom: 1px solid var(--lume-border);
+  border-bottom: 1px solid var(--lume-border-subtle-btm);
 }
 .lume-table th {
   color: var(--lume-text-dim);
   font-weight: 500;
   font-size: 13px;
 }
+/* §2.6/§3.5 skeleton: state.loading base + highlight, linear-gradient pulse */
 .lume-skeleton-cell {
   display: inline-block;
   width: 70%;
   height: 12px;
-  border-radius: 6px;
-  background: var(--lume-surface-raised);
-  animation: lume-pulse 1.2s ease-in-out infinite;
+  border-radius: var(--lume-radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--lume-loading) 25%,
+    var(--lume-loading-hi) 50%,
+    var(--lume-loading) 75%
+  );
+  background-size: 200% 100%;
+  animation: lume-pulse 1.2s linear infinite;
 }
 @keyframes lume-pulse {
-  50% {
-    opacity: 0.45;
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
   }
 }
 .lume-toolbar {
   display: flex;
   gap: 8px;
 }
+/* §4.2 secondary button: raised gradient, directional border, inset highlight */
 .lume-button {
-  background: var(--lume-surface-raised);
+  background: linear-gradient(180deg, var(--lume-raised-top) 0%, var(--lume-raised-btm) 100%);
   color: var(--lume-text);
-  border: 1px solid var(--lume-border);
-  border-radius: 8px;
+  border: 1px solid var(--lume-border-btm);
+  border-top-color: var(--lume-border-top);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  border-radius: var(--lume-radius-sm);
   padding: 6px 14px;
+  font-family: inherit;
+  font-size: 14px;
   cursor: pointer;
+  transition:
+    border-color var(--lume-motion-quick) var(--lume-ease-standard),
+    box-shadow var(--lume-motion-quick) var(--lume-ease-standard),
+    background var(--lume-motion-quick) var(--lume-ease-standard);
 }
 .lume-button:hover {
   border-color: var(--lume-accent);
 }
+/* §8 focus ring: 2px solid + glow halo, never colour-only */
+.lume-button:focus-visible,
+.lume-tab:focus-visible,
+.lume-row-menu-item:focus-visible,
+.lume-choice-select:focus-visible,
+.lume-input-field:focus-visible,
+.lume-menubar-item:focus-visible,
+.lume-choice-option:has(input:focus-visible),
+.lume-toggle:has(input:focus-visible) {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--lume-accent),
+    0 0 0 6px var(--lume-accent-glow);
+}
+/* choice — the disambiguation element: §4.2 raised recipe per option */
 .lume-choice {
   display: flex;
   flex-direction: column;
@@ -167,22 +408,28 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--lume-surface-raised);
-  border: 1px solid var(--lume-border);
-  border-radius: 8px;
+  background: linear-gradient(180deg, var(--lume-raised-top) 0%, var(--lume-raised-btm) 100%);
+  border: 1px solid var(--lume-border-btm);
+  border-top-color: var(--lume-border-top);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  border-radius: var(--lume-radius-sm);
   padding: 6px 14px;
   cursor: pointer;
+  transition: border-color var(--lume-motion-quick) var(--lume-ease-standard);
 }
 .lume-choice-option:hover,
 .lume-choice-active {
   border-color: var(--lume-accent);
 }
 .lume-choice-select {
-  background: var(--lume-surface-raised);
+  background: linear-gradient(180deg, var(--lume-raised-top) 0%, var(--lume-raised-btm) 100%);
   color: var(--lume-text);
-  border: 1px solid var(--lume-border);
-  border-radius: 8px;
+  border: 1px solid var(--lume-border-btm);
+  border-top-color: var(--lume-border-top);
+  border-radius: var(--lume-radius-sm);
   padding: 6px 14px;
+  font-family: inherit;
+  font-size: 14px;
 }
 .lume-status {
   color: var(--lume-text-dim);
@@ -194,15 +441,14 @@ body {
   gap: 6px;
 }
 .lume-input-field {
-  background: var(--lume-surface-raised);
+  background: linear-gradient(180deg, var(--lume-sunken-top) 0%, var(--lume-sunken-btm) 100%);
   color: var(--lume-text);
-  border: 1px solid var(--lume-border);
-  border-radius: 8px;
+  border: 1px solid var(--lume-border-btm);
+  border-top-color: var(--lume-border-top);
+  border-radius: var(--lume-radius-sm);
   padding: 6px 14px;
-}
-.lume-input-field:focus {
-  outline: none;
-  border-color: var(--lume-accent);
+  font-family: inherit;
+  font-size: 14px;
 }
 .lume-toggle {
   display: flex;
@@ -418,17 +664,17 @@ body {
 }
 .lume-divider {
   border: none;
-  border-top: 1px solid var(--lume-border);
+  border-top: 1px solid var(--lume-border-subtle-btm);
 }
 .lume-list {
   margin: 0;
   padding-left: 20px;
 }
 .lume-unknown {
-  border: 1px dashed #b34a4a;
-  color: #d98c8c;
+  border: 1px dashed var(--lume-error-edge);
+  color: var(--lume-error-fg);
   padding: 8px;
-  border-radius: 8px;
+  border-radius: var(--lume-radius-md);
 }
 .lume-notices {
   position: fixed;
@@ -455,7 +701,15 @@ body {
   height: 48px;
   padding: 0 18px;
   font-size: 20px; /* type.heading.2 */
-  border-radius: 12px;
+  border-radius: var(--lume-radius-lg);
+}
+/* §3.2 three-stop Spotlight glow — Lume's single showcase moment */
+.lume-spotlight-input:focus {
+  border-color: var(--lume-accent);
+  box-shadow:
+    0 0 0 4px var(--lume-accent-glow),
+    0 0 16px var(--lume-accent-glow-core),
+    0 12px 40px var(--lume-accent-glow-strong);
 }
 /* §7.1 empty canvas: single status line lower-left, caption/tertiary.
    Rendered as a button — clicking it reopens the server setup. */
@@ -471,6 +725,7 @@ body {
   font-family: inherit;
   cursor: pointer;
   text-align: left;
+  transition: color var(--lume-motion-quick) var(--lume-ease-standard);
 }
 .lume-canvas-status:hover {
   color: var(--lume-accent);
@@ -484,7 +739,8 @@ body {
   color: var(--lume-error-fg);
 }
 
-/* Onboarding (first-run server setup) — raised card, inspector-style fields */
+/* Onboarding (first-run server setup) — modal-class pane: radius.lg,
+   elev.modal incl. accent-glow — the card is *the lit object* (§2.10). */
 .lume-onboarding {
   display: flex;
   height: 100%;
@@ -494,11 +750,13 @@ body {
 .lume-card {
   width: min(440px, 80vw);
   padding: 28px;
-  border-radius: 14px;
+  border-radius: var(--lume-radius-lg);
   background: linear-gradient(180deg, var(--lume-raised-top) 0%, var(--lume-raised-btm) 100%);
   border: 1px solid var(--lume-border-btm);
   border-top-color: var(--lume-border-top);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    var(--lume-elev-modal);
 }
 .lume-onboarding-title {
   font-size: 20px;
@@ -570,20 +828,29 @@ body {
   cursor: default;
   opacity: 0.7;
 }
+/* §4.2 primary button: accent fill (lit top), white-tinted top border,
+   two-stop glow §3.2; hover intensifies to the emphasis variant. */
 .lume-button-primary {
-  background: linear-gradient(180deg, var(--lume-accent-hover) 0%, var(--lume-accent) 100%);
+  background: linear-gradient(180deg, var(--lume-accent-fill-top) 0%, var(--lume-accent-fill-btm) 100%);
   color: var(--lume-text-inverse);
   border-color: var(--lume-accent);
-  box-shadow: 0 0 6px var(--lume-accent-glow);
+  border-top-color: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 0 4px var(--lume-accent-glow-core),
+    0 4px 12px var(--lume-accent-glow);
 }
 .lume-button-primary:hover {
+  border-color: var(--lume-accent);
   box-shadow:
-    0 0 0 1px var(--lume-accent),
-    0 0 10px var(--lume-accent-glow-strong);
+    0 0 6px var(--lume-accent-glow-core),
+    0 6px 18px var(--lume-accent-glow-strong);
+}
+.lume-button-primary:active {
+  background: var(--lume-accent-active);
 }
 .lume-prose-strip {
   padding: 10px 16px;
-  border-top: 1px solid var(--lume-border);
+  border-top: 1px solid var(--lume-border-subtle-btm);
 }
 /* The canvas is the surface of record — raw turn prose lives behind a small
    debug marker bottom-right, never inline on the canvas. */
@@ -602,33 +869,49 @@ body {
 .lume-debug-marker:hover {
   color: var(--lume-accent);
 }
-/* view-only back navigation */
+/* view-only back navigation — in-flow above the canvas tree (never a fixed
+   overlay on content), ghost treatment: chrome recedes, data carries weight */
 .lume-back-button {
-  position: fixed;
-  top: 12px;
-  left: 12px;
-  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 12px 12px 0;
+  padding: 4px 10px;
   font-size: 13px;
+  background: none;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--lume-text-secondary);
 }
-/* row context menu — raised surface, popover treatment */
+.lume-back-button:hover {
+  color: var(--lume-accent);
+  background: var(--lume-accent-subtle);
+  border-color: transparent;
+}
+/* Context-invoke action panel (concept §Interaction Model): deterministic
+   affordances + agent-pre-supplied suggestedActions + beam field. Raised
+   surface, elev.popover, radius.md. */
 .lume-row-interactive {
   cursor: context-menu;
+  transition: background var(--lume-motion-quick) var(--lume-ease-standard);
 }
-.lume-row-interactive:hover td {
-  background: var(--lume-accent-subtle);
+/* hover = soft light wash entering from the left (§4.2 table: the gradient
+   sits where the eye enters) — never a flat block fill */
+.lume-row-interactive:hover {
+  background: linear-gradient(90deg, var(--lume-accent-subtle), transparent 65%);
 }
 .lume-row-menu {
   position: fixed;
   z-index: 30;
-  min-width: 220px;
+  min-width: 240px;
   padding: 6px;
-  border-radius: var(--lume-radius);
+  border-radius: var(--lume-radius-md);
   background: linear-gradient(180deg, var(--lume-raised-top) 0%, var(--lume-raised-btm) 100%);
   border: 1px solid var(--lume-border-btm);
   border-top-color: var(--lume-border-top);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 8px 24px rgba(0, 0, 0, 0.45);
+    var(--lume-elev-popover);
 }
 .lume-row-menu-item {
   display: block;
@@ -639,36 +922,119 @@ body {
   color: var(--lume-text);
   background: none;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--lume-radius-sm);
   cursor: pointer;
+  transition: background var(--lume-motion-quick) var(--lume-ease-standard);
 }
 .lume-row-menu-item:hover {
   background: var(--lume-accent-subtle);
   color: var(--lume-accent);
 }
-/* tabs + pane (detail views) */
+/* Beam field — "Beam omadia about this…": free intent, deterministically
+   bound to the row's TargetRef (concept §Beam-as-prompt). */
+.lume-beam-field {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+}
+/* Beam lifecycle (concept §Beam lifecycle + Trace): a pending beam sticks
+   visibly to its target while the agent works. Row treatment = the §4.2
+   highlighted-row recipe — a lit pocket: bright glow-core radiating from the
+   left edge into an accent wash, plus the accent left-bar pin (the lit edge
+   of the pocket). Light emitted from the target, not paint on it. */
+.lume-row-beamed {
+  background:
+    radial-gradient(
+      ellipse at 8% 50%,
+      var(--lume-accent-glow-core) 0%,
+      var(--lume-accent-glow) 20%,
+      transparent 70%
+    ),
+    linear-gradient(90deg, var(--lume-accent-subtle), transparent);
+}
+.lume-row-beamed td:first-child {
+  position: relative;
+  padding-left: 18px;
+}
+.lume-row-beamed td:first-child::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--lume-accent);
+  box-shadow: 0 0 6px var(--lume-accent-glow-strong);
+  animation: lume-beam-pulse 1.2s var(--lume-ease-standard) infinite;
+}
+@keyframes lume-beam-pulse {
+  50% {
+    box-shadow:
+      0 0 4px var(--lume-accent-glow-core),
+      0 0 12px var(--lume-accent-glow-strong);
+    opacity: 0.7;
+  }
+}
+/* on surface_error the beam shows an inline error chip and fades (no toast) */
+.lume-beam-chip {
+  position: fixed;
+  z-index: 40;
+  transform: translate(-4px, -100%);
+  max-width: 320px;
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: var(--lume-radius-sm);
+  background: linear-gradient(180deg, var(--lume-raised-top) 0%, var(--lume-raised-btm) 100%);
+  border: 1px solid var(--lume-border-btm);
+  border-top-color: var(--lume-border-top);
+  box-shadow: var(--lume-elev-popover);
+  pointer-events: none;
+}
+.lume-beam-chip-error {
+  color: var(--lume-error-fg);
+  border-color: var(--lume-error-edge);
+  animation: lume-chip-fade 4s var(--lume-ease-standard) forwards;
+}
+@keyframes lume-chip-fade {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+/* tabs + pane (detail views). §4.2: labels text.secondary inactive /
+   text.primary active; active tab = 2px accent underline + glow underglow
+   (the underline reads as *lit*, not just colored). */
 .lume-tabs-bar {
   display: flex;
   gap: 4px;
   margin: 0 0 10px;
-  border-bottom: 1px solid var(--lume-border);
+  border-bottom: 1px solid var(--lume-border-subtle-btm);
 }
 .lume-tab {
   background: none;
   border: none;
   padding: 8px 14px;
+  font-family: inherit;
   font-size: 13px;
   color: var(--lume-text-secondary);
   cursor: pointer;
   border-bottom: 2px solid transparent;
+  transition: color var(--lume-motion-quick) var(--lume-ease-standard);
 }
 .lume-tab:hover {
   color: var(--lume-text);
 }
 .lume-tab-active {
-  color: var(--lume-accent);
+  color: var(--lume-text);
   border-bottom-color: var(--lume-accent);
-  text-shadow: 0 0 8px var(--lume-accent-glow);
+  box-shadow: 0 6px 8px -6px var(--lume-accent-glow);
 }
 .lume-pane {
   padding: 4px 0;
@@ -682,9 +1048,215 @@ body {
   overflow-y: auto;
   padding: 12px 14px;
   font-size: 13px;
-  border-radius: var(--lume-radius);
+  border-radius: var(--lume-radius-md);
   background: linear-gradient(180deg, var(--lume-raised-top) 0%, var(--lume-raised-btm) 100%);
   border: 1px solid var(--lume-border-btm);
   border-top-color: var(--lume-border-top);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    var(--lume-elev-popover);
+}
+
+/* §3.5 patch-condensation — new content condenses out of light. Three
+   concurrent components: (1) materialise (opacity/scale/blur, front-loaded:
+   ~90% visible+sharp by 40%), (2) bloom collapse, (3) sweep bar (first 500ms). */
+.lume-condense {
+  position: relative;
+  animation: lume-condense-materialise var(--lume-motion-condense) var(--lume-ease-emphasis);
+}
+@keyframes lume-condense-materialise {
+  0% {
+    opacity: 0;
+    transform: scale(1.03);
+    filter: blur(2px);
+  }
+  40% {
+    opacity: 0.9;
+    transform: scale(1.003);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: none;
+  }
+}
+.lume-condense::before {
+  /* bloom collapse — light converging onto the new content */
+  content: '';
+  position: absolute;
+  inset: -10%;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, var(--lume-accent-glow-strong), transparent 70%);
+  animation: lume-condense-bloom var(--lume-motion-condense) var(--lume-ease-emphasis) forwards;
+}
+@keyframes lume-condense-bloom {
+  0% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+.lume-condense::after {
+  /* sweep bar — the agent's stroke laying down the new content */
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 1px;
+  width: 30%;
+  pointer-events: none;
+  background: var(--lume-accent);
+  box-shadow: 0 0 6px var(--lume-accent-glow);
+  animation: lume-condense-sweep 500ms var(--lume-ease-emphasis) forwards;
+}
+@keyframes lume-condense-sweep {
+  0% {
+    left: 0;
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    left: 70%;
+    opacity: 0;
+  }
+}
+/* §3.5 rapid-stream throttling (>5 patches/s): materialise only, 400ms */
+.lume-condense-fast {
+  animation-duration: 400ms;
+}
+.lume-condense-fast::before,
+.lume-condense-fast::after {
+  content: none;
+  animation: none;
+}
+/* §6.1 snapshot arrival: full-canvas crossfade, no condensation */
+.lume-crossfade {
+  animation: lume-fade var(--lume-motion-smooth) var(--lume-ease-emphasis);
+}
+@keyframes lume-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* §3.6 modal materialisation — the modal pane is *the lit object* emerging
+   into focus; the scrim is its shadow. Used by the palette quick-picker
+   (VS-Code-Quick-Pick idiom: arrows preview live, ⏎ keeps, esc reverts). */
+.lume-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--lume-modal-overlay);
+  animation: lume-fade var(--lume-motion-smooth) var(--lume-ease-emphasis);
+}
+.lume-modal-pane {
+  min-width: 340px;
+  padding: 18px;
+  border-radius: var(--lume-radius-lg);
+  background: linear-gradient(180deg, var(--lume-raised-top) 0%, var(--lume-raised-btm) 100%);
+  border: 1px solid var(--lume-border-btm);
+  border-top-color: var(--lume-border-top);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    var(--lume-elev-modal);
+  animation: lume-modal-in var(--lume-motion-smooth) var(--lume-ease-emphasis);
+}
+@keyframes lume-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.lume-palette-option {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--lume-radius-sm);
+  background: none;
+  color: var(--lume-text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+/* focused option = the lit pocket (§4.2 list selection) */
+.lume-palette-option-selected {
+  background:
+    radial-gradient(
+      ellipse at 8% 50%,
+      var(--lume-accent-glow-core) 0%,
+      var(--lume-accent-glow) 20%,
+      transparent 70%
+    ),
+    linear-gradient(90deg, var(--lume-accent-subtle), transparent);
+  box-shadow: 0 0 12px -2px var(--lume-accent-glow-core);
+}
+.lume-palette-swatch {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--lume-radius-pill);
+  border: 1px solid var(--lume-border-btm);
+}
+.lume-palette-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+.lume-palette-story {
+  font-size: 12px;
+  color: var(--lume-text-secondary);
+}
+.lume-modal-hint {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--lume-text-tertiary);
+}
+
+/* §2.11/§3.5 reduced-motion: condensation collapses to a 200ms opacity fade,
+   skeleton pulse becomes static fill, pins stop pulsing, crossfade instant. */
+@media (prefers-reduced-motion: reduce) {
+  .lume-condense {
+    animation: lume-fade var(--lume-motion-smooth) linear;
+  }
+  .lume-condense::before,
+  .lume-condense::after {
+    content: none;
+    animation: none;
+  }
+  .lume-crossfade {
+    animation: none;
+  }
+  .lume-modal-overlay,
+  .lume-modal-pane {
+    animation: none;
+  }
+  .lume-skeleton-cell {
+    animation: none;
+    background: var(--lume-loading);
+  }
+  .lume-row-beamed td:first-child::before {
+    animation: none;
+  }
+  .lume-busy-verb::after {
+    animation: none;
+    content: '…';
+  }
 }

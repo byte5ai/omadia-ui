@@ -1,5 +1,5 @@
 import './wsEnv.js';
-import { app, BrowserWindow, ipcMain, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, nativeTheme } from 'electron';
 import { join } from 'node:path';
 import { IPC, type AppSettings, type ConnectOptions } from '../shared/ipc.js';
 import type { ClientTurn } from '../shared/protocol.js';
@@ -19,7 +19,9 @@ function createWindow(): void {
   win = new BrowserWindow({
     width: 1440,
     height: 920,
-    backgroundColor: '#101417',
+    // pre-paint fill matching the Lume bg.canvas pair (visual-spec §2.2):
+    // dark #1B1D24 / light #F7F8FB — avoids a wrong-scheme flash before CSS
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1b1d24' : '#f7f8fb',
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.mjs'),
       contextIsolation: true,
