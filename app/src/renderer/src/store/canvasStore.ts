@@ -34,6 +34,9 @@ export interface CanvasState {
   /** client-side view history: previous server-authoritative trees, newest
    *  last. Back is view-only — Layer-2 persistence is a later slice. */
   history: Array<{ tree: unknown; revision: string }>;
+  /** per-container DataRef state (protocol 1.1, issue #5): refreshable=true →
+   *  the server holds a recipe and refreshes this container deterministically */
+  dataRefs: Record<string, { refreshable: boolean; expiresAt?: string }>;
 }
 
 export const initialCanvasState: CanvasState = {
@@ -49,6 +52,7 @@ export const initialCanvasState: CanvasState = {
   connection: 'disconnected',
   notices: [],
   history: [],
+  dataRefs: {},
 };
 
 const nodeId = (n: unknown): string | undefined => {
@@ -208,6 +212,29 @@ function applySurfaceEvent(state: CanvasState, ev: SurfaceEvent, now: number): A
           resync: true,
         };
       }
+    }
+    case 'surface_data_ref_created': {
+      // protocol 1.1 (issue #5): the server announces a refresh recipe for a
+      // container — record refreshability so the UI can mark instant refresh
+      const ref = ev['dataRef'] as
+        | { containerId?: unknown; refreshable?: unknown; expiresAt?: unknown }
+        | undefined;
+      if (typeof ref?.containerId !== 'string') {
+        return { state: noticed(seen, 'data_ref_created without containerId'), resync: false };
+      }
+      return {
+        state: {
+          ...seen,
+          dataRefs: {
+            ...state.dataRefs,
+            [ref.containerId]: {
+              refreshable: ref.refreshable !== false,
+              ...(typeof ref.expiresAt === 'string' ? { expiresAt: ref.expiresAt } : {}),
+            },
+          },
+        },
+        resync: false,
+      };
     }
     case 'surface_error':
       return { state: noticed(seen, `surface_error: ${String(ev['message'])}`), resync: false };

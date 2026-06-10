@@ -677,7 +677,9 @@ export function App() {
               refreshCanvas(rowMenu.tableId);
             }}
           >
-            ↻ Tabelle aktualisieren
+            {canvas.dataRefs[rowMenu.tableId]?.refreshable
+              ? '↻ Tabelle aktualisieren (sofort)'
+              : '↻ Tabelle aktualisieren'}
           </button>
           {rowMenu.suggestedActions.map((a) => (
             <button
