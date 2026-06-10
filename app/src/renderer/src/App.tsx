@@ -9,6 +9,7 @@ import {
   type PrimitiveJson,
   type RowMenuRequest,
 } from './render/PrimitiveNode.js';
+import { CanvasLibrary } from './CanvasLibrary.js';
 import { Onboarding } from './onboarding/Onboarding.js';
 import { Sidebar } from './Sidebar.js';
 import {
@@ -93,6 +94,8 @@ export function App() {
   const [showTurnLog, setShowTurnLog] = useState(false);
   // ⌥⌘P palette quick-picker (VS-Code-Quick-Pick idiom, §3.6 modal)
   const [showPalettePicker, setShowPalettePicker] = useState(false);
+  // canvas library overlay (issue #12 v1) — inventory of every held canvas
+  const [showLibrary, setShowLibrary] = useState(false);
   // right-click context-invoke panel (closed on any outside click)
   const [rowMenu, setRowMenu] = useState<RowMenuRequest | null>(null);
   // free-intent text in the panel's beam field
@@ -558,6 +561,7 @@ export function App() {
         onSelect={switchCanvas}
         onAdd={addCanvas}
         onDelete={deleteCanvas}
+        onLibrary={() => setShowLibrary(true)}
       />
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
       {/* instant feedback the moment a turn fires — the old view stays
@@ -795,6 +799,23 @@ export function App() {
         </div>
       )}
       {showPalettePicker && <PalettePicker onClose={() => setShowPalettePicker(false)} />}
+      {showLibrary && (
+        <CanvasLibrary
+          slots={slots}
+          activeSlotId={activeSlotId}
+          treeFor={(slotId) =>
+            slotId === activeSlotId
+              ? canvas.tree
+              : (slotStates.current.get(slotId)?.tree ?? null)
+          }
+          onOpen={(slotId) => {
+            setShowLibrary(false);
+            switchCanvas(slotId);
+          }}
+          onDelete={deleteCanvas}
+          onClose={() => setShowLibrary(false)}
+        />
+      )}
       </div>
     </div>
   );

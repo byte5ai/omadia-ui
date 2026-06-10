@@ -9,6 +9,8 @@ interface Props {
   onSelect: (slotId: string) => void;
   onAdd: () => void;
   onDelete: (slotId: string) => void;
+  /** open the canvas library overlay (issue #12) */
+  onLibrary: () => void;
 }
 
 /** Warp-style canvas rail: one entry per canvas session (auto title + color,
@@ -21,6 +23,7 @@ export function Sidebar({
   onSelect,
   onAdd,
   onDelete,
+  onLibrary,
 }: Props): ReactNode {
   // two-step delete confirm (issue #8): the first click on × arms the entry,
   // the second deletes. No dialog, no toast — the armed label IS the
@@ -85,6 +88,14 @@ export function Sidebar({
           </div>
         ))}
       </div>
+      <button
+        type="button"
+        className="lume-sidebar-add"
+        onClick={onLibrary}
+        title="Alle Canvases als Übersicht"
+      >
+        ▦ Bibliothek
+      </button>
       <button type="button" className="lume-sidebar-add" onClick={onAdd} title="Neuer Canvas">
         + Neuer Canvas
       </button>
