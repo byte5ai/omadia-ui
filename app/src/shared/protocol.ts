@@ -96,8 +96,9 @@ export interface ClientTurn {
   type: 'turn';
   turnId?: string;
   text?: string;
-  /** structured UI action (button click, row-click). Carried to Tier 2 via
-   *  IncomingTurn.metadata.action — lands server-side with Part B Task B1. */
+  /** structured UI action (button click, choice pick, row-click). Carried to
+   *  Tier 2 via IncomingTurn.metadata.action and threaded into the typed
+   *  ChatTurnInput.action field (with the turn's target) by the dispatcher. */
   action?: { type: string; payload?: unknown };
   target?: unknown;
   viewState?: unknown;
