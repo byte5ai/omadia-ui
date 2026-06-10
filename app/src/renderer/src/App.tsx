@@ -214,6 +214,9 @@ export function App() {
     });
     const offStatus = window.omadiaCanvas.onStatus((slotKey, st) => {
       statusBySlot.current.set(slotKey, st);
+      // expired/missing kernel session (issue #7): surface the sign-in card
+      // instead of a generic connection error — regardless of which slot hit it
+      if (st.state === 'failed' && st.authRequired) setShowSetup(true);
       if (st.state === 'ready') {
         connectedSlots.current.add(slotKey);
         if (st.canvasSessionId) {

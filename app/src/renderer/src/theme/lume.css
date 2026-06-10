@@ -806,6 +806,14 @@ body {
     box-shadow: 0 0 6px var(--lume-accent-glow);
   }
 }
+/* native sign-in (issue #7): the browser-window fallback affordance sits
+   between the credential fields and the action row */
+.lume-auth-browser {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+}
+
 /* per-canvas delete (issue #8) — hidden until hover/focus; the first click
    arms the in-place confirm step (no dialog, no toast: the list shrinking
    is the feedback) */

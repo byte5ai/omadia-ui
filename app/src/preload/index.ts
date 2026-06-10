@@ -2,6 +2,9 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import {
   IPC,
   type AppSettings,
+  type AuthDiscovery,
+  type AuthLoginResult,
+  type AuthSessionInfo,
   type ConnectOptions,
   type ConnectionStatus,
   type OmadiaCanvasApi,
@@ -36,6 +39,14 @@ const api: OmadiaCanvasApi = {
   getSettings: () => ipcRenderer.invoke(IPC.settingsGet) as Promise<AppSettings | null>,
   saveSettings: (settings: AppSettings) =>
     ipcRenderer.invoke(IPC.settingsSave, settings) as Promise<void>,
+  authSession: (opts: ConnectOptions) =>
+    ipcRenderer.invoke(IPC.authSession, opts) as Promise<AuthSessionInfo>,
+  authDiscover: (opts: ConnectOptions) =>
+    ipcRenderer.invoke(IPC.authDiscover, opts) as Promise<AuthDiscovery | null>,
+  authLogin: (opts: ConnectOptions, providerId: string, email: string, password: string) =>
+    ipcRenderer.invoke(IPC.authLogin, opts, providerId, email, password) as Promise<AuthLoginResult>,
+  authLoginBrowser: (opts: ConnectOptions) =>
+    ipcRenderer.invoke(IPC.authLoginBrowser, opts) as Promise<AuthLoginResult>,
 };
 
 contextBridge.exposeInMainWorld('omadiaCanvas', api);

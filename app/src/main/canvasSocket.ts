@@ -35,6 +35,9 @@ export class CanvasSocket {
   private ws: WebSocket | null = null;
   private ready = false;
   private closedByUser = false;
+  /** upgrade rejected 401/403 — the failed/authRequired status must stand;
+   *  reconnecting with the same dead cookie would loop forever (issue #7) */
+  private authFailed = false;
   private attempt = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
 
@@ -42,6 +45,7 @@ export class CanvasSocket {
 
   connect(): void {
     this.closedByUser = false;
+    this.authFailed = false;
     this.open();
   }
 
@@ -112,6 +116,7 @@ export class CanvasSocket {
 
     ws.on('close', () => {
       this.ready = false;
+      if (this.authFailed) return; // the failed/authRequired status stands
       if (this.closedByUser) {
         this.opts.onStatus({ state: 'disconnected' });
         return;
@@ -123,6 +128,19 @@ export class CanvasSocket {
     });
 
     ws.on('error', (err) => {
+      // upgrade rejected pre-101 (verifySession): 401 = missing/expired
+      // session, 403 = not on the whitelist — a re-auth prompt, not an error
+      const auth = /unexpected server response: 40[13]/i.test(err.message);
+      if (auth) {
+        this.authFailed = true;
+        this.closedByUser = true;
+        this.opts.onStatus({
+          state: 'failed',
+          detail: 'Session expired — sign in again',
+          authRequired: true,
+        });
+        return;
+      }
       this.opts.onStatus({ state: 'failed', detail: err.message });
       // 'close' follows and drives the backoff.
     });

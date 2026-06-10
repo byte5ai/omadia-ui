@@ -18,6 +18,35 @@ export interface ConnectionStatus {
   state: 'disconnected' | 'connecting' | 'ready' | 'failed';
   canvasSessionId?: string;
   detail?: string;
+  /** failed because no valid kernel session exists (issue #7) — the renderer
+   *  surfaces a sign-in prompt instead of a generic connection error */
+  authRequired?: boolean;
+}
+
+/** kernel auth surface (GET /api/v1/auth/providers, issue #7) */
+export interface AuthProvider {
+  id: string;
+  displayName: string;
+  kind: 'password' | 'oidc';
+}
+
+export interface AuthDiscovery {
+  providers: AuthProvider[];
+  setupRequired: boolean;
+}
+
+export interface AuthLoginResult {
+  ok: boolean;
+  /** machine-readable failure; detail carries the human-readable specifics */
+  error?: 'invalid_credentials' | 'unknown_provider' | 'unreachable' | 'cancelled';
+  detail?: string;
+}
+
+export interface AuthSessionInfo {
+  valid: boolean;
+  email?: string;
+  /** unix seconds */
+  expiresAt?: number;
 }
 
 /** user-entered server config, persisted in userData (onboarding).
@@ -49,6 +78,18 @@ export interface OmadiaCanvasApi {
   onStatus(cb: (slotKey: string, status: ConnectionStatus) => void): () => void;
   getSettings(): Promise<AppSettings | null>;
   saveSettings(settings: AppSettings): Promise<void>;
+  /** native auth (issue #7): vault-backed session probe, method discovery,
+   *  JSON credential login; the embedded-web-window flow stays as fallback
+   *  for OIDC tenants and kernels without the discovery endpoint */
+  authSession(opts: ConnectOptions): Promise<AuthSessionInfo>;
+  authDiscover(opts: ConnectOptions): Promise<AuthDiscovery | null>;
+  authLogin(
+    opts: ConnectOptions,
+    providerId: string,
+    email: string,
+    password: string,
+  ): Promise<AuthLoginResult>;
+  authLoginBrowser(opts: ConnectOptions): Promise<AuthLoginResult>;
 }
 
 export const IPC = {
@@ -63,4 +104,8 @@ export const IPC = {
   status: 'canvas:status',
   settingsGet: 'settings:get',
   settingsSave: 'settings:save',
+  authSession: 'auth:session',
+  authDiscover: 'auth:discover',
+  authLogin: 'auth:login',
+  authLoginBrowser: 'auth:login-browser',
 } as const;

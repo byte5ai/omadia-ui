@@ -1,10 +1,12 @@
 import { BrowserWindow } from 'electron';
 
 /**
- * Acquire the kernel session: open the omadia login page in a window and poll
- * its partition for the `omadia_session` cookie the WebSocketRegistry verifies
- * pre-upgrade (PR-11: verifySession + Entra whitelist, 401/403 before the 101).
- * Works for both local-credential and OIDC logins — we only need the cookie.
+ * FALLBACK auth flow (issue #7): open the omadia web login in a window and
+ * poll its partition for the `omadia_session` cookie the WebSocketRegistry
+ * verifies pre-upgrade (PR-11: verifySession + Entra whitelist, 401/403
+ * before the 101). Native credential login (authApi.ts) is the primary path;
+ * this window remains for OIDC tenants and kernels without the discovery
+ * endpoint. Works for both flows — we only need the cookie.
  */
 export async function acquireSessionCookie(httpOrigin: string): Promise<string> {
   const win = new BrowserWindow({
