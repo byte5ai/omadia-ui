@@ -143,8 +143,17 @@ export function App() {
             );
             const merged: CanvasSlotMeta[] = server.map((e) => {
               const existing = bySession.get(e.sessionId);
+              // a slot with a LIVE tree has fresher metadata than the registry
+              // snapshot — its auto-title wins over the persisted one
+              const localFresher = existing
+                ? (slotStates.current.get(existing.slotId)?.tree ?? null) !== null
+                : false;
               const slot: CanvasSlotMeta = existing
-                ? { ...existing, title: e.title || existing.title, color: e.color }
+                ? {
+                    ...existing,
+                    title: localFresher ? existing.title : e.title || existing.title,
+                    color: e.color,
+                  }
                 : {
                     slotId: crypto.randomUUID(),
                     title: e.title || 'Canvas',
