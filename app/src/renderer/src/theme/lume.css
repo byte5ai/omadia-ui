@@ -652,17 +652,76 @@ body {
 }
 .lume-chart-line {
   width: 100%;
-  height: 80px;
+  height: auto;
+  max-height: 320px;
 }
-.lume-chart-line polyline {
+.lume-chart-grid {
+  stroke: var(--lume-border);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.lume-chart-axis {
+  fill: var(--lume-text-tertiary);
+  font-family: var(--lume-font-structural);
+  font-size: 11px;
+}
+.lume-chart-area {
+  fill: var(--lume-accent);
+  fill-opacity: 0.1;
+}
+.lume-chart-stroke {
   stroke: var(--lume-accent);
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
   filter: drop-shadow(0 0 4px var(--lume-accent-glow));
 }
+.lume-chart-dot {
+  fill: var(--lume-accent);
+  stroke: var(--lume-bg);
+  stroke-width: 1;
+}
+.lume-chart-pie-wrap {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
 .lume-chart-pie {
-  width: 140px;
-  height: 140px;
+  width: 160px;
+  height: 160px;
+  flex: none;
+}
+.lume-chart-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.lume-chart-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lume-chart-legend-chip {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--lume-accent);
+  flex: none;
+}
+.lume-chart-chip-1 { opacity: 0.78; }
+.lume-chart-chip-2 { opacity: 0.58; }
+.lume-chart-chip-3 { opacity: 0.42; }
+.lume-chart-chip-4 { opacity: 0.3; }
+.lume-chart-chip-5 { opacity: 0.2; }
+.lume-chart-legend-label {
+  color: var(--lume-text);
+}
+.lume-chart-legend-value {
+  color: var(--lume-text-dim);
 }
 /* multi-series = chroma-reduction on the single accent hue (§4.2) —
    palette-aware for free because everything derives from --lume-accent. */
@@ -678,6 +737,116 @@ body {
   border-radius: var(--lume-radius-sm);
   background: var(--lume-sunken-btm);
 }
+/* ── canvas sidebar (Warp-style rail) ── */
+.lume-sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 200px;
+  flex: none;
+  border-right: 1px solid var(--lume-border-subtle-btm);
+  background: linear-gradient(180deg, var(--lume-bg-top) 0%, var(--lume-bg-btm) 100%);
+  padding: 10px 8px;
+  gap: 8px;
+}
+.lume-sidebar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  overflow-y: auto;
+}
+.lume-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--lume-text-secondary);
+  font-family: var(--lume-font-structural);
+  font-size: 13px;
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: var(--lume-radius-sm);
+  cursor: pointer;
+  min-width: 0;
+}
+.lume-sidebar-item:hover {
+  background: var(--lume-accent-subtle);
+}
+.lume-sidebar-active {
+  color: var(--lume-text);
+  background:
+    radial-gradient(ellipse at 30% 50%, var(--lume-accent-glow) 0%, transparent 70%),
+    linear-gradient(180deg, var(--lume-accent-subtle), transparent);
+}
+.lume-sidebar-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lume-sidebar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.lume-canvas-dot-0 { background: #6fc8d6; }
+.lume-canvas-dot-1 { background: #e0a26b; }
+.lume-canvas-dot-2 { background: #7bb37b; }
+.lume-canvas-dot-3 { background: #b37bb3; }
+.lume-canvas-dot-4 { background: #5b8dd9; }
+.lume-canvas-dot-5 { background: #d97b6c; }
+.lume-sidebar-add {
+  background: none;
+  border: 1px dashed var(--lume-border-btm);
+  color: var(--lume-text-tertiary);
+  font-family: var(--lume-font-structural);
+  font-size: 13px;
+  padding: 7px 10px;
+  border-radius: var(--lume-radius-sm);
+  cursor: pointer;
+}
+.lume-sidebar-add:hover {
+  color: var(--lume-text);
+  border-color: var(--lume-accent);
+}
+
+/* ── ⌘K prompt modal — Spotlight over the live canvas (§3.6/§5.3) ── */
+.lume-prompt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--lume-modal-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lume-prompt-modal {
+  width: min(640px, 80vw);
+  padding: 20px;
+  border-radius: var(--lume-radius-lg);
+  background: linear-gradient(180deg, var(--lume-surface-top) 0%, var(--lume-surface-btm) 100%);
+  border: 1px solid var(--lume-border-btm);
+  border-top-color: var(--lume-border-top);
+  box-shadow: var(--lume-elev-modal);
+  animation: lume-modal-in var(--lume-motion-smooth) var(--lume-ease-standard);
+}
+.lume-prompt-modal .lume-spotlight-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+@keyframes lume-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lume-prompt-modal {
+    animation: none;
+  }
+}
+
 /* turn-pending strip — fixed 2px lit runner across the canvas top */
 .lume-turn-progress {
   position: fixed;

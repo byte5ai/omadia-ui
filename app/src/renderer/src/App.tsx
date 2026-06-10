@@ -9,6 +9,14 @@ import {
   type RowMenuRequest,
 } from './render/PrimitiveNode.js';
 import { Onboarding } from './onboarding/Onboarding.js';
+import { Sidebar } from './Sidebar.js';
+import {
+  autoTitle,
+  loadSlots,
+  newSlot,
+  saveSlots,
+  type CanvasSlotMeta,
+} from './store/canvasSlots.js';
 import { initPalette } from './theme/palette.js';
 import { PalettePicker } from './theme/PalettePicker.js';
 
@@ -55,6 +63,18 @@ export function App() {
   const [canvas, setCanvas] = useState<CanvasState>(initialCanvasState);
   const [status, setStatus] = useState<ConnectionStatus>({ state: 'disconnected' });
   const [draft, setDraft] = useState('');
+  // ⌘K prompt modal (live canvas; cold-start uses the spotlight stage)
+  const [showPrompt, setShowPrompt] = useState(false);
+  // multi-canvas sidebar: metadata persists; inactive TREES stay in memory
+  const initialSlots = useRef(loadSlots() ?? { slots: [newSlot(0)], activeId: '' });
+  const [slots, setSlots] = useState<CanvasSlotMeta[]>(initialSlots.current.slots);
+  const [activeSlotId, setActiveSlotId] = useState<string>(
+    initialSlots.current.activeId || (initialSlots.current.slots[0]?.slotId ?? ''),
+  );
+  const inactiveStates = useRef(new Map<string, CanvasState>());
+  // true once the server's canvas list arrived — local pushes wait for the
+  // merge so a fresh install never clobbers the user's server-side registry
+  const canvasListSynced = useRef(false);
   // turn prose is debug-only: hidden behind the bottom-right marker
   const [showTurnLog, setShowTurnLog] = useState(false);
   // ⌥⌘P palette quick-picker (VS-Code-Quick-Pick idiom, §3.6 modal)
@@ -98,6 +118,36 @@ export function App() {
 
   useEffect(() => {
     const offMsg = window.omadiaCanvas.onServerMessage((msg) => {
+      // per-user canvas registry (LVL2-persisted): server list is authoritative
+      // for known sessions; local-only slots (never connected) are kept.
+      if (msg.type === 'canvas_list') {
+        canvasListSynced.current = true;
+        const server = msg.canvases;
+        if (server.length > 0) {
+          setSlots((prev) => {
+            const bySession = new Map(
+              prev.filter((s) => s.sessionId).map((s) => [s.sessionId as string, s]),
+            );
+            const merged: CanvasSlotMeta[] = server.map((e) => {
+              const existing = bySession.get(e.sessionId);
+              return existing
+                ? { ...existing, title: e.title || existing.title, color: e.color }
+                : {
+                    slotId: crypto.randomUUID(),
+                    title: e.title || 'Canvas',
+                    color: e.color,
+                    sessionId: e.sessionId,
+                  };
+            });
+            const serverIds = new Set(server.map((e) => e.sessionId));
+            for (const s of prev) {
+              if (!s.sessionId || !serverIds.has(s.sessionId)) merged.push(s);
+            }
+            return merged;
+          });
+        }
+        return;
+      }
       const { state, resync } = applyServerMessage(stateRef.current, msg);
       setCanvas(state);
       if (resync) window.omadiaCanvas.requestResync();
@@ -105,13 +155,24 @@ export function App() {
     const offStatus = window.omadiaCanvas.onStatus(setStatus);
     void window.omadiaCanvas.getSettings().then((saved) => {
       setSettings(saved);
-      if (saved) void window.omadiaCanvas.connect(toConnectOptions(saved));
+      // resume the ACTIVE slot's canvas session (not just the last-used file id)
+      const active = initialSlots.current.slots.find(
+        (s) => s.slotId === (initialSlots.current.activeId || initialSlots.current.slots[0]?.slotId),
+      );
+      if (saved)
+        void window.omadiaCanvas.connect({
+          ...toConnectOptions(saved),
+          ...(active?.sessionId ? { canvasSessionId: active.sessionId } : {}),
+        });
     });
     initPalette();
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        promptRef.current?.focus();
+        // live canvas → summon the centered prompt modal (§5.3 Spotlight);
+        // cold-start → the stage IS the spotlight, just focus it.
+        if (stateRef.current.tree !== null) setShowPrompt(true);
+        else promptRef.current?.focus();
       }
       // ⌥⌘P opens the palette quick-picker (§2.5.4) — local stand-in until
       // the conversational Tier-2 ui-prefs binding lands; e.code because ⌥
@@ -139,6 +200,84 @@ export function App() {
       setShowSetup(false);
     }
   }, [pending, status]);
+
+  // bind the server-acked canvasSessionId to the active slot (first connect
+  // mints it; later connects echo it) and pull the user's server-side canvas
+  // registry — app-start sync across installs.
+  useEffect(() => {
+    if (status.state !== 'ready') return;
+    if (status.canvasSessionId) {
+      setSlots((prev) =>
+        prev.map((s) =>
+          s.slotId === activeSlotId && s.sessionId !== status.canvasSessionId
+            ? { ...s, sessionId: status.canvasSessionId }
+            : s,
+        ),
+      );
+    }
+    window.omadiaCanvas.requestCanvasList();
+  }, [status, activeSlotId]);
+
+  // push slot metadata to the LVL2 registry (debounced; only after the first
+  // server merge so we never overwrite the registry with a stale local view)
+  useEffect(() => {
+    if (!canvasListSynced.current) return;
+    const t = setTimeout(() => {
+      window.omadiaCanvas.saveCanvasList(
+        slots
+          .filter((s) => s.sessionId)
+          .map((s) => ({ sessionId: s.sessionId as string, title: s.title, color: s.color })),
+      );
+    }, 800);
+    return () => clearTimeout(t);
+  }, [slots]);
+
+  // the canvas names itself — first heading/title of the active tree
+  useEffect(() => {
+    if (canvas.tree === null) return;
+    const title = autoTitle(canvas.tree);
+    if (!title) return;
+    setSlots((prev) =>
+      prev.map((s) => (s.slotId === activeSlotId && s.title !== title ? { ...s, title } : s)),
+    );
+  }, [canvas.tree, activeSlotId]);
+
+  useEffect(() => {
+    saveSlots(slots, activeSlotId);
+  }, [slots, activeSlotId]);
+
+  /** park the current canvas, surface the target slot, reconnect its session */
+  const switchCanvas = (slotId: string) => {
+    if (slotId === activeSlotId || !settings) return;
+    inactiveStates.current.set(activeSlotId, stateRef.current);
+    const target = slots.find((s) => s.slotId === slotId);
+    setActiveSlotId(slotId);
+    setCanvas(inactiveStates.current.get(slotId) ?? initialCanvasState);
+    setBeam(null);
+    setRowMenu(null);
+    setShowPrompt(false);
+    setDraft('');
+    setStatus({ state: 'connecting' });
+    void window.omadiaCanvas.connect({
+      ...toConnectOptions(settings),
+      ...(target?.sessionId ? { canvasSessionId: target.sessionId } : { freshSession: true }),
+    });
+  };
+
+  const addCanvas = () => {
+    if (!settings) return;
+    const slot = newSlot(slots.length);
+    setSlots((prev) => [...prev, slot]);
+    inactiveStates.current.set(activeSlotId, stateRef.current);
+    setActiveSlotId(slot.slotId);
+    setCanvas(initialCanvasState);
+    setBeam(null);
+    setRowMenu(null);
+    setShowPrompt(false);
+    setDraft('');
+    setStatus({ state: 'connecting' });
+    void window.omadiaCanvas.connect({ ...toConnectOptions(settings), freshSession: true });
+  };
 
   const submitSetup = (candidate: AppSettings) => {
     setPending(candidate);
@@ -241,7 +380,9 @@ export function App() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'row', height: '100%' }}>
+      <Sidebar slots={slots} activeSlotId={activeSlotId} onSelect={switchCanvas} onAdd={addCanvas} />
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
       {/* instant feedback the moment a turn fires — the old view stays
           (back-navigable), the lit strip says "omadia is working" */}
       {canvas.turnPending && (
@@ -380,17 +521,27 @@ export function App() {
           {canvas.prose}
         </div>
       )}
-      {canvas.tree !== null && (
-        <div className="lume-prose-strip">
-          <input
-            ref={promptRef}
-            style={{ width: '100%', background: 'transparent', border: 'none', color: 'inherit', outline: 'none' }}
-            placeholder={canvas.turnPending ? 'working…' : '⌘K — ask omadia…'}
-            disabled={canvas.turnPending || status.state !== 'ready'}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && submitPrompt()}
-          />
+      {/* ⌘K prompt — a centered Spotlight modal over the live canvas: just
+          the prompt, no other chrome. Esc / outside click dismisses. */}
+      {showPrompt && canvas.tree !== null && (
+        <div className="lume-prompt-overlay" onClick={() => setShowPrompt(false)}>
+          <div className="lume-prompt-modal" onClick={(e) => e.stopPropagation()}>
+            <input
+              className="lume-input lume-spotlight-input"
+              autoFocus
+              placeholder="Ask omadia…"
+              disabled={canvas.turnPending || status.state !== 'ready'}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && draft.trim()) {
+                  submitPrompt();
+                  setShowPrompt(false);
+                }
+                if (e.key === 'Escape') setShowPrompt(false);
+              }}
+            />
+          </div>
         </div>
       )}
       {canvas.tree === null && (
@@ -413,6 +564,7 @@ export function App() {
         </div>
       )}
       {showPalettePicker && <PalettePicker onClose={() => setShowPalettePicker(false)} />}
+      </div>
     </div>
   );
 }

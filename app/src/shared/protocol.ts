@@ -43,6 +43,19 @@ export interface TurnError {
   message: string;
 }
 
+/** One entry of the per-user canvas registry (multi-canvas sidebar sync). */
+export interface CanvasListEntry {
+  sessionId: string;
+  title: string;
+  color: number;
+}
+
+/** server → client: the user's persisted canvas list (answer to canvas_list_get). */
+export interface CanvasListMsg {
+  type: 'canvas_list';
+  canvases: CanvasListEntry[];
+}
+
 export type SurfaceEventType =
   | 'surface_snapshot'
   | 'surface_patch'
@@ -79,6 +92,7 @@ export type ServerMessage =
   | AgentTextDelta
   | TurnComplete
   | TurnError
+  | CanvasListMsg
   | SurfaceEvent;
 
 // ── client → server ──
@@ -105,7 +119,16 @@ export interface ClientTurn {
   viewStateTruncated?: boolean;
 }
 
-export type ClientMessage = HandshakeSelect | ClientTurn;
+/** client → server: fetch / replace the user's persisted canvas list. */
+export interface ClientCanvasListGet {
+  type: 'canvas_list_get';
+}
+export interface ClientCanvasListPut {
+  type: 'canvas_list_put';
+  canvases: CanvasListEntry[];
+}
+
+export type ClientMessage = HandshakeSelect | ClientTurn | ClientCanvasListGet | ClientCanvasListPut;
 
 const NON_SURFACE_SERVER_TYPES: ReadonlySet<string> = new Set([
   'handshake_offer',
@@ -114,6 +137,7 @@ const NON_SURFACE_SERVER_TYPES: ReadonlySet<string> = new Set([
   'agent_text_delta',
   'turn_complete',
   'turn_error',
+  'canvas_list',
 ]);
 
 /** Tolerant parse of a raw server frame; null for non-JSON / unknown type. */

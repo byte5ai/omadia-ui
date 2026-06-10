@@ -1,6 +1,11 @@
 import WebSocket from 'ws';
 import type { ConnectionStatus } from '../shared/ipc.js';
-import { parseServerMessage, type ClientTurn, type ServerMessage } from '../shared/protocol.js';
+import {
+  parseServerMessage,
+  type ClientMessage,
+  type ClientTurn,
+  type ServerMessage,
+} from '../shared/protocol.js';
 import { createHandshake } from './handshake.js';
 
 export interface SessionPersistence {
@@ -45,6 +50,14 @@ export class CanvasSocket {
       this.ws.send(JSON.stringify(turn));
     } else {
       this.opts.onStatus({ state: 'failed', detail: 'turn dropped: socket not ready' });
+    }
+  }
+
+  /** Non-turn client messages (canvas_list_get/put) — silently dropped when
+   *  the socket isn't ready; the next ready re-syncs anyway. */
+  sendMessage(msg: ClientMessage): void {
+    if (this.ready && this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(msg));
     }
   }
 

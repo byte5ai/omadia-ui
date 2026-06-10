@@ -6,7 +6,7 @@ import {
   type ConnectionStatus,
   type OmadiaCanvasApi,
 } from '../shared/ipc.js';
-import type { ClientTurn, ServerMessage } from '../shared/protocol.js';
+import type { CanvasListEntry, ClientTurn, ServerMessage } from '../shared/protocol.js';
 
 const subscribe = <T>(channel: string, cb: (payload: T) => void): (() => void) => {
   const listener = (_e: IpcRendererEvent, payload: T) => cb(payload);
@@ -20,6 +20,8 @@ const api: OmadiaCanvasApi = {
   connect: (opts: ConnectOptions) => ipcRenderer.invoke(IPC.connect, opts) as Promise<void>,
   sendTurn: (turn: ClientTurn) => ipcRenderer.send(IPC.turn, turn),
   requestResync: () => ipcRenderer.send(IPC.resync),
+  requestCanvasList: () => ipcRenderer.send(IPC.canvasListGet),
+  saveCanvasList: (canvases: CanvasListEntry[]) => ipcRenderer.send(IPC.canvasListPut, canvases),
   onServerMessage: (cb: (msg: ServerMessage) => void) => subscribe(IPC.serverMessage, cb),
   onStatus: (cb: (status: ConnectionStatus) => void) => subscribe(IPC.status, cb),
   getSettings: () => ipcRenderer.invoke(IPC.settingsGet) as Promise<AppSettings | null>,

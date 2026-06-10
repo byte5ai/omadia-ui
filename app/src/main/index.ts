@@ -2,7 +2,7 @@ import './wsEnv.js';
 import { app, BrowserWindow, ipcMain, Menu, nativeTheme } from 'electron';
 import { join } from 'node:path';
 import { IPC, type AppSettings, type ConnectOptions } from '../shared/ipc.js';
-import type { ClientTurn } from '../shared/protocol.js';
+import type { CanvasListEntry, ClientTurn } from '../shared/protocol.js';
 import { acquireSessionCookie } from './auth.js';
 import { CanvasSocket } from './canvasSocket.js';
 import { createFileSessionStore } from './sessionStore.js';
@@ -78,11 +78,20 @@ ipcMain.handle(IPC.connect, async (_e, opts: ConnectOptions) => {
       return;
     }
   }
+  // Multi-canvas: the renderer may pin a specific session (sidebar switch)
+  // or force a fresh one (new canvas) — the file store stays the fallback
+  // and always tracks the LAST-ACTIVE session for cold app starts.
+  const fileStore = createFileSessionStore(app.getPath('userData'));
+  const session = opts.freshSession
+    ? { load: (): string | undefined => undefined, save: (id: string) => fileStore.save(id) }
+    : opts.canvasSessionId
+      ? { load: (): string | undefined => opts.canvasSessionId, save: (id: string) => fileStore.save(id) }
+      : fileStore;
   socket = new CanvasSocket({
     url: opts.url,
     cookie,
     localOperations: LOCAL_OPERATIONS,
-    session: createFileSessionStore(app.getPath('userData')),
+    session,
     onMessage: (msg) => win?.webContents.send(IPC.serverMessage, msg),
     onStatus: (status) => win?.webContents.send(IPC.status, status),
   });
@@ -91,6 +100,10 @@ ipcMain.handle(IPC.connect, async (_e, opts: ConnectOptions) => {
 
 ipcMain.on(IPC.turn, (_e, turn: ClientTurn) => socket?.sendTurn(turn));
 ipcMain.on(IPC.resync, () => socket?.resync());
+ipcMain.on(IPC.canvasListGet, () => socket?.sendMessage({ type: 'canvas_list_get' }));
+ipcMain.on(IPC.canvasListPut, (_e, canvases: CanvasListEntry[]) =>
+  socket?.sendMessage({ type: 'canvas_list_put', canvases }),
+);
 
 ipcMain.handle(IPC.settingsGet, () => createFileSettingsStore(app.getPath('userData')).load());
 ipcMain.handle(IPC.settingsSave, (_e, settings: AppSettings) =>
