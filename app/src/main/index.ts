@@ -126,11 +126,20 @@ ipcMain.handle(IPC.connect, async (_e, slotKey: string, opts: ConnectOptions) =>
   // or forces a fresh one (new canvas) — the file store stays the fallback
   // and always tracks the LAST-ACTIVE session for cold app starts.
   const fileStore = createFileSessionStore(app.getPath('userData'));
-  const session = opts.freshSession
-    ? { load: (): string | undefined => undefined, save: (id: string) => fileStore.save(id) }
-    : opts.canvasSessionId
-      ? { load: (): string | undefined => opts.canvasSessionId, save: (id: string) => fileStore.save(id) }
-      : fileStore;
+  // Resume priority: explicit pin > the session THIS socket already acked >
+  // file fallback. The acked id matters: a resync reconnect on a freshSession
+  // slot must NOT mint another server session — that would orphan everything
+  // keyed by canvasSessionId (registry entry, server-side refresh recipes).
+  let ackedSession: string | undefined = opts.freshSession ? undefined : opts.canvasSessionId;
+  const session = {
+    load: (): string | undefined =>
+      ackedSession ??
+      (opts.freshSession || opts.canvasSessionId ? undefined : (fileStore.load() ?? undefined)),
+    save: (id: string): void => {
+      ackedSession = id;
+      fileStore.save(id);
+    },
+  };
   const socket = new CanvasSocket({
     url: opts.url,
     cookie,
