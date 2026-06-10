@@ -198,17 +198,23 @@ export function App() {
     });
   };
 
-  // generic fallback affordance — shown ONLY when the agent supplied no
-  // suggestedActions for the container. What "details" means (and which
-  // actions fit the current view) is the agent's call, not the client's.
-  const showRowDetails = (menu: RowMenuRequest) => {
+  // The clicked row, spelled out for the turn text — the agent must never have
+  // to guess WHICH record a context action refers to (deterministic context).
+  const rowContext = (menu: RowMenuRequest): string => {
     const summary = Object.entries(menu.cells)
       .filter(([, v]) => v !== '' && v !== null && v !== undefined)
       .map(([k, v]) => `${k}: ${String(v)}`)
       .join(', ');
+    return `(${summary}; rowKey ${menu.rowKey})`;
+  };
+
+  // generic fallback affordance — shown ONLY when the agent supplied no
+  // suggestedActions for the container. What "details" means (and which
+  // actions fit the current view) is the agent's call, not the client's.
+  const showRowDetails = (menu: RowMenuRequest) => {
     submitBeam(
       menu,
-      `Zeige die Details zu diesem Datensatz (${summary}; rowKey ${menu.rowKey}). ` +
+      `Zeige die Details zu diesem Datensatz ${rowContext(menu)}. ` +
         `Stelle die Ansicht als Panes dar — eine Übersicht und die zum Datensatz ` +
         `passenden Detail-Tabellen.`,
     );
@@ -236,6 +242,13 @@ export function App() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* instant feedback the moment a turn fires — the old view stays
+          (back-navigable), the lit strip says "omadia is working" */}
+      {canvas.turnPending && (
+        <div className="lume-turn-progress" role="progressbar" aria-label="turn pending">
+          <span className="lume-turn-progress-bar" />
+        </div>
+      )}
       <div style={{ flex: 1, overflow: 'auto' }}>
         {/* view-only back navigation — in flow, above the tree; Layer-2
             persistence is a later slice */}
@@ -324,9 +337,11 @@ export function App() {
             <button
               key={a.id}
               className="lume-row-menu-item"
-              // fires immediately — the prompt is the turn text, deterministically
-              // bound to the clicked row's TargetRef (no confirm round-trip).
-              onClick={() => submitBeam(rowMenu, a.prompt?.trim() ? a.prompt : a.label)}
+              // fires immediately — prompt + the clicked row spelled out, so the
+              // agent never has to disambiguate (no confirm round-trip).
+              onClick={() =>
+                submitBeam(rowMenu, `${a.prompt?.trim() ? a.prompt : a.label} ${rowContext(rowMenu)}`)
+              }
             >
               {a.label}
             </button>

@@ -391,43 +391,97 @@ body {
     0 0 0 2px var(--lume-accent),
     0 0 0 6px var(--lume-accent-glow);
 }
-/* choice — the disambiguation element: §4.2 raised recipe per option */
+/* choice — the disambiguation element (§4.2 choice·toggle): options are
+   raised surfaces; the checked option is a lit pocket (two-stop glow). */
 .lume-choice {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   border: none;
-  margin: 0;
+  margin: 8px 0;
   padding: 0;
+  max-width: 720px;
 }
 .lume-control-label {
-  color: var(--lume-text-dim);
+  color: var(--lume-text-secondary);
+  font-family: var(--lume-font-structural);
   font-size: 13px;
+  line-height: 1.4;
+  margin-bottom: 4px;
 }
 .lume-choice-option {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   background: linear-gradient(180deg, var(--lume-raised-top) 0%, var(--lume-raised-btm) 100%);
   border: 1px solid var(--lume-border-btm);
   border-top-color: var(--lume-border-top);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  border-radius: var(--lume-radius-sm);
-  padding: 6px 14px;
+  border-radius: var(--lume-radius-md);
+  padding: 10px 16px;
   cursor: pointer;
-  transition: border-color var(--lume-motion-quick) var(--lume-ease-standard);
+  transition:
+    border-color var(--lume-motion-quick) var(--lume-ease-standard),
+    box-shadow var(--lume-motion-quick) var(--lume-ease-standard);
 }
-.lume-choice-option:hover,
-.lume-choice-active {
+.lume-choice-option:hover {
   border-color: var(--lume-accent);
 }
+/* custom radio — accent fill + small two-stop glow when checked (§4.2) */
+.lume-choice-option input[type='radio'] {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  flex: none;
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--lume-sunken-top) 0%, var(--lume-sunken-btm) 100%);
+  border: 1px solid var(--lume-border-btm);
+  border-top-color: var(--lume-border-top);
+  transition: background var(--lume-motion-quick) var(--lume-ease-standard);
+}
+.lume-choice-option input[type='radio']:checked {
+  background: var(--lume-accent);
+  border-color: var(--lume-accent);
+  box-shadow:
+    0 0 3px var(--lume-accent-glow-core),
+    0 0 6px var(--lume-accent-glow);
+}
+/* checked option = lit pocket: accent edge + subtle fill + glow (§3.2) */
+.lume-choice-active {
+  border-color: var(--lume-accent);
+  background:
+    linear-gradient(180deg, var(--lume-accent-subtle), transparent),
+    linear-gradient(180deg, var(--lume-raised-top) 0%, var(--lume-raised-btm) 100%);
+  box-shadow:
+    0 0 12px -2px var(--lume-accent-glow-core),
+    0 0 24px -6px var(--lume-accent-glow);
+}
+/* after the pick, the choice locks and the chosen option pulses until the
+   turn resolves — same lifecycle language as the beam pin. */
+.lume-choice-locked .lume-choice-option {
+  cursor: default;
+  opacity: 0.55;
+}
+.lume-choice-locked .lume-choice-option:hover {
+  border-color: var(--lume-border-btm);
+  border-top-color: var(--lume-border-top);
+}
+.lume-choice-locked .lume-choice-active {
+  opacity: 1;
+  border-color: var(--lume-accent);
+  animation: lume-beam-pulse 1.4s var(--lume-ease-standard) infinite;
+}
+/* dropdown variant inherits the secondary-button look (§4.2) */
 .lume-choice-select {
   background: linear-gradient(180deg, var(--lume-raised-top) 0%, var(--lume-raised-btm) 100%);
   color: var(--lume-text);
   border: 1px solid var(--lume-border-btm);
   border-top-color: var(--lume-border-top);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   border-radius: var(--lume-radius-sm);
-  padding: 6px 14px;
+  padding: 8px 14px;
   font-family: inherit;
   font-size: 14px;
 }
@@ -435,20 +489,32 @@ body {
   color: var(--lume-text-dim);
   font-size: 13px;
 }
+/* §4.2 input: raised gradient, directional border, inset highlight;
+   focus emits light (layered accent shadow) */
 .lume-input {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  max-width: 720px;
 }
 .lume-input-field {
-  background: linear-gradient(180deg, var(--lume-sunken-top) 0%, var(--lume-sunken-btm) 100%);
+  background: linear-gradient(180deg, var(--lume-raised-top) 0%, var(--lume-raised-btm) 100%);
   color: var(--lume-text);
   border: 1px solid var(--lume-border-btm);
   border-top-color: var(--lume-border-top);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   border-radius: var(--lume-radius-sm);
-  padding: 6px 14px;
+  padding: 8px 14px;
   font-family: inherit;
   font-size: 14px;
+  transition: box-shadow var(--lume-motion-quick) var(--lume-ease-standard);
+}
+.lume-input-field:focus-visible {
+  border-color: var(--lume-accent);
+  box-shadow:
+    0 0 0 1px var(--lume-accent),
+    0 0 0 4px var(--lume-accent-glow),
+    0 0 12px var(--lume-accent-glow-core);
 }
 .lume-toggle {
   display: flex;
@@ -463,11 +529,14 @@ body {
 .lume-switch-track {
   width: 32px;
   height: 18px;
-  border-radius: 9px;
-  background: var(--lume-surface-raised);
-  border: 1px solid var(--lume-border);
+  border-radius: var(--lume-radius-pill);
+  background: linear-gradient(180deg, var(--lume-sunken-top) 0%, var(--lume-sunken-btm) 100%);
+  border: 1px solid var(--lume-border-btm);
+  border-top-color: var(--lume-border-top);
   position: relative;
-  transition: background 0.15s;
+  transition:
+    background var(--lume-motion-quick) var(--lume-ease-standard),
+    box-shadow var(--lume-motion-quick) var(--lume-ease-standard);
 }
 .lume-switch-track::after {
   content: '';
@@ -478,35 +547,47 @@ body {
   height: 12px;
   border-radius: 50%;
   background: var(--lume-text-dim);
-  transition: transform 0.15s;
+  transition: transform var(--lume-motion-quick) var(--lume-ease-standard);
 }
+/* checked = accent fill with the small two-stop glow (§4.2 choice·toggle) */
 .lume-toggle-switch input:checked + .lume-switch-track {
   background: var(--lume-accent);
+  border-color: var(--lume-accent);
+  box-shadow:
+    0 0 3px var(--lume-accent-glow-core),
+    0 0 6px var(--lume-accent-glow);
 }
 .lume-toggle-switch input:checked + .lume-switch-track::after {
   transform: translateX(14px);
-  background: var(--lume-surface);
+  background: var(--lume-text-inverse);
 }
+.lume-toggle input[type='checkbox']:not(.lume-toggle-switch input) {
+  accent-color: var(--lume-accent);
+}
+/* §4.2 form: no per-form chrome — layout only */
 .lume-form {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
+/* §4.2 menubar: mode-bridge — hover paints accent.subtle, never glow */
 .lume-menubar {
   display: flex;
   gap: 2px;
-  border-bottom: 1px solid var(--lume-border);
+  border-bottom: 1px solid var(--lume-border-subtle-btm);
 }
 .lume-menubar-item {
   background: none;
   border: none;
   color: var(--lume-text);
+  font-family: var(--lume-font-structural);
+  font-size: 14px;
   padding: 6px 12px;
   cursor: pointer;
-  border-radius: 6px 6px 0 0;
+  border-radius: var(--lume-radius-sm) var(--lume-radius-sm) 0 0;
 }
 .lume-menubar-item:hover {
-  background: var(--lume-surface-raised);
+  background: var(--lume-accent-subtle);
 }
 .lume-tree-branch {
   margin: 0;
@@ -538,9 +619,10 @@ body {
 .lume-chart-bar-value {
   color: var(--lume-text-dim);
 }
+/* §4.2 chart: accent fill with a soft underglow — the bar reads as lit */
 .lume-chart-bar-track {
-  background: var(--lume-surface-raised);
-  border-radius: 4px;
+  background: linear-gradient(180deg, var(--lume-sunken-top) 0%, var(--lume-sunken-btm) 100%);
+  border-radius: var(--lume-radius-sm);
   height: 10px;
   overflow: hidden;
   display: block;
@@ -549,6 +631,7 @@ body {
   display: block;
   height: 100%;
   background: var(--lume-accent);
+  box-shadow: 0 0 6px var(--lume-accent-glow);
 }
 .lume-chart-line {
   width: 100%;
@@ -556,50 +639,94 @@ body {
 }
 .lume-chart-line polyline {
   stroke: var(--lume-accent);
-  stroke-width: 1.5;
+  stroke-width: 2;
   vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 4px var(--lume-accent-glow));
 }
 .lume-chart-pie {
   width: 140px;
   height: 140px;
 }
+/* multi-series = chroma-reduction on the single accent hue (§4.2) —
+   palette-aware for free because everything derives from --lume-accent. */
 .lume-chart-slice-0 { fill: var(--lume-accent); }
-.lume-chart-slice-1 { fill: #5b8dd9; }
-.lume-chart-slice-2 { fill: #c9a35b; }
-.lume-chart-slice-3 { fill: #7bb37b; }
-.lume-chart-slice-4 { fill: #b37bb3; }
-.lume-chart-slice-5 { fill: #d97b6c; }
+.lume-chart-slice-1 { fill: var(--lume-accent); fill-opacity: 0.78; }
+.lume-chart-slice-2 { fill: var(--lume-accent); fill-opacity: 0.58; }
+.lume-chart-slice-3 { fill: var(--lume-accent); fill-opacity: 0.42; }
+.lume-chart-slice-4 { fill: var(--lume-accent); fill-opacity: 0.3; }
+.lume-chart-slice-5 { fill: var(--lume-accent); fill-opacity: 0.2; }
+/* §4.2 image: sunken placeholder, no Lume chrome — images are content */
 .lume-image {
   max-width: 100%;
-  border-radius: 8px;
+  border-radius: var(--lume-radius-sm);
+  background: var(--lume-sunken-btm);
 }
-.lume-progress {
-  height: 8px;
-  border-radius: 4px;
-  background: var(--lume-surface-raised);
-  border: 1px solid var(--lume-border);
+/* turn-pending strip — fixed 2px lit runner across the canvas top */
+.lume-turn-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 50;
   overflow: hidden;
+  pointer-events: none;
+}
+.lume-turn-progress-bar {
+  display: block;
+  height: 100%;
+  width: 30%;
+  background: var(--lume-accent);
+  box-shadow:
+    0 0 6px var(--lume-accent-glow-core),
+    0 0 12px var(--lume-accent-glow);
+  animation: lume-progress-slide 1.2s var(--lume-ease-standard) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lume-turn-progress-bar {
+    animation: none;
+    width: 100%;
+    opacity: 0.5;
+  }
+}
+
+/* §4.2 progress: 4px sunken track, lit accent bar (glow underneath) */
+.lume-progress {
+  height: 4px;
+  border-radius: var(--lume-radius-pill);
+  background: linear-gradient(180deg, var(--lume-sunken-top) 0%, var(--lume-sunken-btm) 100%);
+  border: none;
+  overflow: visible;
 }
 .lume-progress-bar {
   display: block;
   height: 100%;
+  border-radius: var(--lume-radius-pill);
   background: var(--lume-accent);
+  box-shadow:
+    0 0 4px var(--lume-accent-glow-core),
+    0 0 10px var(--lume-accent-glow);
+}
+.lume-progress-indeterminate {
+  overflow: hidden;
 }
 .lume-progress-indeterminate .lume-progress-bar {
   width: 30%;
-  animation: lume-progress-slide 1.2s ease-in-out infinite;
+  animation: lume-progress-slide 1.2s var(--lume-ease-standard) infinite;
 }
 @keyframes lume-progress-slide {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(400%); }
 }
+/* §4.2 editor-class: frame areas are OPAQUE sunken material — the Lume
+   chrome ends where the user's raw work begins. */
 .lume-media {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: var(--lume-surface-raised);
-  border: 1px solid var(--lume-border);
-  border-radius: 8px;
+  background: var(--lume-sunken-btm);
+  border: 1px solid var(--lume-border-btm);
+  border-radius: var(--lume-radius-sm);
   padding: 10px 14px;
 }
 .lume-media-kind {
@@ -612,13 +739,13 @@ body {
   color: var(--lume-text-dim);
   font-size: 13px;
 }
+/* §4.2 canvas-region — the Lume boundary marker: opaque, sharp-cornered,
+   solid (non-directional) border. radius 0 is load-bearing. */
 .lume-canvas-region {
   max-width: 100%;
-  border: 1px solid var(--lume-border);
-  border-radius: 4px;
-  background:
-    repeating-conic-gradient(var(--lume-surface-raised) 0% 25%, transparent 0% 50%)
-    0 0 / 16px 16px;
+  border: 1px solid var(--lume-border-btm);
+  border-radius: 0;
+  background: var(--lume-sunken-btm);
 }
 .lume-timeline {
   display: flex;
@@ -637,13 +764,14 @@ body {
   color: var(--lume-text-dim);
   text-transform: uppercase;
 }
+/* track surface is editor-class: opaque sunken, no gradient (§4.2) */
 .lume-timeline-lane {
   position: relative;
   display: block;
   height: 18px;
-  background: var(--lume-surface-raised);
-  border: 1px solid var(--lume-border);
-  border-radius: 4px;
+  background: var(--lume-sunken-btm);
+  border: 1px solid var(--lume-border-btm);
+  border-radius: 0;
 }
 .lume-timeline-playhead {
   position: absolute;
@@ -651,6 +779,7 @@ body {
   bottom: -2px;
   width: 2px;
   background: var(--lume-accent);
+  box-shadow: 0 0 6px var(--lume-accent-glow-strong);
 }
 .lume-vector-path {
   width: 100%;
@@ -658,7 +787,7 @@ body {
 }
 .lume-vector-path path {
   stroke: var(--lume-accent);
-  stroke-width: 1.5;
+  stroke-width: 2;
   fill: none;
   vector-effect: non-scaling-stroke;
 }

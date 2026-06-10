@@ -70,13 +70,18 @@ export function ToggleNode({ node, onAction }: ControlProps): ReactNode {
 }
 
 /** `choice` keeps the picked value client-side; the pick itself goes upstream
- *  as a turn action (node.action.type, default `choice_select`). */
+ *  as a turn action (node.action.type, default `choice_select`). After the
+ *  pick the element LOCKS and the chosen option pulses (beam lifecycle) until
+ *  the answering turn replaces the tree — no double-fires. */
 export function ChoiceNode({ node, onAction }: ControlProps): ReactNode {
   const options = (node['options'] as Array<{ value: string; label: string }>) ?? [];
   const [value, setValue] = useState((node['value'] as string) ?? '');
+  const [picked, setPicked] = useState(false);
   if (options.length === 0) return null;
   const emit = (next: string): void => {
+    if (picked) return;
     setValue(next);
+    setPicked(true);
     emitValue(node, onAction, 'choice_select', next);
   };
 
@@ -86,7 +91,12 @@ export function ChoiceNode({ node, onAction }: ControlProps): ReactNode {
         {typeof node['label'] === 'string' && (
           <span className="lume-control-label">{node['label']}</span>
         )}
-        <select className="lume-choice-select" value={value} onChange={(e) => emit(e.target.value)}>
+        <select
+          className="lume-choice-select"
+          value={value}
+          disabled={picked}
+          onChange={(e) => emit(e.target.value)}
+        >
           {value === '' && <option value="" disabled hidden />}
           {options.map((o) => (
             <option key={o.value} value={o.value}>
@@ -99,7 +109,10 @@ export function ChoiceNode({ node, onAction }: ControlProps): ReactNode {
   }
 
   return (
-    <fieldset className="lume-choice" data-id={node['id'] as string}>
+    <fieldset
+      className={`lume-choice${picked ? ' lume-choice-locked' : ''}`}
+      data-id={node['id'] as string}
+    >
       {typeof node['label'] === 'string' && (
         <legend className="lume-control-label">{node['label']}</legend>
       )}
@@ -113,6 +126,7 @@ export function ChoiceNode({ node, onAction }: ControlProps): ReactNode {
             name={(node['id'] as string) ?? 'choice'}
             value={o.value}
             checked={o.value === value}
+            disabled={picked}
             onChange={() => emit(o.value)}
           />
           <span>{o.label}</span>
