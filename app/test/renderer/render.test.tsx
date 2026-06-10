@@ -122,6 +122,20 @@ describe('PrimitiveNode', () => {
     expect(html).toContain('width:50%');
   });
 
+  it('renders a chart skeleton while loading instead of nothing', () => {
+    const skeleton = renderToStaticMarkup(
+      <PrimitiveNode
+        node={{ type: 'chart', id: 'c', chartType: 'bar', loading: 'skeleton', points: [] }}
+        onAction={() => {}}
+      />,
+    );
+    expect(skeleton).toContain('lume-chart-skeleton');
+    const empty = renderToStaticMarkup(
+      <PrimitiveNode node={{ type: 'chart', id: 'c', chartType: 'bar', points: [] }} onAction={() => {}} />,
+    );
+    expect(empty).toContain('lume-chart-empty');
+  });
+
   it('renders line and pie charts as SVG', () => {
     const points = [
       { pointKey: 'a', label: 'A', value: 1 },

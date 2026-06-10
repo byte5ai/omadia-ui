@@ -619,6 +619,23 @@ body {
 .lume-chart-bar-value {
   color: var(--lume-text-dim);
 }
+/* chart skeleton / empty state — a chart must never render as nothing */
+.lume-chart-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lume-chart-skeleton .lume-skeleton-cell {
+  height: 10px;
+}
+.lume-chart-skeleton .lume-skeleton-cell:nth-child(1) { width: 85%; }
+.lume-chart-skeleton .lume-skeleton-cell:nth-child(2) { width: 55%; }
+.lume-chart-skeleton .lume-skeleton-cell:nth-child(3) { width: 70%; }
+.lume-chart-empty-note {
+  color: var(--lume-text-tertiary);
+  font-size: 13px;
+}
+
 /* §4.2 chart: accent fill with a soft underglow — the bar reads as lit */
 .lume-chart-bar-track {
   background: linear-gradient(180deg, var(--lume-sunken-top) 0%, var(--lume-sunken-btm) 100%);

@@ -75,7 +75,24 @@ function PieChart({ data }: { data: ChartDatum[] }): ReactNode {
 
 export function ChartNode({ node }: { node: PrimitiveJson }): ReactNode {
   const data = chartData(node);
-  if (data.length === 0) return null;
+  if (data.length === 0) {
+    // a chart skeleton must be VISIBLE while its data is fetched — an empty
+    // canvas reads as broken. Pulse bars, same loading language as tables.
+    if (node['loading'] === 'skeleton') {
+      return (
+        <figure className="lume-chart lume-chart-skeleton" data-id={node['id'] as string}>
+          {[0, 1, 2].map((i) => (
+            <span key={i} className="lume-skeleton-cell" />
+          ))}
+        </figure>
+      );
+    }
+    return (
+      <figure className="lume-chart lume-chart-empty" data-id={node['id'] as string}>
+        <span className="lume-chart-empty-note">keine Datenpunkte</span>
+      </figure>
+    );
+  }
   const kind = node['chartType'] as string;
   return (
     <figure className="lume-chart" data-id={node['id'] as string}>
