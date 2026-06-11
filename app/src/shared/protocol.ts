@@ -60,6 +60,33 @@ export interface CanvasListMsg {
   canvases: CanvasListEntry[];
 }
 
+// ── notifications (issue #15) — out-of-band from surface_* ──
+
+export type NotificationSeverity = 'info' | 'success' | 'warning' | 'error';
+
+/** server → client: a user-facing notification (middleware NotificationRouter
+ *  fan-out). Structured and server-authoritative. Severity maps to a FIXED
+ *  UI element: info/success → toast (auto-dismiss), warning/error → banner
+ *  (persists until dismissed); everything lands in the bell history. */
+export interface NotificationMsg {
+  type: 'notification';
+  id: string;
+  severity: NotificationSeverity;
+  title: string;
+  body?: string;
+  source?: string;
+  action?: { type: string; payload?: unknown; label?: string };
+  dedupeKey?: string;
+  ttlMs?: number;
+  scope?: string;
+}
+
+/** client → server: the user saw/dismissed a notification. */
+export interface ClientNotificationAck {
+  type: 'notification_ack';
+  id: string;
+}
+
 export type SurfaceEventType =
   | 'surface_snapshot'
   | 'surface_patch'
@@ -97,6 +124,7 @@ export type ServerMessage =
   | TurnComplete
   | TurnError
   | CanvasListMsg
+  | NotificationMsg
   | SurfaceEvent;
 
 // ── client → server ──
@@ -132,7 +160,12 @@ export interface ClientCanvasListPut {
   canvases: CanvasListEntry[];
 }
 
-export type ClientMessage = HandshakeSelect | ClientTurn | ClientCanvasListGet | ClientCanvasListPut;
+export type ClientMessage =
+  | HandshakeSelect
+  | ClientTurn
+  | ClientCanvasListGet
+  | ClientCanvasListPut
+  | ClientNotificationAck;
 
 const NON_SURFACE_SERVER_TYPES: ReadonlySet<string> = new Set([
   'handshake_offer',
@@ -142,6 +175,7 @@ const NON_SURFACE_SERVER_TYPES: ReadonlySet<string> = new Set([
   'turn_complete',
   'turn_error',
   'canvas_list',
+  'notification',
 ]);
 
 /** Tolerant parse of a raw server frame; null for non-JSON / unknown type. */

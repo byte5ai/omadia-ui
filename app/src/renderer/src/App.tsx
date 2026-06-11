@@ -9,8 +9,17 @@ import {
   type PrimitiveJson,
   type RowMenuRequest,
 } from './render/PrimitiveNode.js';
+import { Notifications } from './Notifications.js';
 import { Onboarding } from './onboarding/Onboarding.js';
 import { Sidebar } from './Sidebar.js';
+import {
+  addNotification,
+  dismissNotification,
+  loadNotifications,
+  markAllRead,
+  persistNotifications,
+  type UiNotification,
+} from './store/notificationStore.js';
 import {
   autoTitle,
   loadSlots,
@@ -84,6 +93,11 @@ export function App() {
   // true once the server's canvas list arrived — local pushes wait for the
   // merge so a fresh install never clobbers the user's server-side registry
   const canvasListSynced = useRef(false);
+  // out-of-band notifications (issue #15) — bell history persists client-side
+  const [notifications, setNotifications] = useState<UiNotification[]>(loadNotifications);
+  useEffect(() => {
+    persistNotifications(notifications);
+  }, [notifications]);
   // turn prose is debug-only: hidden behind the bottom-right marker
   const [showTurnLog, setShowTurnLog] = useState(false);
   // ⌥⌘P palette quick-picker (VS-Code-Quick-Pick idiom, §3.6 modal)
@@ -131,6 +145,11 @@ export function App() {
 
   useEffect(() => {
     const offMsg = window.omadiaCanvas.onServerMessage((slotKey, msg) => {
+      // notifications are OUT-OF-BAND from the canvas surface (issue #15)
+      if (msg.type === 'notification') {
+        setNotifications((l) => addNotification(l, msg, slotKey, Date.now()));
+        return;
+      }
       // per-user canvas registry (LVL2-persisted): server list is authoritative
       // for known sessions; local-only slots (never connected) are kept.
       if (msg.type === 'canvas_list') {
@@ -665,6 +684,29 @@ export function App() {
         </div>
       )}
       {showPalettePicker && <PalettePicker onClose={() => setShowPalettePicker(false)} />}
+      <Notifications
+        notifications={notifications}
+        onDismiss={(id) => {
+          const n = notifications.find((x) => x.id === id);
+          setNotifications((l) => dismissNotification(l, id));
+          if (n) window.omadiaCanvas.ackNotification(n.slotKey, id);
+        }}
+        onMarkAllRead={() => setNotifications((l) => markAllRead(l))}
+        onAction={(n) => {
+          // typed action reuses the canvas action→turn plumbing on the
+          // ACTIVE canvas; the notification is dismissed alongside.
+          if (n.action) {
+            window.omadiaCanvas.sendTurn(activeSlotId, {
+              type: 'turn',
+              turnId: crypto.randomUUID(),
+              action: { type: n.action.type, payload: n.action.payload },
+            });
+            setCanvas((c) => ({ ...c, turnPending: true, turnError: null, prose: '' }));
+          }
+          setNotifications((l) => dismissNotification(l, n.id));
+          window.omadiaCanvas.ackNotification(n.slotKey, n.id);
+        }}
+      />
       </div>
     </div>
   );

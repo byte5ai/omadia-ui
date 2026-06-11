@@ -125,6 +125,9 @@ ipcMain.on(IPC.canvasListGet, (_e, slotKey: string) =>
 ipcMain.on(IPC.canvasListPut, (_e, slotKey: string, canvases: CanvasListEntry[]) =>
   sockets.get(slotKey)?.sendMessage({ type: 'canvas_list_put', canvases }),
 );
+ipcMain.on(IPC.notificationAck, (_e, slotKey: string, id: string) =>
+  sockets.get(slotKey)?.sendMessage({ type: 'notification_ack', id }),
+);
 
 ipcMain.handle(IPC.settingsGet, () => createFileSettingsStore(app.getPath('userData')).load());
 ipcMain.handle(IPC.settingsSave, (_e, settings: AppSettings) =>

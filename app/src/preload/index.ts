@@ -28,6 +28,8 @@ const api: OmadiaCanvasApi = {
   requestCanvasList: (slotKey: string) => ipcRenderer.send(IPC.canvasListGet, slotKey),
   saveCanvasList: (slotKey: string, canvases: CanvasListEntry[]) =>
     ipcRenderer.send(IPC.canvasListPut, slotKey, canvases),
+  ackNotification: (slotKey: string, id: string) =>
+    ipcRenderer.send(IPC.notificationAck, slotKey, id),
   onServerMessage: (cb: (slotKey: string, msg: ServerMessage) => void) =>
     subscribeKeyed(IPC.serverMessage, cb),
   onStatus: (cb: (slotKey: string, status: ConnectionStatus) => void) =>

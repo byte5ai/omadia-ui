@@ -42,6 +42,8 @@ export interface OmadiaCanvasApi {
   /** per-user canvas registry sync (multi-canvas sidebar) */
   requestCanvasList(slotKey: string): void;
   saveCanvasList(slotKey: string, canvases: CanvasListEntry[]): void;
+  /** notification seen/dismissed (issue #15) */
+  ackNotification(slotKey: string, id: string): void;
   onServerMessage(cb: (slotKey: string, msg: ServerMessage) => void): () => void;
   onStatus(cb: (slotKey: string, status: ConnectionStatus) => void): () => void;
   getSettings(): Promise<AppSettings | null>;
@@ -55,6 +57,7 @@ export const IPC = {
   resync: 'canvas:resync',
   canvasListGet: 'canvas:list-get',
   canvasListPut: 'canvas:list-put',
+  notificationAck: 'canvas:notification-ack',
   serverMessage: 'canvas:server-message',
   status: 'canvas:status',
   settingsGet: 'settings:get',
