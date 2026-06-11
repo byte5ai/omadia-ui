@@ -28,19 +28,20 @@ describe('desktopStore', () => {
     globalThis.localStorage = memStorage();
   });
 
-  it('persists desktops, prunes vanished canvases, clamps name/color', () => {
+  it('persists desktops, keeps layouts intact across load, clamps name/color', () => {
     const d1 = newDesktop(0, splitLeaf(leaf('s1'), 's1', 'columns', 's2'));
     const d2 = { ...newDesktop(1, leaf('s3')), name: 'X'.repeat(99), color: 99 };
     saveDesktops([d1, d2], d2.desktopId);
-    const loaded = loadDesktops(new Set(['s1', 's3']));
+    const loaded = loadDesktops();
     expect(loaded).not.toBeNull();
     expect(loaded?.desktops).toHaveLength(2);
     expect(loaded?.activeId).toBe(d2.desktopId);
-    // s2 vanished → d1's split collapses to leaf s1
-    expect(loaded?.desktops[0]?.layout).toEqual(leaf('s1'));
+    // layouts are preserved verbatim — NOT pruned against a (possibly transient)
+    // known-slot set, which previously destroyed desktops on a partial load
+    expect(loaded?.desktops[0]?.layout).toEqual(d1.layout);
     expect(loaded?.desktops[1]?.name.length).toBeLessThanOrEqual(48);
     expect(loaded?.desktops[1]?.color).toBeLessThanOrEqual(5);
-    expect([...allDesktopSlotIds(loaded?.desktops ?? [])].sort()).toEqual(['s1', 's3']);
+    expect([...allDesktopSlotIds(loaded?.desktops ?? [])].sort()).toEqual(['s1', 's2', 's3']);
   });
 
   it('migrates the legacy single workspace into Desktop 1', () => {
@@ -48,14 +49,18 @@ describe('desktopStore', () => {
       'omadia.ui-prefs.workspace',
       JSON.stringify(splitLeaf(leaf('s1'), 's1', 'rows', 's2')),
     );
-    const loaded = loadDesktops(new Set(['s1', 's2']));
+    const loaded = loadDesktops();
     expect(loaded?.desktops).toHaveLength(1);
     expect(loaded?.desktops[0]?.name).toBe('Desktop 1');
     expect(allDesktopSlotIds(loaded?.desktops ?? []).size).toBe(2);
   });
 
-  it('returns null when nothing valid is stored', () => {
-    expect(loadDesktops(new Set(['nope']))).toBeNull();
+  it('returns null when nothing valid is stored (invalid layout shapes dropped)', () => {
+    localStorage.setItem(
+      'omadia.ui-prefs.desktops',
+      JSON.stringify({ desktops: [{ desktopId: 'd', layout: { kind: 'bogus' } }] }),
+    );
+    expect(loadDesktops()).toBeNull();
   });
 });
 
@@ -101,6 +106,39 @@ describe('desktop LVL2 wire mapping (sessionId ↔ slotId)', () => {
     const d2 = merged.find((d) => d.desktopId === 'd2');
     expect(d2?.layout).toEqual(leaf('s2')); // unknown session pruned, split collapsed
     expect(d2?.name).toBe('Vom Server');
+  });
+
+  it('does NOT overwrite a local desktop with a lossy wire mapping (incomplete slots)', () => {
+    // local desktop spanning two canvases; the server has a NEWER version, but
+    // this device only knows cs-1 yet (canvas list mid-sync → cs-2 unmappable).
+    const local = {
+      ...newDesktop(0, splitLeaf(leaf('s1'), 's1', 'columns', 's2')),
+      desktopId: 'd1',
+      name: 'Kurs',
+      updatedAt: 100,
+    };
+    const wire = [
+      {
+        desktopId: 'd1',
+        name: 'Kurs (Server)',
+        color: 0,
+        updatedAt: 500, // newer — would normally win
+        layout: {
+          kind: 'split' as const,
+          dir: 'columns' as const,
+          ratio: 0.5,
+          a: { kind: 'leaf' as const, sessionId: 'cs-1' },
+          b: { kind: 'leaf' as const, sessionId: 'cs-2' },
+        },
+      },
+    ];
+    const partialSlots = [{ slotId: 's1', title: 'A', color: 0, sessionId: 'cs-1' }];
+    const merged = mergeWireDesktops([local], wire, partialSlots, new Set());
+    const d1 = merged.find((d) => d.desktopId === 'd1');
+    // the lossy server mapping (cs-2 would drop) must NOT collapse the local
+    // desktop — local is kept verbatim until the next, complete sync.
+    expect(d1?.layout).toEqual(local.layout);
+    expect(d1?.name).toBe('Kurs');
   });
 });
 

@@ -106,9 +106,8 @@ export function App() {
   // structural change below writes into the active desktop.
   const initialDesktops = useRef<{ desktops: DesktopMeta[]; activeId: string } | null>(null);
   if (initialDesktops.current === null) {
-    const known = new Set(initialSlots.current.slots.map((s) => s.slotId));
     initialDesktops.current =
-      loadDesktops(known) ??
+      loadDesktops() ??
       (() => {
         const d = newDesktop(
           0,

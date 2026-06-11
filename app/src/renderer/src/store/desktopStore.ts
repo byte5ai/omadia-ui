@@ -38,15 +38,22 @@ export function newDesktop(index: number, layout: WorkspaceNode): DesktopMeta {
   };
 }
 
-function sanitizeLayout(node: unknown, known: ReadonlySet<string>): WorkspaceNode | null {
+/** Validate a stored layout's SHAPE only — every leaf with a non-empty slotId is
+ *  kept. We deliberately do NOT prune against the currently-known slot set here:
+ *  at load/merge time that set can be transiently incomplete (canvas list not
+ *  yet synced), and dropping a "not-yet-known" leaf then PERSISTING the shrunk
+ *  layout silently destroys the user's desktops. A genuinely deleted canvas is
+ *  removed from every desktop explicitly by `deleteCanvas` (App.tsx) — that is
+ *  the only sanctioned way a pane leaves a layout. */
+function sanitizeLayout(node: unknown): WorkspaceNode | null {
   if (typeof node !== 'object' || node === null) return null;
   const n = node as Record<string, unknown>;
   if (n['kind'] === 'leaf') {
-    return typeof n['slotId'] === 'string' && known.has(n['slotId']) ? leaf(n['slotId']) : null;
+    return typeof n['slotId'] === 'string' && n['slotId'].length > 0 ? leaf(n['slotId']) : null;
   }
   if (n['kind'] === 'split' && (n['dir'] === 'columns' || n['dir'] === 'rows')) {
-    const a = sanitizeLayout(n['a'], known);
-    const b = sanitizeLayout(n['b'], known);
+    const a = sanitizeLayout(n['a']);
+    const b = sanitizeLayout(n['b']);
     if (a && b) {
       return {
         kind: 'split',
@@ -61,11 +68,10 @@ function sanitizeLayout(node: unknown, known: ReadonlySet<string>): WorkspaceNod
   return null;
 }
 
-/** Load persisted desktops, pruning vanished canvases. Falls back to a
- *  one-time migration of the legacy single-workspace layout. */
-export function loadDesktops(
-  knownSlotIds: ReadonlySet<string>,
-): { desktops: DesktopMeta[]; activeId: string } | null {
+/** Load persisted desktops (shape-validated, layouts kept intact — see
+ *  sanitizeLayout for why we no longer prune against the known slot set).
+ *  Falls back to a one-time migration of the legacy single-workspace layout. */
+export function loadDesktops(): { desktops: DesktopMeta[]; activeId: string } | null {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '') as {
       desktops?: unknown;
@@ -78,7 +84,7 @@ export function loadDesktops(
         )
         .map((d): DesktopMeta | null => {
           if (typeof d['desktopId'] !== 'string') return null;
-          const layout = sanitizeLayout(d['layout'], knownSlotIds);
+          const layout = sanitizeLayout(d['layout']);
           if (!layout) return null;
           return {
             desktopId: d['desktopId'],
@@ -110,7 +116,6 @@ export function loadDesktops(
   try {
     const legacy = sanitizeLayout(
       JSON.parse(localStorage.getItem(LEGACY_WORKSPACE_KEY) ?? ''),
-      knownSlotIds,
     );
     if (legacy) {
       const d = newDesktop(0, legacy);
@@ -189,6 +194,15 @@ function layoutFromWire(
   return a ?? b;
 }
 
+/** Every sessionId referenced by a wire layout (for the "fully resolvable"
+ *  check below — a wire layout that maps only partially must not overwrite a
+ *  local desktop). */
+function wireSessionIds(node: DesktopLayoutWire): string[] {
+  return node.kind === 'leaf'
+    ? [node.sessionId]
+    : [...wireSessionIds(node.a), ...wireSessionIds(node.b)];
+}
+
 /** Merge the server's desktop list into the local one: last-write-wins per
  *  desktopId via `updatedAt`; server-only desktops are added (their layouts
  *  mapped sessionId→slotId — leaves whose canvas is unknown prune); local-only
@@ -215,6 +229,15 @@ export function mergeWireDesktops(
       // nothing resolvable on this device (yet) — keep the local version if
       // present rather than materialising an empty desktop
       if (existing) merged.push(existing);
+      continue;
+    }
+    // Hardening: a wire layout that references a canvas this device doesn't know
+    // YET (some sessions unmappable because the canvas list is mid-sync) maps to
+    // a SHRUNK layout. Never overwrite a local desktop with that lossy mapping —
+    // it silently collapses the user's desktop (the bug this fixes). Keep local;
+    // the next sync, once slots are complete, reconciles cleanly.
+    if (existing && !wireSessionIds(w.layout).every((sid) => slotOf(sid) !== undefined)) {
+      merged.push(existing);
       continue;
     }
     merged.push({
