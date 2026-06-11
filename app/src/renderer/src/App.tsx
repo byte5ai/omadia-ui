@@ -718,6 +718,16 @@ export function App() {
     setCanvas((c) => ({ ...c, turnPending: true, turnError: null, prose: '' }));
   };
 
+  /** PR-9b-3: on an ACTION turn, hand the server our live tree + revision so it
+   *  patches IN PLACE (no skeleton remount) — a status-flip becomes a
+   *  surface_patch, a full recompose still snapshots. Only when a real server
+   *  tree is rendered; never the local-pending skeleton. Mirrors refreshCanvas. */
+  const inPlaceCanvasState = (): { basedOnRevision: string; currentTree: unknown } | undefined => {
+    if (!canvas.tree || canvas.revision === null) return undefined;
+    if ((canvas.tree as { id?: string }).id === 'local-pending') return undefined;
+    return { basedOnRevision: canvas.revision, currentTree: canvas.tree };
+  };
+
   const submitPrompt = () => {
     const text = draft.trim();
     if (!text) return;
@@ -763,6 +773,8 @@ export function App() {
       turnId,
       action: { type: action.type, payload: action.payload },
       ...(action.sourceId ? { target: { kind: 'element', elementId: action.sourceId } } : {}),
+      // PR-9b-3: hand our live tree so the server patches in place, no remount.
+      ...(inPlaceCanvasState() ?? {}),
     });
   };
 
@@ -1172,6 +1184,8 @@ export function App() {
               type: 'turn',
               turnId: crypto.randomUUID(),
               action: { type: n.action.type, payload: n.action.payload },
+              // PR-9b-3: patch in place when a live tree is rendered.
+              ...(inPlaceCanvasState() ?? {}),
             });
             setCanvas((c) => ({ ...c, turnPending: true, turnError: null, prose: '' }));
           }

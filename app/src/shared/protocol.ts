@@ -150,6 +150,13 @@ export interface ClientTurn {
   target?: unknown;
   viewState?: unknown;
   viewStateTruncated?: boolean;
+  /** PR-9b-3 in-place action: the client's live tree + the revision it is at,
+   *  sent on an ACTION turn so the server patches in place instead of remounting
+   *  a fresh skeleton. Same pair as canvas_refresh; both present together or
+   *  neither. The server skips skeleton composition and synthesises on top of
+   *  currentTree — a plugin status-flip lands as a surface_patch (no remount). */
+  basedOnRevision?: string;
+  currentTree?: unknown;
 }
 
 /** client → server: fetch / replace the user's persisted canvas list. */
