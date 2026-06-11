@@ -29,12 +29,16 @@ import {
   type CanvasSlotMeta,
 } from './store/canvasSlots.js';
 import {
+  loadDesktops,
+  newDesktop,
+  saveDesktops,
+  type DesktopMeta,
+} from './store/desktopStore.js';
+import {
   collectSlotIds,
   leaf,
-  loadWorkspace,
   removeLeaf,
   replaceLeaf,
-  saveWorkspace,
   setRatioAt,
   splitLeaf,
   type SplitDir,
@@ -95,18 +99,40 @@ export function App() {
   const [activeSlotId, setActiveSlotId] = useState<string>(
     initialSlots.current.activeId || (initialSlots.current.slots[0]?.slotId ?? ''),
   );
-  // tiling workspace (issue #14): binary split tree of canvases; persisted —
-  // leaves whose canvas vanished are pruned at load
-  const [layout, setLayout] = useState<WorkspaceNode>(() => {
+  // multi-DESKTOPS: each desktop is a named, colored tiling layout (issue
+  // #14 follow-up). The active desktop's split tree is "the layout"; every
+  // structural change below writes into the active desktop.
+  const initialDesktops = useRef<{ desktops: DesktopMeta[]; activeId: string } | null>(null);
+  if (initialDesktops.current === null) {
     const known = new Set(initialSlots.current.slots.map((s) => s.slotId));
-    return (
-      loadWorkspace(known) ??
-      leaf(initialSlots.current.activeId || (initialSlots.current.slots[0]?.slotId ?? ''))
+    initialDesktops.current =
+      loadDesktops(known) ??
+      (() => {
+        const d = newDesktop(
+          0,
+          leaf(initialSlots.current.activeId || (initialSlots.current.slots[0]?.slotId ?? '')),
+        );
+        return { desktops: [d], activeId: d.desktopId };
+      })();
+  }
+  const [desktops, setDesktops] = useState<DesktopMeta[]>(initialDesktops.current.desktops);
+  const [activeDesktopId, setActiveDesktopId] = useState<string>(initialDesktops.current.activeId);
+  const activeDesktopIdRef = useRef(activeDesktopId);
+  activeDesktopIdRef.current = activeDesktopId;
+  const layout: WorkspaceNode =
+    desktops.find((d) => d.desktopId === activeDesktopId)?.layout ??
+    leaf(initialSlots.current.slots[0]?.slotId ?? '');
+  const setLayout = (updater: WorkspaceNode | ((l: WorkspaceNode) => WorkspaceNode)): void =>
+    setDesktops((prev) =>
+      prev.map((d) =>
+        d.desktopId === activeDesktopIdRef.current
+          ? { ...d, layout: typeof updater === 'function' ? updater(d.layout) : updater }
+          : d,
+      ),
     );
-  });
   useEffect(() => {
-    saveWorkspace(layout);
-  }, [layout]);
+    saveDesktops(desktops, activeDesktopId);
+  }, [desktops, activeDesktopId]);
   // one canvas state per slot — background slots keep receiving their
   // streams (one socket per slot), so switching mid-turn loses nothing
   const slotStates = useRef(new Map<string, CanvasState>());
@@ -411,6 +437,43 @@ export function App() {
     focusSlot(slot.slotId);
   };
 
+  /** Switch desktop: the whole tiling layout swaps; every canvas socket
+   *  keeps streaming. Panes of the target desktop dial lazily. */
+  const switchDesktop = (desktopId: string) => {
+    if (desktopId === activeDesktopId) return;
+    const target = desktops.find((d) => d.desktopId === desktopId);
+    if (!target) return;
+    setActiveDesktopId(desktopId);
+    const leaves = collectSlotIds(target.layout);
+    for (const slotId of leaves) ensureConnected(slotId);
+    const focusTarget = leaves.includes(activeSlotIdRef.current)
+      ? activeSlotIdRef.current
+      : leaves[0];
+    if (focusTarget && focusTarget !== activeSlotIdRef.current) focusSlot(focusTarget);
+  };
+
+  /** New desktop: starts as a single chooser pane (ask Omadia or adopt). */
+  const addDesktop = () => {
+    if (!settings) return;
+    const slot = newSlot(slots.length);
+    chooserSlots.current.add(slot.slotId);
+    setSlots((prev) => [...prev, slot]);
+    const d = newDesktop(desktops.length, leaf(slot.slotId));
+    setDesktops((prev) => [...prev, d]);
+    setActiveDesktopId(d.desktopId);
+    focusSlot(slot.slotId);
+  };
+
+  const renameDesktop = (desktopId: string, name: string) =>
+    setDesktops((prev) =>
+      prev.map((d) => (d.desktopId === desktopId ? { ...d, name: name.slice(0, 48) } : d)),
+    );
+
+  const cycleDesktopColor = (desktopId: string) =>
+    setDesktops((prev) =>
+      prev.map((d) => (d.desktopId === desktopId ? { ...d, color: (d.color + 1) % 6 } : d)),
+    );
+
   /** New Column / New Row (issue #14): split the pane. The new pane takes
    *  focus and shows the CHOOSER — ask Omadia fresh, or adopt an existing
    *  canvas (library look). */
@@ -495,7 +558,8 @@ export function App() {
       setShowPrompt(false);
       setDraft('');
       setStatus({ state: 'connecting' });
-      setLayout(leaf(fresh.slotId));
+      // every desktop's layout falls back to the fresh cold-start canvas
+      setDesktops((prev) => prev.map((d) => ({ ...d, layout: leaf(fresh.slotId) })));
       void window.omadiaCanvas.connect(fresh.slotId, {
         ...toConnectOptions(settings),
         freshSession: true,
@@ -503,17 +567,17 @@ export function App() {
       return;
     }
     setSlots(remaining);
-    // prune the deleted canvas out of the tiling layout (issue #14) — its
-    // pane collapses into the sibling; the last pane falls back to a leaf
-    const pruned = removeLeaf(layout, slotId);
+    // prune the deleted canvas out of EVERY desktop's layout — its pane
+    // collapses into the sibling; an emptied desktop falls back to a leaf
+    const fallbackSlotId = (remaining[0] as CanvasSlotMeta).slotId;
+    const prunedActive = removeLeaf(layout, slotId);
+    setDesktops((prev) =>
+      prev.map((d) => ({ ...d, layout: removeLeaf(d.layout, slotId) ?? leaf(fallbackSlotId) })),
+    );
     if (slotId === activeSlotId) {
-      const fallback =
-        (pruned ? collectSlotIds(pruned)[0] : undefined) ??
-        (remaining[0] as CanvasSlotMeta).slotId;
-      setLayout(pruned ?? leaf(fallback));
-      focusSlot(fallback);
-    } else {
-      setLayout(pruned ?? leaf(activeSlotIdRef.current));
+      const focusTarget =
+        (prunedActive ? collectSlotIds(prunedActive)[0] : undefined) ?? fallbackSlotId;
+      focusSlot(focusTarget);
     }
   };
 
@@ -858,6 +922,12 @@ export function App() {
   return (
     <div style={{ display: 'flex', flexDirection: 'row', height: '100%' }}>
       <Sidebar
+        desktops={desktops}
+        activeDesktopId={activeDesktopId}
+        onSelectDesktop={switchDesktop}
+        onAddDesktop={addDesktop}
+        onRenameDesktop={renameDesktop}
+        onDesktopColor={cycleDesktopColor}
         slots={slots}
         activeSlotId={activeSlotId}
         busySlotIds={busySlots}

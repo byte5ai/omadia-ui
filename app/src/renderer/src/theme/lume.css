@@ -755,6 +755,39 @@ body {
   flex: 1;
   overflow-y: auto;
 }
+/* desktops section (compact) above the canvases section */
+.lume-sidebar-section-title {
+  font-family: var(--lume-font-structural);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lume-text-tertiary);
+  padding: 4px 10px 2px;
+}
+.lume-sidebar-desktops {
+  flex: 0 0 auto;
+  max-height: 32%;
+}
+.lume-desktop-dot {
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.lume-desktop-dot:hover {
+  box-shadow: 0 0 6px var(--lume-accent-glow);
+}
+.lume-sidebar-rename {
+  flex: 1;
+  min-width: 0;
+  background: linear-gradient(180deg, var(--lume-sunken-top) 0%, var(--lume-sunken-btm) 100%);
+  border: 1px solid var(--lume-accent);
+  border-radius: var(--lume-radius-sm);
+  color: var(--lume-text);
+  font-family: var(--lume-font-structural);
+  font-size: 13px;
+  padding: 1px 6px;
+  outline: none;
+}
 .lume-sidebar-item {
   display: flex;
   align-items: center;

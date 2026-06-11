@@ -56,6 +56,12 @@ export function Onboarding({ defaults, status, busy, canCancel, onSubmit, onCanc
       setError('Enter a ws:// or wss:// server URL.');
       return null;
     }
+    // the canvas endpoint path is protocol-fixed — a typo here persists and
+    // 404s every canvas connect while the auth API (origin-only) still works
+    if (!trimmedUrl.endsWith('/omadia-ui/canvas')) {
+      setError('The server URL must end with /omadia-ui/canvas.');
+      return null;
+    }
     if (useAuth && trimmedLogin && !HTTP_PATTERN.test(trimmedLogin)) {
       setError('Login URL must be http:// or https://.');
       return null;
