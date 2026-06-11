@@ -7,7 +7,8 @@
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
-    "gen:validator": "tsx tools/gen-validator/genValidator.ts",
+    "sync:schema": "node ../scripts/sync-canvas-schema.mjs",
+    "gen:validator": "npm run sync:schema && tsx tools/gen-validator/genValidator.ts",
     "predev": "npm run gen:validator",
     "dev": "electron-vite dev",
     "prebuild": "npm run gen:validator",
