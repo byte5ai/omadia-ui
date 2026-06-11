@@ -10,3 +10,4 @@ build/
 
 # synced from canonical @omadia/canvas-core — see scripts/sync-canvas-schema.mjs
 docs/protocol/schema/*.schema.json
+docs/protocol/fixtures/*.json
