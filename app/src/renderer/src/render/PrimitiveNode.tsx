@@ -78,6 +78,16 @@ const styleClasses = (node: PrimitiveJson): string => {
     .join(' ');
 };
 
+/** schema `tone` severity hint → Lume status-colour class. neutral/absent → none. */
+const toneClass = (node: PrimitiveJson): string => {
+  const tone = node['tone'];
+  return typeof tone === 'string' && tone !== 'neutral' ? `lume-tone-${tone}` : '';
+};
+
+/** Combine style tokens + tone into a single className fragment. */
+const presentationClasses = (node: PrimitiveJson): string =>
+  [styleClasses(node), toneClass(node)].filter(Boolean).join(' ');
+
 const children = (node: PrimitiveJson, ctx: Omit<Props, 'node'>): ReactNode =>
   Array.isArray(node['children'])
     ? (node['children'] as PrimitiveJson[]).map((c, i) => (
@@ -220,11 +230,16 @@ function renderNode(node: PrimitiveJson, ctx: Omit<Props, 'node'>): ReactNode {
     }
 
     case 'list': {
-      const items = (node['items'] as Array<{ itemKey: string; label?: string }>) ?? [];
+      const items =
+        (node['items'] as Array<{ itemKey: string; label?: string; tone?: string }>) ?? [];
       return (
-        <ul className="lume-list" data-id={node['id'] as string}>
+        <ul className={`lume-list ${presentationClasses(node)}`.trim()} data-id={node['id'] as string}>
           {items.map((i) => (
-            <li key={i.itemKey} data-item-key={i.itemKey}>
+            <li
+              key={i.itemKey}
+              data-item-key={i.itemKey}
+              className={i.tone && i.tone !== 'neutral' ? `lume-tone-${i.tone}` : undefined}
+            >
               {i.label ?? i.itemKey}
             </li>
           ))}
@@ -349,7 +364,7 @@ function renderNode(node: PrimitiveJson, ctx: Omit<Props, 'node'>): ReactNode {
 
     case 'status':
       return (
-        <div className="lume-status" data-id={node['id'] as string}>
+        <div className={`lume-status ${presentationClasses(node)}`.trim()} data-id={node['id'] as string}>
           {(node['text'] as string) ?? ''}
         </div>
       );
