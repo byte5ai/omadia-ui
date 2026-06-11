@@ -863,6 +863,115 @@ body {
   }
 }
 
+/* ── tiling workspace (issue #14): split tree → nested flex panes ── */
+.lume-workspace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  padding: 6px;
+}
+.lume-workspace-split {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.lume-workspace-cell {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-grow: 0;
+  flex-shrink: 0;
+}
+.lume-workspace-divider {
+  flex: none;
+  background: transparent;
+  transition: background var(--lume-motion-quick) var(--lume-ease-standard);
+}
+.lume-workspace-divider:hover,
+.lume-workspace-divider:active {
+  background: var(--lume-accent-subtle);
+}
+.lume-workspace-divider-columns {
+  width: 6px;
+  cursor: col-resize;
+}
+.lume-workspace-divider-rows {
+  height: 6px;
+  cursor: row-resize;
+}
+.lume-workspace-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--lume-border-subtle-btm);
+  border-radius: var(--lume-radius-md);
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--lume-surface-top) 0%, var(--lume-surface-btm) 100%);
+}
+/* the focused pane is LIT — it is where turns and beam input go (§3.2) */
+.lume-workspace-pane-focused {
+  border-color: var(--lume-accent);
+  box-shadow:
+    0 0 12px -4px var(--lume-accent-glow-core),
+    0 0 24px -8px var(--lume-accent-glow);
+}
+.lume-pane-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 10px;
+  border-bottom: 1px solid var(--lume-border-subtle-btm);
+  flex: none;
+}
+.lume-pane-bar-title {
+  font-family: var(--lume-font-structural);
+  font-size: 11px;
+  color: var(--lume-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lume-pane-bar-busy {
+  color: var(--lume-accent);
+  animation: lume-beam-pulse 1.4s var(--lume-ease-standard) infinite;
+}
+.lume-pane-bar-actions {
+  display: flex;
+  gap: 2px;
+  flex: none;
+}
+.lume-pane-bar-actions button {
+  background: none;
+  border: none;
+  color: var(--lume-text-tertiary);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 1px 5px;
+  border-radius: var(--lume-radius-sm);
+}
+.lume-pane-bar-actions button:hover {
+  color: var(--lume-text);
+  background: var(--lume-accent-subtle);
+}
+.lume-workspace-pane-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+}
+.lume-pane-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--lume-text-tertiary);
+  font-size: 12px;
+}
+
 /* ── notifications (issue #15): toast / banner / bell — §2.6 semantic
    states are TEXT colors, never pills; popover elevation for overlays ── */
 .lume-toast-stack {

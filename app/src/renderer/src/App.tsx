@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AppSettings, ConnectOptions, ConnectionStatus } from '../../shared/ipc.js';
 import { applyServerMessage, goBack, initialCanvasState, type CanvasState } from './store/canvasStore.js';
 import { validateTree } from './validate/validator.js';
@@ -27,8 +27,21 @@ import {
   saveSlots,
   type CanvasSlotMeta,
 } from './store/canvasSlots.js';
+import {
+  collectSlotIds,
+  leaf,
+  loadWorkspace,
+  removeLeaf,
+  replaceLeaf,
+  saveWorkspace,
+  setRatioAt,
+  splitLeaf,
+  type SplitDir,
+  type WorkspaceNode,
+} from './store/workspaceStore.js';
 import { initPalette } from './theme/palette.js';
 import { PalettePicker } from './theme/PalettePicker.js';
+import { Workspace } from './Workspace.js';
 
 const DEFAULT_WS_URL: string =
   import.meta.env.VITE_OMADIA_WS_URL ?? 'ws://127.0.0.1:8181/omadia-ui/canvas';
@@ -81,6 +94,18 @@ export function App() {
   const [activeSlotId, setActiveSlotId] = useState<string>(
     initialSlots.current.activeId || (initialSlots.current.slots[0]?.slotId ?? ''),
   );
+  // tiling workspace (issue #14): binary split tree of canvases; persisted —
+  // leaves whose canvas vanished are pruned at load
+  const [layout, setLayout] = useState<WorkspaceNode>(() => {
+    const known = new Set(initialSlots.current.slots.map((s) => s.slotId));
+    return (
+      loadWorkspace(known) ??
+      leaf(initialSlots.current.activeId || (initialSlots.current.slots[0]?.slotId ?? ''))
+    );
+  });
+  useEffect(() => {
+    saveWorkspace(layout);
+  }, [layout]);
   // one canvas state per slot — background slots keep receiving their
   // streams (one socket per slot), so switching mid-turn loses nothing
   const slotStates = useRef(new Map<string, CanvasState>());
@@ -247,15 +272,20 @@ export function App() {
     });
     void window.omadiaCanvas.getSettings().then((saved) => {
       setSettings(saved);
-      // resume the ACTIVE slot's canvas session (not just the last-used file id)
-      const activeId =
-        initialSlots.current.activeId || (initialSlots.current.slots[0]?.slotId ?? '');
-      const active = initialSlots.current.slots.find((s) => s.slotId === activeId);
-      if (saved && active)
-        void window.omadiaCanvas.connect(active.slotId, {
+      if (!saved) return;
+      // every pane of the persisted workspace dials its own socket — the
+      // focused pane must be one of them (the layout may have been pruned)
+      const leaves = collectSlotIds(layout);
+      if (!leaves.includes(activeSlotIdRef.current) && leaves[0]) {
+        setActiveSlotId(leaves[0]);
+      }
+      for (const slotId of leaves) {
+        const slot = initialSlots.current.slots.find((s) => s.slotId === slotId);
+        void window.omadiaCanvas.connect(slotId, {
           ...toConnectOptions(saved),
-          ...(active.sessionId ? { canvasSessionId: active.sessionId } : { freshSession: true }),
+          ...(slot?.sessionId ? { canvasSessionId: slot.sessionId } : { freshSession: true }),
         });
+      }
     });
     initPalette();
     const onKey = (e: KeyboardEvent) => {
@@ -324,44 +354,67 @@ export function App() {
     saveSlots(slots, activeSlotId);
   }, [slots, activeSlotId]);
 
-  /** Surface the target slot. A connected slot is a pure VIEW swap — its
-   *  socket (and any in-flight turn stream) keeps running untouched. Only a
-   *  never-connected slot dials a socket. */
-  const switchCanvas = (slotId: string) => {
-    if (slotId === activeSlotId || !settings) return;
-    const target = slots.find((s) => s.slotId === slotId);
+  const ensureConnected = (slotId: string) => {
+    if (!settings || connectedSlots.current.has(slotId)) return;
+    const slot = slots.find((s) => s.slotId === slotId);
+    void window.omadiaCanvas.connect(slotId, {
+      ...toConnectOptions(settings),
+      ...(slot?.sessionId ? { canvasSessionId: slot.sessionId } : { freshSession: true }),
+    });
+  };
+
+  /** Focus a pane: pure view/state swap — sockets and in-flight streams of
+   *  every pane keep running untouched. */
+  const focusSlot = (slotId: string) => {
+    if (slotId === activeSlotId) return;
     setActiveSlotId(slotId);
     setCanvas(slotStates.current.get(slotId) ?? initialCanvasState);
     setBeam(null);
     setRowMenu(null);
     setShowPrompt(false);
     setDraft('');
-    if (connectedSlots.current.has(slotId)) {
-      setStatus(statusBySlot.current.get(slotId) ?? { state: 'connecting' });
-      return;
+    setStatus(statusBySlot.current.get(slotId) ?? { state: 'connecting' });
+    ensureConnected(slotId);
+  };
+
+  /** Sidebar select: focus the pane already showing this canvas, else load
+   *  it into the FOCUSED pane (single-pane layout = the classic full switch). */
+  const switchCanvas = (slotId: string) => {
+    if (!settings || slotId === activeSlotId) return;
+    if (!collectSlotIds(layout).includes(slotId)) {
+      setLayout((l) => replaceLeaf(l, activeSlotIdRef.current, slotId));
     }
-    setStatus({ state: 'connecting' });
-    void window.omadiaCanvas.connect(slotId, {
-      ...toConnectOptions(settings),
-      ...(target?.sessionId ? { canvasSessionId: target.sessionId } : { freshSession: true }),
-    });
+    focusSlot(slotId);
   };
 
   const addCanvas = () => {
     if (!settings) return;
     const slot = newSlot(slots.length);
     setSlots((prev) => [...prev, slot]);
-    setActiveSlotId(slot.slotId);
-    setCanvas(initialCanvasState);
-    setBeam(null);
-    setRowMenu(null);
-    setShowPrompt(false);
-    setDraft('');
-    setStatus({ state: 'connecting' });
-    void window.omadiaCanvas.connect(slot.slotId, {
-      ...toConnectOptions(settings),
-      freshSession: true,
-    });
+    setLayout((l) => replaceLeaf(l, activeSlotIdRef.current, slot.slotId));
+    focusSlot(slot.slotId);
+  };
+
+  /** New Column / New Row (issue #14): split the pane, host a fresh canvas
+   *  beside/below it. The new pane takes focus. */
+  const splitPane = (targetSlotId: string, dir: SplitDir) => {
+    if (!settings) return;
+    const slot = newSlot(slots.length);
+    setSlots((prev) => [...prev, slot]);
+    setLayout((l) => splitLeaf(l, targetSlotId, dir, slot.slotId));
+    focusSlot(slot.slotId);
+  };
+
+  /** Close a pane — the canvas itself stays in the sidebar (its socket and
+   *  stream keep running); the last pane cannot close. */
+  const closePane = (slotId: string) => {
+    const next = removeLeaf(layout, slotId);
+    if (!next) return;
+    setLayout(next);
+    if (slotId === activeSlotIdRef.current) {
+      const first = collectSlotIds(next)[0];
+      if (first) focusSlot(first);
+    }
   };
 
   const submitSetup = (candidate: AppSettings) => {
@@ -487,6 +540,92 @@ export function App() {
   if (canvas.turnPending) busySlots.add(activeSlotId);
   else busySlots.delete(activeSlotId);
 
+  // One pane = one independent canvas. The focused pane renders the live
+  // `canvas` state; background panes their (still streaming) parked state.
+  const renderPane = (slotId: string): ReactNode => {
+    const focused = slotId === activeSlotId;
+    const st = focused ? canvas : (slotStates.current.get(slotId) ?? initialCanvasState);
+    if (st.tree === null) {
+      if (!focused) {
+        return <div className="lume-pane-empty">Leerer Canvas — klicken zum Fokussieren.</div>;
+      }
+      return (
+        // Cold-start: a canvas is never empty (concept §Interaction Model).
+        // Spotlight treatment per visual-spec §5.3 — the stage itself glows.
+        <div className="lume-spotlight">
+          <input
+            ref={promptRef}
+            className="lume-input lume-spotlight-input"
+            autoFocus
+            placeholder="Ask omadia…"
+            disabled={status.state !== 'ready'}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && submitPrompt()}
+          />
+          {status.state === 'failed' && (
+            <div className="lume-canvas-error">
+              <span>{status.detail ?? 'Connection failed.'}</span>
+              <button
+                className="lume-button"
+                onClick={() => {
+                  setStatus({ state: 'connecting' });
+                  const active = slots.find((s) => s.slotId === activeSlotId);
+                  void window.omadiaCanvas.connect(activeSlotId, {
+                    ...toConnectOptions(settings),
+                    ...(active?.sessionId
+                      ? { canvasSessionId: active.sessionId }
+                      : { freshSession: true }),
+                  });
+                }}
+              >
+                Retry
+              </button>
+              <button className="lume-button" onClick={() => setShowSetup(true)}>
+                Change server
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+    return (
+      <>
+        {/* view-only back navigation — focused pane only */}
+        {focused && canvas.history.length > 0 && (
+          <button className="lume-button lume-back-button" onClick={() => setCanvas((c) => goBack(c))}>
+            ← Zurück
+          </button>
+        )}
+        {/* §6.1 motion split: snapshot → crossfade (key per snapshot run);
+            patch → per-node condensation via the condense prop. */}
+        <div
+          key={st.snapshotRevision ?? 'local-pending'}
+          className={st.lastApply?.kind === 'snapshot' ? 'lume-crossfade' : undefined}
+        >
+          <PrimitiveNode
+            node={st.tree as PrimitiveJson}
+            onAction={onAction}
+            onRowMenu={(req) => {
+              setBeamDraft('');
+              setRowMenu(req);
+            }}
+            condense={
+              st.lastApply?.kind === 'patch'
+                ? {
+                    ids: new Set(st.lastApply.changedIds),
+                    revision: st.lastApply.revision,
+                    rapid: st.lastApply.rapid,
+                  }
+                : undefined
+            }
+            beamTarget={focused ? beam : null}
+          />
+        </div>
+      </>
+    );
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'row', height: '100%' }}>
       <Sidebar
@@ -504,80 +643,19 @@ export function App() {
           <span className="lume-turn-progress-bar" />
         </div>
       )}
-      <div style={{ flex: 1, overflow: 'auto' }}>
-        {/* view-only back navigation — in flow, above the tree; Layer-2
-            persistence is a later slice */}
-        {canvas.tree !== null && canvas.history.length > 0 && (
-          <button className="lume-button lume-back-button" onClick={() => setCanvas((c) => goBack(c))}>
-            ← Zurück
-          </button>
-        )}
-        {canvas.tree ? (
-          // §6.1 motion split: snapshot → full-canvas crossfade (key per
-          // snapshot run, so patches never remount the tree); patch →
-          // per-node condensation via the condense prop.
-          <div
-            key={canvas.snapshotRevision ?? 'local-pending'}
-            className={canvas.lastApply?.kind === 'snapshot' ? 'lume-crossfade' : undefined}
-          >
-            <PrimitiveNode
-              node={canvas.tree as PrimitiveJson}
-              onAction={onAction}
-              onRowMenu={(req) => {
-                setBeamDraft('');
-                setRowMenu(req);
-              }}
-              condense={
-                canvas.lastApply?.kind === 'patch'
-                  ? {
-                      ids: new Set(canvas.lastApply.changedIds),
-                      revision: canvas.lastApply.revision,
-                      rapid: canvas.lastApply.rapid,
-                    }
-                  : undefined
-              }
-              beamTarget={beam}
-            />
-          </div>
-        ) : (
-          // Cold-start: a canvas is never empty (concept §Interaction Model).
-          // Spotlight treatment per visual-spec §5.3 — the stage itself glows.
-          <div className="lume-spotlight">
-            <input
-              ref={promptRef}
-              className="lume-input lume-spotlight-input"
-              autoFocus
-              placeholder="Ask omadia…"
-              disabled={status.state !== 'ready'}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && submitPrompt()}
-            />
-            {status.state === 'failed' && (
-              <div className="lume-canvas-error">
-                <span>{status.detail ?? 'Connection failed.'}</span>
-                <button
-                  className="lume-button"
-                  onClick={() => {
-                    setStatus({ state: 'connecting' });
-                    const active = slots.find((s) => s.slotId === activeSlotId);
-                    void window.omadiaCanvas.connect(activeSlotId, {
-                      ...toConnectOptions(settings),
-                      ...(active?.sessionId
-                        ? { canvasSessionId: active.sessionId }
-                        : { freshSession: true }),
-                    });
-                  }}
-                >
-                  Retry
-                </button>
-                <button className="lume-button" onClick={() => setShowSetup(true)}>
-                  Change server
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+      <div className="lume-workspace">
+        <Workspace
+          layout={layout}
+          activeSlotId={activeSlotId}
+          busySlotIds={busySlots}
+          canClose={layout.kind === 'split'}
+          paneTitle={(id) => slots.find((s) => s.slotId === id)?.title ?? 'Canvas'}
+          renderPane={renderPane}
+          onFocus={focusSlot}
+          onSplit={splitPane}
+          onClose={closePane}
+          onRatioChange={(path, ratio) => setLayout((l) => setRatioAt(l, path, ratio))}
+        />
       </div>
       {rowMenu && (
         // context-invoke action panel: agent-pre-supplied suggestedActions
