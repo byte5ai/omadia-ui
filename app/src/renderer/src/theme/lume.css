@@ -806,6 +806,173 @@ body {
     box-shadow: 0 0 6px var(--lume-accent-glow);
   }
 }
+/* ── canvas library (issue #12 v1) — inventory overlay with live previews ── */
+.lume-library {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lume-library-panel {
+  width: min(1080px, calc(100vw - 64px));
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  background: linear-gradient(180deg, var(--lume-bg-top) 0%, var(--lume-bg-btm) 100%);
+  border: 1px solid var(--lume-border-subtle-btm);
+  border-radius: var(--lume-radius-lg);
+  padding: 20px 24px 24px;
+}
+.lume-library-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.lume-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.lume-library-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--lume-border-subtle-btm);
+  border-radius: var(--lume-radius-md);
+  padding: 12px;
+  background: var(--lume-sunken-btm, rgba(0, 0, 0, 0.12));
+}
+.lume-library-card-active {
+  border-color: var(--lume-accent);
+}
+.lume-library-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.lume-library-card-title {
+  font-family: var(--lume-font-structural);
+  font-size: 13px;
+  color: var(--lume-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* live mini-render: the real tree, scaled down, inert */
+.lume-library-preview {
+  display: block;
+  position: relative;
+  height: 150px;
+  overflow: hidden;
+  border: none;
+  border-radius: var(--lume-radius-sm);
+  background: var(--lume-bg-btm);
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+.lume-library-preview-scale {
+  pointer-events: none;
+  transform: scale(0.28);
+  transform-origin: top left;
+  width: 357%;
+}
+.lume-library-preview-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 16px;
+  font-family: var(--lume-font-structural);
+  font-size: 12px;
+  color: var(--lume-text-tertiary);
+}
+.lume-library-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 20px;
+}
+.lume-library-card-meta {
+  font-family: var(--lume-font-structural);
+  font-size: 11px;
+  color: var(--lume-text-tertiary);
+}
+.lume-library-delete {
+  visibility: visible; /* always visible in the library, unlike the rail */
+}
+
+/* abort the in-flight turn (issue #13) — pinned top-right under the
+   progress strip, present only while a turn is pending */
+.lume-turn-abort {
+  position: fixed;
+  top: 10px;
+  right: 14px;
+  z-index: 40;
+  background: var(--lume-sunken-btm, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--lume-border-subtle-btm);
+  color: var(--lume-text-secondary);
+  font-family: var(--lume-font-structural);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--lume-radius-sm);
+  cursor: pointer;
+}
+.lume-turn-abort:hover {
+  color: var(--lume-error-fg);
+  border-color: var(--lume-error-edge);
+}
+
+/* canvas chrome row — back navigation + deterministic refresh (issue #5) */
+.lume-canvas-chrome {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* native sign-in (issue #7): the browser-window fallback affordance sits
+   between the credential fields and the action row */
+.lume-auth-browser {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+}
+
+/* per-canvas delete (issue #8) — hidden until hover/focus; the first click
+   arms the in-place confirm step (no dialog, no toast: the list shrinking
+   is the feedback) */
+.lume-sidebar-delete {
+  margin-left: auto;
+  flex: none;
+  background: none;
+  border: none;
+  color: var(--lume-text-tertiary);
+  font-family: var(--lume-font-structural);
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: var(--lume-radius-sm);
+  cursor: pointer;
+  visibility: hidden;
+}
+.lume-sidebar-item:hover .lume-sidebar-delete,
+.lume-sidebar-item:focus-within .lume-sidebar-delete {
+  visibility: visible;
+}
+.lume-sidebar-delete:hover {
+  color: var(--lume-text);
+}
+.lume-sidebar-delete-armed,
+.lume-sidebar-delete-armed:hover {
+  visibility: visible;
+  color: var(--lume-error-fg);
+  font-size: 11px;
+  white-space: nowrap;
+}
 .lume-canvas-dot-0 { background: #6fc8d6; }
 .lume-canvas-dot-1 { background: #e0a26b; }
 .lume-canvas-dot-2 { background: #7bb37b; }

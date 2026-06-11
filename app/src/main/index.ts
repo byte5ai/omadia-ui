@@ -1,11 +1,13 @@
 import './wsEnv.js';
-import { app, BrowserWindow, ipcMain, Menu, nativeTheme } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, nativeTheme, safeStorage, session } from 'electron';
 import { join } from 'node:path';
 import { IPC, type AppSettings, type ConnectOptions } from '../shared/ipc.js';
-import type { CanvasListEntry, ClientTurn } from '../shared/protocol.js';
+import type { CanvasListEntry, ClientCanvasRefresh, ClientTurn } from '../shared/protocol.js';
 import { acquireSessionCookie } from './auth.js';
+import { discoverProviders, loginWithPassword, validateSession, wsToHttpOrigin } from './authApi.js';
 import { CanvasSocket } from './canvasSocket.js';
 import { createFileSessionStore } from './sessionStore.js';
+import { createSessionVault, type SessionVault } from './sessionVault.js';
 import { createFileSettingsStore } from './settingsStore.js';
 
 /** the ops-catalog subset this build implements. M1 ships none; M2 adds
@@ -16,6 +18,35 @@ let win: BrowserWindow | null = null;
 /** One socket per canvas slot — background canvases keep their streams
  *  flowing while another canvas is in front (multi-canvas sidebar). */
 const sockets = new Map<string, CanvasSocket>();
+/** safeStorage-encrypted session cookies per server origin (issue #7);
+ *  lazy — both userData path and safeStorage need the ready app */
+let vaultInstance: SessionVault | null = null;
+const getVault = (): SessionVault =>
+  (vaultInstance ??= createSessionVault(app.getPath('userData'), safeStorage));
+
+/** Vaulted session for the origin — with a one-time migration: installs that
+ *  signed in through the legacy web window still hold the cookie in its
+ *  partition; lift it into the vault so nobody re-authenticates on update. */
+async function resolveVaultedSession(
+  origin: string,
+): Promise<{ cookie: string; expiresAt?: number } | null> {
+  const vault = getVault();
+  const stored = vault.load(origin);
+  if (stored) return stored;
+  try {
+    const ses = session.fromPartition('persist:omadia-auth');
+    const cookies = await ses.cookies.get({ url: origin, name: 'omadia_session' });
+    const c = cookies[0];
+    if (!c) return null;
+    const cookie = `omadia_session=${c.value}`;
+    const check = await validateSession(origin, cookie);
+    if (check !== null && !check.valid) return null;
+    vault.save(origin, cookie, check?.expiresAt);
+    return { cookie, ...(check?.expiresAt !== undefined ? { expiresAt: check.expiresAt } : {}) };
+  } catch {
+    return null;
+  }
+}
 
 /** webContents.send AFTER the window died throws "Object has been destroyed"
  *  (late socket close events during app quit) — guard every push. */
@@ -77,27 +108,38 @@ ipcMain.handle(IPC.connect, async (_e, slotKey: string, opts: ConnectOptions) =>
   sockets.delete(slotKey);
   let cookie: string | undefined;
   if (opts.useAuth) {
-    const httpOrigin = opts.url.replace(/^ws/, 'http').replace(/\/omadia-ui\/canvas$/, '');
-    try {
-      cookie = await acquireSessionCookie(opts.loginUrl ?? httpOrigin);
-    } catch (err) {
-      // aborted login window — surface as failed status so onboarding stays open
+    // native flow (issue #7): connect only ever uses the vaulted session —
+    // sign-in happens BEFORE connect via the auth IPC surface below. A
+    // missing/expired session is an auth prompt, not a connection error.
+    const stored = await resolveVaultedSession(wsToHttpOrigin(opts.url));
+    if (!stored) {
       safeSend(IPC.status, slotKey, {
         state: 'failed',
-        detail: err instanceof Error ? err.message : String(err),
+        detail: 'Sign-in required',
+        authRequired: true,
       });
       return;
     }
+    cookie = stored.cookie;
   }
   // Multi-canvas: the renderer pins a specific session per slot (sidebar)
   // or forces a fresh one (new canvas) — the file store stays the fallback
   // and always tracks the LAST-ACTIVE session for cold app starts.
   const fileStore = createFileSessionStore(app.getPath('userData'));
-  const session = opts.freshSession
-    ? { load: (): string | undefined => undefined, save: (id: string) => fileStore.save(id) }
-    : opts.canvasSessionId
-      ? { load: (): string | undefined => opts.canvasSessionId, save: (id: string) => fileStore.save(id) }
-      : fileStore;
+  // Resume priority: explicit pin > the session THIS socket already acked >
+  // file fallback. The acked id matters: a resync reconnect on a freshSession
+  // slot must NOT mint another server session — that would orphan everything
+  // keyed by canvasSessionId (registry entry, server-side refresh recipes).
+  let ackedSession: string | undefined = opts.freshSession ? undefined : opts.canvasSessionId;
+  const session = {
+    load: (): string | undefined =>
+      ackedSession ??
+      (opts.freshSession || opts.canvasSessionId ? undefined : (fileStore.load() ?? undefined)),
+    save: (id: string): void => {
+      ackedSession = id;
+      fileStore.save(id);
+    },
+  };
   const socket = new CanvasSocket({
     url: opts.url,
     cookie,
@@ -110,6 +152,11 @@ ipcMain.handle(IPC.connect, async (_e, slotKey: string, opts: ConnectOptions) =>
   socket.connect();
 });
 
+ipcMain.handle(IPC.disconnect, (_e, slotKey: string) => {
+  sockets.get(slotKey)?.close();
+  sockets.delete(slotKey);
+});
+
 ipcMain.handle(IPC.disconnectAll, () => {
   for (const s of sockets.values()) s.close();
   sockets.clear();
@@ -117,6 +164,12 @@ ipcMain.handle(IPC.disconnectAll, () => {
 
 ipcMain.on(IPC.turn, (_e, slotKey: string, turn: ClientTurn) =>
   sockets.get(slotKey)?.sendTurn(turn),
+);
+ipcMain.on(IPC.refresh, (_e, slotKey: string, refresh: ClientCanvasRefresh) =>
+  sockets.get(slotKey)?.sendMessage(refresh),
+);
+ipcMain.on(IPC.abort, (_e, slotKey: string, forTurn: string) =>
+  sockets.get(slotKey)?.sendMessage({ type: 'turn_abort', forTurn }),
 );
 ipcMain.on(IPC.resync, (_e, slotKey: string) => sockets.get(slotKey)?.resync());
 ipcMain.on(IPC.canvasListGet, (_e, slotKey: string) =>
@@ -128,6 +181,63 @@ ipcMain.on(IPC.canvasListPut, (_e, slotKey: string, canvases: CanvasListEntry[])
 ipcMain.on(IPC.notificationAck, (_e, slotKey: string, id: string) =>
   sockets.get(slotKey)?.sendMessage({ type: 'notification_ack', id }),
 );
+
+// ── native auth surface (issue #7) ──
+// probe the vaulted session: cheap local check first, then /api/v1/auth/me.
+// An unreachable server keeps the cookie (null check result) — the WS upgrade
+// is the authority then; only a definite 401 clears the vault.
+ipcMain.handle(IPC.authSession, async (_e, opts: ConnectOptions) => {
+  const origin = wsToHttpOrigin(opts.url);
+  const stored = await resolveVaultedSession(origin);
+  if (!stored) return { valid: false };
+  const check = await validateSession(origin, stored.cookie);
+  if (check === null) {
+    return { valid: true, ...(stored.expiresAt !== undefined ? { expiresAt: stored.expiresAt } : {}) };
+  }
+  if (!check.valid) {
+    getVault().clear(origin);
+    return { valid: false };
+  }
+  return {
+    valid: true,
+    ...(check.email !== undefined ? { email: check.email } : {}),
+    ...(check.expiresAt !== undefined ? { expiresAt: check.expiresAt } : {}),
+  };
+});
+
+ipcMain.handle(IPC.authDiscover, (_e, opts: ConnectOptions) =>
+  discoverProviders(wsToHttpOrigin(opts.url)),
+);
+
+ipcMain.handle(
+  IPC.authLogin,
+  async (_e, opts: ConnectOptions, providerId: string, email: string, password: string) => {
+    const origin = wsToHttpOrigin(opts.url);
+    const res = await loginWithPassword(origin, providerId, email, password);
+    if (res.ok) {
+      getVault().save(origin, res.cookie, res.expiresAt);
+      return { ok: true };
+    }
+    return { ok: false, error: res.error, ...(res.detail ? { detail: res.detail } : {}) };
+  },
+);
+
+// embedded-web-window fallback — OIDC tenants and kernels without the
+// discovery endpoint; the acquired cookie lands in the same vault
+ipcMain.handle(IPC.authLoginBrowser, async (_e, opts: ConnectOptions) => {
+  const httpOrigin = opts.url.replace(/^ws/, 'http').replace(/\/omadia-ui\/canvas$/, '');
+  try {
+    const cookie = await acquireSessionCookie(opts.loginUrl ?? httpOrigin);
+    getVault().save(wsToHttpOrigin(opts.url), cookie);
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: 'cancelled',
+      detail: err instanceof Error ? err.message : String(err),
+    };
+  }
+});
 
 ipcMain.handle(IPC.settingsGet, () => createFileSettingsStore(app.getPath('userData')).load());
 ipcMain.handle(IPC.settingsSave, (_e, settings: AppSettings) =>

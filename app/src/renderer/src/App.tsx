@@ -9,6 +9,7 @@ import {
   type PrimitiveJson,
   type RowMenuRequest,
 } from './render/PrimitiveNode.js';
+import { CanvasLibrary } from './CanvasLibrary.js';
 import { Notifications } from './Notifications.js';
 import { Onboarding } from './onboarding/Onboarding.js';
 import { Sidebar } from './Sidebar.js';
@@ -113,6 +114,8 @@ export function App() {
   // swap, NO reconnect (reconnect would kill the in-flight stream)
   const connectedSlots = useRef(new Set<string>());
   const statusBySlot = useRef(new Map<string, ConnectionStatus>());
+  // the in-flight turn per slot — the abort affordance targets it (issue #13)
+  const pendingTurnIds = useRef(new Map<string, string>());
   // bump to re-render the sidebar when a BACKGROUND slot's state changes
   const [, setBgTick] = useState(0);
   // true once the server's canvas list arrived — local pushes wait for the
@@ -123,10 +126,15 @@ export function App() {
   useEffect(() => {
     persistNotifications(notifications);
   }, [notifications]);
+  // sessions deleted this run (issue #8) — an in-flight canvas_list merge
+  // must never resurrect them before the shrunken registry put lands
+  const deletedSessions = useRef(new Set<string>());
   // turn prose is debug-only: hidden behind the bottom-right marker
   const [showTurnLog, setShowTurnLog] = useState(false);
   // ⌥⌘P palette quick-picker (VS-Code-Quick-Pick idiom, §3.6 modal)
   const [showPalettePicker, setShowPalettePicker] = useState(false);
+  // canvas library overlay (issue #12 v1) — inventory of every held canvas
+  const [showLibrary, setShowLibrary] = useState(false);
   // right-click context-invoke panel (closed on any outside click)
   const [rowMenu, setRowMenu] = useState<RowMenuRequest | null>(null);
   // free-intent text in the panel's beam field
@@ -179,7 +187,7 @@ export function App() {
       // for known sessions; local-only slots (never connected) are kept.
       if (msg.type === 'canvas_list') {
         canvasListSynced.current = true;
-        const server = msg.canvases;
+        const server = msg.canvases.filter((e) => !deletedSessions.current.has(e.sessionId));
         if (server.length > 0) {
           setSlots((prev) => {
             const bySession = new Map(
@@ -255,6 +263,9 @@ export function App() {
     });
     const offStatus = window.omadiaCanvas.onStatus((slotKey, st) => {
       statusBySlot.current.set(slotKey, st);
+      // expired/missing kernel session (issue #7): surface the sign-in card
+      // instead of a generic connection error — regardless of which slot hit it
+      if (st.state === 'failed' && st.authRequired) setShowSetup(true);
       if (st.state === 'ready') {
         connectedSlots.current.add(slotKey);
         if (st.canvasSessionId) {
@@ -323,6 +334,23 @@ export function App() {
     }
   }, [pending, status]);
 
+  // the canvas_list_put payload — shared by the debounced push below and the
+  // immediate push on canvas delete
+  const toRegistryEntries = (list: CanvasSlotMeta[]) =>
+    list
+      .filter((s) => s.sessionId)
+      .map((s) => {
+        const st = slotStates.current.get(s.slotId);
+        const tree =
+          st?.tree && (st.tree as { id?: string }).id !== 'local-pending' ? st.tree : undefined;
+        return {
+          sessionId: s.sessionId as string,
+          title: s.title,
+          color: s.color,
+          ...(tree ? { tree, ...(st?.revision ? { revision: st.revision } : {}) } : {}),
+        };
+      });
+
   // push slot metadata + the last server-authoritative tree to the LVL2
   // registry (debounced; only after the first server merge so we never
   // overwrite the registry with a stale local view). The tree is what
@@ -330,22 +358,7 @@ export function App() {
   useEffect(() => {
     if (!canvasListSynced.current) return;
     const t = setTimeout(() => {
-      window.omadiaCanvas.saveCanvasList(
-        activeSlotIdRef.current,
-        slots
-          .filter((s) => s.sessionId)
-          .map((s) => {
-            const st = slotStates.current.get(s.slotId);
-            const tree =
-              st?.tree && (st.tree as { id?: string }).id !== 'local-pending' ? st.tree : undefined;
-            return {
-              sessionId: s.sessionId as string,
-              title: s.title,
-              color: s.color,
-              ...(tree ? { tree, ...(st?.revision ? { revision: st.revision } : {}) } : {}),
-            };
-          }),
-      );
+      window.omadiaCanvas.saveCanvasList(activeSlotIdRef.current, toRegistryEntries(slots));
     }, 800);
     return () => clearTimeout(t);
   }, [slots, canvas.tree]);
@@ -417,6 +430,64 @@ export function App() {
     }
   };
 
+  /** Issue #8, pre-sharing v1: deleting a canvas is a COMPLETE delete — the
+   *  slot, its parked state, its socket (aborting any in-flight turn) and its
+   *  registry entry all go. The list reflecting the removal is the feedback
+   *  (no toasts). Grant-aware reference counting arrives with sharing (#6). */
+  const deleteCanvas = (slotId: string) => {
+    const target = slots.find((s) => s.slotId === slotId);
+    if (!target || !settings) return;
+    if (target.sessionId) deletedSessions.current.add(target.sessionId);
+    const remaining = slots.filter((s) => s.slotId !== slotId);
+    // push the shrunken registry NOW, before the doomed socket closes — the
+    // debounced push alone would race a reconnect's canvas_list and the
+    // tombstone set only guards THIS run. Carrier: the deleted slot's own
+    // socket if live (IPC send/invoke stay ordered), else any live socket.
+    if (canvasListSynced.current) {
+      const carrier = connectedSlots.current.has(slotId)
+        ? slotId
+        : (remaining.find((s) => connectedSlots.current.has(s.slotId))?.slotId ??
+          activeSlotIdRef.current);
+      window.omadiaCanvas.saveCanvasList(carrier, toRegistryEntries(remaining));
+    }
+    void window.omadiaCanvas.disconnect(slotId);
+    slotStates.current.delete(slotId);
+    connectedSlots.current.delete(slotId);
+    statusBySlot.current.delete(slotId);
+    if (remaining.length === 0) {
+      // a canvas is never empty (concept §Interaction Model) — the last
+      // delete detaches into a fresh cold-start slot with its spotlight
+      const fresh = newSlot(0);
+      setSlots([fresh]);
+      setActiveSlotId(fresh.slotId);
+      setCanvas(initialCanvasState);
+      setBeam(null);
+      setRowMenu(null);
+      setShowPrompt(false);
+      setDraft('');
+      setStatus({ state: 'connecting' });
+      setLayout(leaf(fresh.slotId));
+      void window.omadiaCanvas.connect(fresh.slotId, {
+        ...toConnectOptions(settings),
+        freshSession: true,
+      });
+      return;
+    }
+    setSlots(remaining);
+    // prune the deleted canvas out of the tiling layout (issue #14) — its
+    // pane collapses into the sibling; the last pane falls back to a leaf
+    const pruned = removeLeaf(layout, slotId);
+    if (slotId === activeSlotId) {
+      const fallback =
+        (pruned ? collectSlotIds(pruned)[0] : undefined) ??
+        (remaining[0] as CanvasSlotMeta).slotId;
+      setLayout(pruned ?? leaf(fallback));
+      focusSlot(fallback);
+    } else {
+      setLayout(pruned ?? leaf(activeSlotIdRef.current));
+    }
+  };
+
   const submitSetup = (candidate: AppSettings) => {
     setPending(candidate);
     // optimistic: the last status may still be 'ready' from the old connection.
@@ -427,11 +498,14 @@ export function App() {
     connectedSlots.current.clear();
     statusBySlot.current.clear();
     void window.omadiaCanvas.disconnectAll().then(() => {
-      const active = slots.find((s) => s.slotId === activeSlotIdRef.current);
-      void window.omadiaCanvas.connect(activeSlotIdRef.current, {
-        ...toConnectOptions(candidate),
-        ...(active?.sessionId ? { canvasSessionId: active.sessionId } : { freshSession: true }),
-      });
+      // every visible pane redials against the new server
+      for (const slotId of collectSlotIds(layout)) {
+        const slot = slots.find((s) => s.slotId === slotId);
+        void window.omadiaCanvas.connect(slotId, {
+          ...toConnectOptions(candidate),
+          ...(slot?.sessionId ? { canvasSessionId: slot.sessionId } : { freshSession: true }),
+        });
+      }
     });
   };
 
@@ -449,10 +523,31 @@ export function App() {
     }
   };
 
+  /** Deterministic refresh (issue #5): same canvas, same query, newer data —
+   *  no new view is composed. The client sends its current tree + revision;
+   *  the server re-resolves the data and answers with patches that REPLACE
+   *  the stale rows. Reuses the turn-pending strip; no toasts. */
+  const refreshCanvas = (scope?: string) => {
+    if (!canvas.tree || canvas.revision === null || canvas.turnPending) return;
+    if ((canvas.tree as { id?: string }).id === 'local-pending') return;
+    const turnId = crypto.randomUUID();
+    pendingTurnIds.current.set(activeSlotId, turnId);
+    window.omadiaCanvas.refreshCanvas(activeSlotId, {
+      type: 'canvas_refresh',
+      turnId,
+      basedOnRevision: canvas.revision,
+      currentTree: canvas.tree,
+      ...(scope ? { scope } : {}),
+    });
+    setCanvas((c) => ({ ...c, turnPending: true, turnError: null, prose: '' }));
+  };
+
   const submitPrompt = () => {
     const text = draft.trim();
     if (!text) return;
-    window.omadiaCanvas.sendTurn(activeSlotId, { type: 'turn', turnId: crypto.randomUUID(), text });
+    const turnId = crypto.randomUUID();
+    pendingTurnIds.current.set(activeSlotId, turnId);
+    window.omadiaCanvas.sendTurn(activeSlotId, { type: 'turn', turnId, text });
     setCanvas((c) => ({
       ...c,
       turnPending: true,
@@ -470,9 +565,11 @@ export function App() {
   const submitBeam = (menu: RowMenuRequest, text: string, target?: unknown) => {
     setRowMenu(null);
     setBeamDraft('');
+    const turnId = crypto.randomUUID();
+    pendingTurnIds.current.set(activeSlotId, turnId);
     window.omadiaCanvas.sendTurn(activeSlotId, {
       type: 'turn',
-      turnId: crypto.randomUUID(),
+      turnId,
       text,
       target: target ?? { kind: 'item', containerId: menu.tableId, itemKey: menu.rowKey },
     });
@@ -481,9 +578,11 @@ export function App() {
   };
 
   const onAction = (action: PrimitiveAction) => {
+    const turnId = crypto.randomUUID();
+    pendingTurnIds.current.set(activeSlotId, turnId);
     window.omadiaCanvas.sendTurn(activeSlotId, {
       type: 'turn',
-      turnId: crypto.randomUUID(),
+      turnId,
       action: { type: action.type, payload: action.payload },
       ...(action.sourceId ? { target: { kind: 'element', elementId: action.sourceId } } : {}),
     });
@@ -591,12 +690,34 @@ export function App() {
     }
     return (
       <>
-        {/* view-only back navigation — focused pane only */}
-        {focused && canvas.history.length > 0 && (
-          <button className="lume-button lume-back-button" onClick={() => setCanvas((c) => goBack(c))}>
-            ← Zurück
-          </button>
-        )}
+        {/* canvas chrome (focused pane only) — view-only back navigation +
+            deterministic refresh (issue #5) */}
+        {focused &&
+          (canvas.history.length > 0 ||
+            (canvas.revision !== null &&
+              (canvas.tree as { id?: string }).id !== 'local-pending')) && (
+            <div className="lume-canvas-chrome">
+              {canvas.history.length > 0 && (
+                <button
+                  className="lume-button lume-back-button"
+                  onClick={() => setCanvas((c) => goBack(c))}
+                >
+                  ← Zurück
+                </button>
+              )}
+              {canvas.revision !== null &&
+                (canvas.tree as { id?: string }).id !== 'local-pending' && (
+                  <button
+                    className="lume-button lume-refresh-button"
+                    title="Daten neu laden — gleiche Ansicht, frische Daten"
+                    disabled={canvas.turnPending || status.state !== 'ready'}
+                    onClick={() => refreshCanvas()}
+                  >
+                    ↻ Aktualisieren
+                  </button>
+                )}
+            </div>
+          )}
         {/* §6.1 motion split: snapshot → crossfade (key per snapshot run);
             patch → per-node condensation via the condense prop. */}
         <div
@@ -634,6 +755,8 @@ export function App() {
         busySlotIds={busySlots}
         onSelect={switchCanvas}
         onAdd={addCanvas}
+        onDelete={deleteCanvas}
+        onLibrary={() => setShowLibrary(true)}
       />
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
       {/* instant feedback the moment a turn fires — the old view stays
@@ -642,6 +765,20 @@ export function App() {
         <div className="lume-turn-progress" role="progressbar" aria-label="turn pending">
           <span className="lume-turn-progress-bar" />
         </div>
+      )}
+      {/* abort the in-flight turn (issue #13) — header affordance, rendered
+          ONLY while a turn is active; the canvas keeps what already rendered */}
+      {canvas.turnPending && (
+        <button
+          className="lume-turn-abort"
+          title="Laufenden Turn abbrechen"
+          onClick={() => {
+            const id = pendingTurnIds.current.get(activeSlotId);
+            if (id) window.omadiaCanvas.abortTurn(activeSlotId, id);
+          }}
+        >
+          ✕ Abbrechen
+        </button>
       )}
       <div className="lume-workspace">
         <Workspace
@@ -672,6 +809,19 @@ export function App() {
               Details anzeigen
             </button>
           )}
+          {/* per-primitive refresh (issue #5): scoped to THIS table — a local
+              affordance, present regardless of agent-supplied actions */}
+          <button
+            className="lume-row-menu-item"
+            onClick={() => {
+              setRowMenu(null);
+              refreshCanvas(rowMenu.tableId);
+            }}
+          >
+            {canvas.dataRefs[rowMenu.tableId]?.refreshable
+              ? '↻ Tabelle aktualisieren (sofort)'
+              : '↻ Tabelle aktualisieren'}
+          </button>
           {rowMenu.suggestedActions.map((a) => (
             <button
               key={a.id}
@@ -762,6 +912,7 @@ export function App() {
         </div>
       )}
       {showPalettePicker && <PalettePicker onClose={() => setShowPalettePicker(false)} />}
+<<<<<<< HEAD
       <Notifications
         notifications={notifications}
         onDismiss={(id) => {
@@ -785,6 +936,23 @@ export function App() {
           window.omadiaCanvas.ackNotification(n.slotKey, n.id);
         }}
       />
+      {showLibrary && (
+        <CanvasLibrary
+          slots={slots}
+          activeSlotId={activeSlotId}
+          treeFor={(slotId) =>
+            slotId === activeSlotId
+              ? canvas.tree
+              : (slotStates.current.get(slotId)?.tree ?? null)
+          }
+          onOpen={(slotId) => {
+            setShowLibrary(false);
+            switchCanvas(slotId);
+          }}
+          onDelete={deleteCanvas}
+          onClose={() => setShowLibrary(false)}
+        />
+      )}
       </div>
     </div>
   );
