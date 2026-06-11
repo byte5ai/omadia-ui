@@ -912,7 +912,6 @@ export function App() {
         </div>
       )}
       {showPalettePicker && <PalettePicker onClose={() => setShowPalettePicker(false)} />}
-<<<<<<< HEAD
       <Notifications
         notifications={notifications}
         onDismiss={(id) => {
