@@ -1894,8 +1894,32 @@ body {
   border-bottom-color: var(--lume-accent);
   box-shadow: 0 6px 8px -6px var(--lume-accent-glow);
 }
+/* §pane — a pane is a container surface (visual-spec §"pane"/§"container"):
+   gradient bg.surface, directional border, radius.md, container padding
+   space.5 (16px). Children get the §2.8 default block/stack gap space.4 (12px)
+   — panes don't wrap children in a lume-layout-stack, so the rhythm lives
+   here. compact/spacious shift one step per §2.8. */
 .lume-pane {
-  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: linear-gradient(180deg, var(--lume-surface-top) 0%, var(--lume-surface-btm) 100%);
+  border: 1px solid var(--lume-border-subtle-btm);
+  border-top-color: var(--lume-border-subtle-top);
+  border-radius: var(--lume-radius-md);
+  padding: 16px;
+}
+.lume-pane.lume-compact {
+  gap: 8px;
+  padding: 12px;
+}
+.lume-pane.lume-spacious {
+  gap: 16px;
+  padding: 24px;
+}
+/* A pane's title sits flush as the card header. */
+.lume-pane > .lume-container-title {
+  margin-bottom: -4px;
 }
 .lume-debug-panel {
   position: fixed;

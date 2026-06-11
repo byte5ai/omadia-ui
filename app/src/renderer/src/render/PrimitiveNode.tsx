@@ -138,7 +138,7 @@ function renderNode(node: PrimitiveJson, ctx: Omit<Props, 'node'>): ReactNode {
 
     case 'pane':
       return (
-        <section className="lume-pane" data-id={node['id'] as string}>
+        <section className={`lume-pane ${presentationClasses(node)}`.trim()} data-id={node['id'] as string}>
           {typeof node['title'] === 'string' && <div className="lume-container-title">{node['title']}</div>}
           {node['container'] !== undefined && (
             <PrimitiveNode node={node['container'] as PrimitiveJson} {...ctx} />
