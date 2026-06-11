@@ -3,7 +3,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { Sidebar } from '../../src/renderer/src/Sidebar.js';
 import {
   allDesktopSlotIds,
+  desktopsToWire,
   loadDesktops,
+  mergeWireDesktops,
   newDesktop,
   saveDesktops,
 } from '../../src/renderer/src/store/desktopStore.js';
@@ -57,6 +59,51 @@ describe('desktopStore', () => {
   });
 });
 
+describe('desktop LVL2 wire mapping (sessionId ↔ slotId)', () => {
+  const slots = [
+    { slotId: 's1', title: 'A', color: 0, sessionId: 'cs-1' },
+    { slotId: 's2', title: 'B', color: 1, sessionId: 'cs-2' },
+    { slotId: 's3', title: 'fresh chooser', color: 2 }, // no session yet
+  ];
+
+  it('translates layouts to sessionIds, pruning sessionless panes', () => {
+    const d = { ...newDesktop(0, splitLeaf(leaf('s1'), 's1', 'columns', 's3')), updatedAt: 5 };
+    const wire = desktopsToWire([d], slots);
+    expect(wire).toHaveLength(1);
+    // the sessionless chooser pane prunes — the split collapses to the leaf
+    expect(wire[0]?.layout).toEqual({ kind: 'leaf', sessionId: 'cs-1' });
+    // a desktop with ONLY sessionless panes is skipped entirely
+    expect(desktopsToWire([newDesktop(1, leaf('s3'))], slots)).toHaveLength(0);
+  });
+
+  it('merges last-write-wins, maps unknown sessions away, honors tombstones', () => {
+    const local = { ...newDesktop(0, leaf('s1')), desktopId: 'd1', name: 'Lokal', updatedAt: 200 };
+    const wire = [
+      { desktopId: 'd1', name: 'Älter', color: 4, updatedAt: 100, layout: { kind: 'leaf' as const, sessionId: 'cs-2' } },
+      {
+        desktopId: 'd2',
+        name: 'Vom Server',
+        color: 3,
+        updatedAt: 300,
+        layout: {
+          kind: 'split' as const,
+          dir: 'rows' as const,
+          ratio: 0.4,
+          a: { kind: 'leaf' as const, sessionId: 'cs-2' },
+          b: { kind: 'leaf' as const, sessionId: 'cs-unbekannt' },
+        },
+      },
+      { desktopId: 'd3', name: 'Tot', color: 0, updatedAt: 999, layout: { kind: 'leaf' as const, sessionId: 'cs-1' } },
+    ];
+    const merged = mergeWireDesktops([local], wire, slots, new Set(['d3']));
+    expect(merged.map((d) => d.desktopId).sort()).toEqual(['d1', 'd2']);
+    expect(merged.find((d) => d.desktopId === 'd1')?.name).toBe('Lokal'); // local newer wins
+    const d2 = merged.find((d) => d.desktopId === 'd2');
+    expect(d2?.layout).toEqual(leaf('s2')); // unknown session pruned, split collapsed
+    expect(d2?.name).toBe('Vom Server');
+  });
+});
+
 describe('Sidebar with desktop + canvas sections', () => {
   it('renders both categories, desktop dot/color and rename affordance', () => {
     const d = { ...newDesktop(0, leaf('s1')), name: 'Vertrieb', color: 3 };
@@ -68,6 +115,7 @@ describe('Sidebar with desktop + canvas sections', () => {
         onAddDesktop={() => {}}
         onRenameDesktop={() => {}}
         onDesktopColor={() => {}}
+        onDeleteDesktop={() => {}}
         slots={[{ slotId: 's1', title: 'Monatsumsatz', color: 1 }]}
         activeSlotId="s1"
         busySlotIds={new Set()}

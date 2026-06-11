@@ -13,6 +13,7 @@ import type {
   CanvasListEntry,
   ClientCanvasRefresh,
   ClientTurn,
+  DesktopListEntry,
   ServerMessage,
 } from '../shared/protocol.js';
 
@@ -40,6 +41,9 @@ const api: OmadiaCanvasApi = {
   requestCanvasList: (slotKey: string) => ipcRenderer.send(IPC.canvasListGet, slotKey),
   saveCanvasList: (slotKey: string, canvases: CanvasListEntry[]) =>
     ipcRenderer.send(IPC.canvasListPut, slotKey, canvases),
+  requestDesktopList: (slotKey: string) => ipcRenderer.send(IPC.desktopListGet, slotKey),
+  saveDesktopList: (slotKey: string, desktops: DesktopListEntry[]) =>
+    ipcRenderer.send(IPC.desktopListPut, slotKey, desktops),
   ackNotification: (slotKey: string, id: string) =>
     ipcRenderer.send(IPC.notificationAck, slotKey, id),
   onServerMessage: (cb: (slotKey: string, msg: ServerMessage) => void) =>

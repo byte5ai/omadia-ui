@@ -11,6 +11,8 @@ interface Props {
   onRenameDesktop: (desktopId: string, name: string) => void;
   /** click on the dot cycles the desktop color */
   onDesktopColor: (desktopId: string) => void;
+  /** two-step delete; the last desktop cannot be deleted */
+  onDeleteDesktop: (desktopId: string) => void;
   slots: CanvasSlotMeta[];
   activeSlotId: string;
   /** slots with an in-flight turn — their dot pulses (building/loading) */
@@ -31,6 +33,7 @@ export function Sidebar({
   onAddDesktop,
   onRenameDesktop,
   onDesktopColor,
+  onDeleteDesktop,
   slots,
   activeSlotId,
   busySlotIds,
@@ -108,6 +111,34 @@ export function Sidebar({
               >
                 {d.name}
               </span>
+            )}
+            {desktops.length > 1 && (
+              <button
+                type="button"
+                className={`lume-sidebar-delete${
+                  confirmId === d.desktopId ? ' lume-sidebar-delete-armed' : ''
+                }`}
+                title={
+                  confirmId === d.desktopId
+                    ? `Desktop „${d.name}“ endgültig löschen`
+                    : `Desktop „${d.name}“ löschen (Canvases bleiben)`
+                }
+                aria-label={`Desktop „${d.name}“ löschen`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (confirmId === d.desktopId) {
+                    setConfirmId(null);
+                    onDeleteDesktop(d.desktopId);
+                  } else {
+                    setConfirmId(d.desktopId);
+                  }
+                }}
+                onMouseLeave={() => {
+                  if (confirmId === d.desktopId) setConfirmId(null);
+                }}
+              >
+                {confirmId === d.desktopId ? 'Löschen?' : '×'}
+              </button>
             )}
           </div>
         ))}

@@ -2,6 +2,7 @@ import type {
   CanvasListEntry,
   ClientCanvasRefresh,
   ClientTurn,
+  DesktopListEntry,
   ServerMessage,
 } from './protocol.js';
 
@@ -86,6 +87,9 @@ export interface OmadiaCanvasApi {
   saveCanvasList(slotKey: string, canvases: CanvasListEntry[]): void;
   /** notification seen/dismissed (issue #15) */
   ackNotification(slotKey: string, id: string): void;
+  /** per-user desktop registry sync (multi-desktop workspaces) */
+  requestDesktopList(slotKey: string): void;
+  saveDesktopList(slotKey: string, desktops: DesktopListEntry[]): void;
   onServerMessage(cb: (slotKey: string, msg: ServerMessage) => void): () => void;
   onStatus(cb: (slotKey: string, status: ConnectionStatus) => void): () => void;
   getSettings(): Promise<AppSettings | null>;
@@ -115,6 +119,8 @@ export const IPC = {
   canvasListGet: 'canvas:list-get',
   canvasListPut: 'canvas:list-put',
   notificationAck: 'canvas:notification-ack',
+  desktopListGet: 'canvas:desktop-list-get',
+  desktopListPut: 'canvas:desktop-list-put',
   serverMessage: 'canvas:server-message',
   status: 'canvas:status',
   settingsGet: 'settings:get',

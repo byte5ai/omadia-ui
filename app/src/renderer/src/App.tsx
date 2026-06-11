@@ -29,7 +29,9 @@ import {
   type CanvasSlotMeta,
 } from './store/canvasSlots.js';
 import {
+  desktopsToWire,
   loadDesktops,
+  mergeWireDesktops,
   newDesktop,
   saveDesktops,
   type DesktopMeta,
@@ -126,13 +128,30 @@ export function App() {
     setDesktops((prev) =>
       prev.map((d) =>
         d.desktopId === activeDesktopIdRef.current
-          ? { ...d, layout: typeof updater === 'function' ? updater(d.layout) : updater }
+          ? {
+              ...d,
+              layout: typeof updater === 'function' ? updater(d.layout) : updater,
+              updatedAt: Date.now(),
+            }
           : d,
       ),
     );
   useEffect(() => {
     saveDesktops(desktops, activeDesktopId);
   }, [desktops, activeDesktopId]);
+
+  // push desktops to the LVL2 registry (debounced; only after the first
+  // server merge — a fresh install must never clobber the user's desktops)
+  useEffect(() => {
+    if (!desktopListSynced.current) return;
+    const t = setTimeout(() => {
+      window.omadiaCanvas.saveDesktopList(
+        activeSlotIdRef.current,
+        desktopsToWire(desktops, slotsRef.current),
+      );
+    }, 800);
+    return () => clearTimeout(t);
+  }, [desktops, slots]);
   // one canvas state per slot — background slots keep receiving their
   // streams (one socket per slot), so switching mid-turn loses nothing
   const slotStates = useRef(new Map<string, CanvasState>());
@@ -158,6 +177,10 @@ export function App() {
   // panes minted by a split that have not decided yet (issue #14): they show
   // the chooser — "Ask Omadia" OR adopt an existing canvas (library look)
   const chooserSlots = useRef(new Set<string>());
+  // desktop LVL2 sync: pushes wait for the first server merge; deleted
+  // desktops stay dead while an in-flight merge could resurrect them
+  const desktopListSynced = useRef(false);
+  const deletedDesktops = useRef(new Set<string>());
   // turn prose is debug-only: hidden behind the bottom-right marker
   const [showTurnLog, setShowTurnLog] = useState(false);
   // ⌥⌘P palette quick-picker (VS-Code-Quick-Pick idiom, §3.6 modal)
@@ -191,6 +214,8 @@ export function App() {
     const t = setTimeout(() => setBeam(null), beam.error ? 4000 : 0);
     return () => clearTimeout(t);
   }, [beam, canvas.turnPending, canvas.turnError]);
+  const slotsRef = useRef(slots);
+  slotsRef.current = slots;
   const stateRef = useRef(canvas);
   stateRef.current = canvas;
   const activeSlotIdRef = useRef(activeSlotId);
@@ -214,8 +239,18 @@ export function App() {
       }
       // per-user canvas registry (LVL2-persisted): server list is authoritative
       // for known sessions; local-only slots (never connected) are kept.
+      if (msg.type === 'desktop_list') {
+        // requested AFTER the canvas_list merge, so sessionId→slotId resolves
+        desktopListSynced.current = true;
+        setDesktops((local) =>
+          mergeWireDesktops(local, msg.desktops, slotsRef.current, deletedDesktops.current),
+        );
+        return;
+      }
       if (msg.type === 'canvas_list') {
         canvasListSynced.current = true;
+        // desktops sync once the canvas registry (and its slots) landed
+        window.omadiaCanvas.requestDesktopList(slotKey);
         const server = msg.canvases.filter((e) => !deletedSessions.current.has(e.sessionId));
         if (server.length > 0) {
           setSlots((prev) => {
@@ -466,13 +501,43 @@ export function App() {
 
   const renameDesktop = (desktopId: string, name: string) =>
     setDesktops((prev) =>
-      prev.map((d) => (d.desktopId === desktopId ? { ...d, name: name.slice(0, 48) } : d)),
+      prev.map((d) =>
+        d.desktopId === desktopId
+          ? { ...d, name: name.slice(0, 48), updatedAt: Date.now() }
+          : d,
+      ),
     );
 
   const cycleDesktopColor = (desktopId: string) =>
     setDesktops((prev) =>
-      prev.map((d) => (d.desktopId === desktopId ? { ...d, color: (d.color + 1) % 6 } : d)),
+      prev.map((d) =>
+        d.desktopId === desktopId
+          ? { ...d, color: (d.color + 1) % 6, updatedAt: Date.now() }
+          : d,
+      ),
     );
+
+  /** Delete a desktop (the canvases it shows stay). Tombstoned so an
+   *  in-flight merge cannot resurrect it; the shrunken list pushes NOW. */
+  const deleteDesktop = (desktopId: string) => {
+    if (desktops.length <= 1) return;
+    deletedDesktops.current.add(desktopId);
+    const remaining = desktops.filter((d) => d.desktopId !== desktopId);
+    setDesktops(remaining);
+    if (desktopListSynced.current) {
+      window.omadiaCanvas.saveDesktopList(
+        activeSlotIdRef.current,
+        desktopsToWire(remaining, slotsRef.current),
+      );
+    }
+    if (desktopId === activeDesktopIdRef.current) {
+      const next = remaining[0] as DesktopMeta;
+      setActiveDesktopId(next.desktopId);
+      const leaves = collectSlotIds(next.layout);
+      for (const slotId of leaves) ensureConnected(slotId);
+      if (leaves[0] && !leaves.includes(activeSlotIdRef.current)) focusSlot(leaves[0]);
+    }
+  };
 
   /** New Column / New Row (issue #14): split the pane. The new pane takes
    *  focus and shows the CHOOSER — ask Omadia fresh, or adopt an existing
@@ -928,6 +993,7 @@ export function App() {
         onAddDesktop={addDesktop}
         onRenameDesktop={renameDesktop}
         onDesktopColor={cycleDesktopColor}
+        onDeleteDesktop={deleteDesktop}
         slots={slots}
         activeSlotId={activeSlotId}
         busySlotIds={busySlots}

@@ -1,3 +1,5 @@
+import type { DesktopLayoutWire, DesktopListEntry } from '../../../shared/protocol.js';
+import type { CanvasSlotMeta } from './canvasSlots.js';
 import {
   collectSlotIds,
   leaf,
@@ -16,6 +18,8 @@ export interface DesktopMeta {
   /** index into the fixed color cycle (same palette as canvas dots) */
   color: number;
   layout: WorkspaceNode;
+  /** last local mutation — drives last-write-wins merging across installs */
+  updatedAt: number;
 }
 
 const STORAGE_KEY = 'omadia.ui-prefs.desktops';
@@ -30,6 +34,7 @@ export function newDesktop(index: number, layout: WorkspaceNode): DesktopMeta {
     name: `Desktop ${index + 1}`,
     color: index % COLOR_CYCLE,
     layout,
+    updatedAt: Date.now(),
   };
 }
 
@@ -86,6 +91,7 @@ export function loadDesktops(
                 ? Math.min(Math.max(d['color'], 0), COLOR_CYCLE - 1)
                 : 0,
             layout,
+            updatedAt: typeof d['updatedAt'] === 'number' ? d['updatedAt'] : 0,
           };
         })
         .filter((d): d is DesktopMeta => d !== null)
@@ -132,4 +138,96 @@ export function allDesktopSlotIds(desktops: DesktopMeta[]): Set<string> {
   const ids = new Set<string>();
   for (const d of desktops) for (const id of collectSlotIds(d.layout)) ids.add(id);
   return ids;
+}
+
+// ── LVL2 materialisation: slotIds are device-local, the WIRE speaks
+// canvasSessionIds. Translate both ways. ──
+
+function layoutToWire(
+  node: WorkspaceNode,
+  sessionOf: (slotId: string) => string | undefined,
+): DesktopLayoutWire | null {
+  if (node.kind === 'leaf') {
+    const sessionId = sessionOf(node.slotId);
+    return sessionId ? { kind: 'leaf', sessionId } : null; // sessionless pane (fresh chooser) prunes
+  }
+  const a = layoutToWire(node.a, sessionOf);
+  const b = layoutToWire(node.b, sessionOf);
+  if (a && b) return { kind: 'split', dir: node.dir, ratio: node.ratio, a, b };
+  return a ?? b;
+}
+
+/** Desktops → wire entries. Desktops whose layout prunes away entirely
+ *  (only sessionless panes) are skipped — they re-sync once real. */
+export function desktopsToWire(
+  desktops: DesktopMeta[],
+  slots: CanvasSlotMeta[],
+): DesktopListEntry[] {
+  const sessionOf = (slotId: string): string | undefined =>
+    slots.find((s) => s.slotId === slotId)?.sessionId;
+  return desktops
+    .map((d): DesktopListEntry | null => {
+      const layout = layoutToWire(d.layout, sessionOf);
+      return layout
+        ? { desktopId: d.desktopId, name: d.name, color: d.color, updatedAt: d.updatedAt, layout }
+        : null;
+    })
+    .filter((d): d is DesktopListEntry => d !== null);
+}
+
+function layoutFromWire(
+  node: DesktopLayoutWire,
+  slotOf: (sessionId: string) => string | undefined,
+): WorkspaceNode | null {
+  if (node.kind === 'leaf') {
+    const slotId = slotOf(node.sessionId);
+    return slotId ? leaf(slotId) : null; // unknown session (deleted canvas) prunes
+  }
+  const a = layoutFromWire(node.a, slotOf);
+  const b = layoutFromWire(node.b, slotOf);
+  if (a && b) return { kind: 'split', dir: node.dir, ratio: node.ratio, a, b };
+  return a ?? b;
+}
+
+/** Merge the server's desktop list into the local one: last-write-wins per
+ *  desktopId via `updatedAt`; server-only desktops are added (their layouts
+ *  mapped sessionId→slotId — leaves whose canvas is unknown prune); local-only
+ *  desktops survive (the next put uploads them); tombstoned ids stay dead. */
+export function mergeWireDesktops(
+  local: DesktopMeta[],
+  wire: DesktopListEntry[],
+  slots: CanvasSlotMeta[],
+  tombstones: ReadonlySet<string>,
+): DesktopMeta[] {
+  const slotOf = (sessionId: string): string | undefined =>
+    slots.find((s) => s.sessionId === sessionId)?.slotId;
+  const byId = new Map(local.map((d) => [d.desktopId, d]));
+  const merged: DesktopMeta[] = [];
+  for (const w of wire) {
+    if (tombstones.has(w.desktopId)) continue;
+    const existing = byId.get(w.desktopId);
+    if (existing && existing.updatedAt >= w.updatedAt) {
+      merged.push(existing);
+      continue;
+    }
+    const layout = layoutFromWire(w.layout, slotOf);
+    if (!layout) {
+      // nothing resolvable on this device (yet) — keep the local version if
+      // present rather than materialising an empty desktop
+      if (existing) merged.push(existing);
+      continue;
+    }
+    merged.push({
+      desktopId: w.desktopId,
+      name: w.name,
+      color: Math.min(Math.max(w.color, 0), COLOR_CYCLE - 1),
+      layout,
+      updatedAt: w.updatedAt,
+    });
+  }
+  const wireIds = new Set(wire.map((w) => w.desktopId));
+  for (const d of local) {
+    if (!wireIds.has(d.desktopId)) merged.push(d);
+  }
+  return merged.slice(0, MAX_DESKTOPS);
 }

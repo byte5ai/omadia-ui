@@ -2,7 +2,12 @@ import './wsEnv.js';
 import { app, BrowserWindow, ipcMain, Menu, nativeTheme, safeStorage, session } from 'electron';
 import { join } from 'node:path';
 import { IPC, type AppSettings, type ConnectOptions } from '../shared/ipc.js';
-import type { CanvasListEntry, ClientCanvasRefresh, ClientTurn } from '../shared/protocol.js';
+import type {
+  CanvasListEntry,
+  ClientCanvasRefresh,
+  ClientTurn,
+  DesktopListEntry,
+} from '../shared/protocol.js';
 import { acquireSessionCookie } from './auth.js';
 import { discoverProviders, loginWithPassword, validateSession, wsToHttpOrigin } from './authApi.js';
 import { CanvasSocket } from './canvasSocket.js';
@@ -177,6 +182,12 @@ ipcMain.on(IPC.canvasListGet, (_e, slotKey: string) =>
 );
 ipcMain.on(IPC.canvasListPut, (_e, slotKey: string, canvases: CanvasListEntry[]) =>
   sockets.get(slotKey)?.sendMessage({ type: 'canvas_list_put', canvases }),
+);
+ipcMain.on(IPC.desktopListGet, (_e, slotKey: string) =>
+  sockets.get(slotKey)?.sendMessage({ type: 'desktop_list_get' }),
+);
+ipcMain.on(IPC.desktopListPut, (_e, slotKey: string, desktops: DesktopListEntry[]) =>
+  sockets.get(slotKey)?.sendMessage({ type: 'desktop_list_put', desktops }),
 );
 ipcMain.on(IPC.notificationAck, (_e, slotKey: string, id: string) =>
   sockets.get(slotKey)?.sendMessage({ type: 'notification_ack', id }),

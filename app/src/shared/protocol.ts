@@ -125,6 +125,7 @@ export type ServerMessage =
   | TurnError
   | CanvasListMsg
   | NotificationMsg
+  | DesktopListMsg
   | SurfaceEvent;
 
 // ── client → server ──
@@ -160,6 +161,35 @@ export interface ClientCanvasListPut {
   canvases: CanvasListEntry[];
 }
 
+// ── desktops (multi-desktop workspaces) — sessionId-keyed so they travel ──
+
+export type DesktopLayoutWire =
+  | { kind: 'leaf'; sessionId: string }
+  | { kind: 'split'; dir: 'columns' | 'rows'; ratio: number; a: DesktopLayoutWire; b: DesktopLayoutWire };
+
+/** One persisted desktop; `updatedAt` drives last-write-wins merging. */
+export interface DesktopListEntry {
+  desktopId: string;
+  name: string;
+  color: number;
+  updatedAt: number;
+  layout: DesktopLayoutWire;
+}
+
+/** server → client: the user's persisted desktops (answer to desktop_list_get). */
+export interface DesktopListMsg {
+  type: 'desktop_list';
+  desktops: DesktopListEntry[];
+}
+
+export interface ClientDesktopListGet {
+  type: 'desktop_list_get';
+}
+export interface ClientDesktopListPut {
+  type: 'desktop_list_put';
+  desktops: DesktopListEntry[];
+}
+
 /** client → server: deterministic refresh (protocol 1.1 additive, issue #5) —
  *  re-resolve the data behind the current tree's containers; the server
  *  answers with ordinary surface_patch events (first publish per container
@@ -190,7 +220,9 @@ export type ClientMessage =
   | ClientCanvasListPut
   | ClientCanvasRefresh
   | ClientTurnAbort
-  | ClientNotificationAck;
+  | ClientNotificationAck
+  | ClientDesktopListGet
+  | ClientDesktopListPut;
 
 const NON_SURFACE_SERVER_TYPES: ReadonlySet<string> = new Set([
   'handshake_offer',
@@ -201,6 +233,7 @@ const NON_SURFACE_SERVER_TYPES: ReadonlySet<string> = new Set([
   'turn_error',
   'canvas_list',
   'notification',
+  'desktop_list',
 ]);
 
 /** Tolerant parse of a raw server frame; null for non-JSON / unknown type. */
