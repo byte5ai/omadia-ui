@@ -129,6 +129,9 @@ export function App() {
   // sessions deleted this run (issue #8) — an in-flight canvas_list merge
   // must never resurrect them before the shrunken registry put lands
   const deletedSessions = useRef(new Set<string>());
+  // panes minted by a split that have not decided yet (issue #14): they show
+  // the chooser — "Ask Omadia" OR adopt an existing canvas (library look)
+  const chooserSlots = useRef(new Set<string>());
   // turn prose is debug-only: hidden behind the bottom-right marker
   const [showTurnLog, setShowTurnLog] = useState(false);
   // ⌥⌘P palette quick-picker (VS-Code-Quick-Pick idiom, §3.6 modal)
@@ -408,14 +411,40 @@ export function App() {
     focusSlot(slot.slotId);
   };
 
-  /** New Column / New Row (issue #14): split the pane, host a fresh canvas
-   *  beside/below it. The new pane takes focus. */
+  /** New Column / New Row (issue #14): split the pane. The new pane takes
+   *  focus and shows the CHOOSER — ask Omadia fresh, or adopt an existing
+   *  canvas (library look). */
   const splitPane = (targetSlotId: string, dir: SplitDir) => {
     if (!settings) return;
     const slot = newSlot(slots.length);
+    chooserSlots.current.add(slot.slotId);
     setSlots((prev) => [...prev, slot]);
     setLayout((l) => splitLeaf(l, targetSlotId, dir, slot.slotId));
     focusSlot(slot.slotId);
+  };
+
+  /** Chooser pick: the pane adopts an EXISTING canvas; the placeholder slot
+   *  the split minted is discarded (socket, refs, registry entry). */
+  const adoptIntoPane = (placeholderSlotId: string, pickedSlotId: string) => {
+    chooserSlots.current.delete(placeholderSlotId);
+    setLayout((l) => replaceLeaf(l, placeholderSlotId, pickedSlotId));
+    focusSlot(pickedSlotId);
+    const placeholder = slots.find((s) => s.slotId === placeholderSlotId);
+    const remaining = slots.filter((s) => s.slotId !== placeholderSlotId);
+    if (placeholder?.sessionId) {
+      deletedSessions.current.add(placeholder.sessionId);
+      if (canvasListSynced.current) {
+        const carrier = connectedSlots.current.has(pickedSlotId)
+          ? pickedSlotId
+          : activeSlotIdRef.current;
+        window.omadiaCanvas.saveCanvasList(carrier, toRegistryEntries(remaining));
+      }
+    }
+    void window.omadiaCanvas.disconnect(placeholderSlotId);
+    slotStates.current.delete(placeholderSlotId);
+    connectedSlots.current.delete(placeholderSlotId);
+    statusBySlot.current.delete(placeholderSlotId);
+    setSlots(remaining);
   };
 
   /** Close a pane — the canvas itself stays in the sidebar (its socket and
@@ -497,7 +526,7 @@ export function App() {
     slotStates.current.clear();
     connectedSlots.current.clear();
     statusBySlot.current.clear();
-    void window.omadiaCanvas.disconnectAll().then(() => {
+    const redial = (): void => {
       // every visible pane redials against the new server
       for (const slotId of collectSlotIds(layout)) {
         const slot = slots.find((s) => s.slotId === slotId);
@@ -506,8 +535,26 @@ export function App() {
           ...(slot?.sessionId ? { canvasSessionId: slot.sessionId } : { freshSession: true }),
         });
       }
-    });
+    };
+    // redial must run even if the teardown invoke rejects — a silently
+    // dropped continuation here deadlocked the post-login transition
+    void window.omadiaCanvas.disconnectAll().then(redial, redial);
   };
+
+  // safety valve: a pending setup/sign-in that never reaches 'ready' must
+  // not trap the user in the busy pane — surface a retryable failure.
+  useEffect(() => {
+    if (!pending) return;
+    const t = setTimeout(() => {
+      setPending(null);
+      setStatus((s) =>
+        s.state === 'ready'
+          ? s
+          : { state: 'failed', detail: 'Verbindung nach Anmeldung fehlgeschlagen — bitte erneut versuchen.' },
+      );
+    }, 12_000);
+    return () => clearTimeout(t);
+  }, [pending]);
 
   const cancelSetup = () => {
     setShowSetup(false);
@@ -545,6 +592,8 @@ export function App() {
   const submitPrompt = () => {
     const text = draft.trim();
     if (!text) return;
+    // asking turns a chooser pane into a real canvas
+    chooserSlots.current.delete(activeSlotId);
     const turnId = crypto.randomUUID();
     pendingTurnIds.current.set(activeSlotId, turnId);
     window.omadiaCanvas.sendTurn(activeSlotId, { type: 'turn', turnId, text });
@@ -647,6 +696,65 @@ export function App() {
     if (st.tree === null) {
       if (!focused) {
         return <div className="lume-pane-empty">Leerer Canvas — klicken zum Fokussieren.</div>;
+      }
+      // chooser pane (fresh split, issue #14): ask Omadia OR adopt an
+      // existing canvas — same card look as the library (#12)
+      const isChooser = chooserSlots.current.has(slotId);
+      const candidates = isChooser ? slots.filter((s) => s.slotId !== slotId) : [];
+      if (isChooser && candidates.length > 0) {
+        return (
+          <div className="lume-pane-chooser">
+            <input
+              ref={promptRef}
+              className="lume-input lume-spotlight-input"
+              autoFocus
+              placeholder="Ask omadia…"
+              disabled={status.state !== 'ready'}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && submitPrompt()}
+            />
+            <div className="lume-pane-chooser-divider">oder bestehenden Canvas öffnen</div>
+            <div className="lume-library-grid lume-pane-chooser-grid">
+              {candidates.map((s) => {
+                const tree =
+                  s.slotId === activeSlotId
+                    ? canvas.tree
+                    : (slotStates.current.get(s.slotId)?.tree ?? null);
+                return (
+                  <div key={s.slotId} className="lume-library-card">
+                    <div className="lume-library-card-head">
+                      <span className={`lume-sidebar-dot lume-canvas-dot-${s.color}`} aria-hidden />
+                      <span className="lume-library-card-title" title={s.title}>
+                        {s.title}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="lume-library-preview"
+                      title={`„${s.title}“ in dieser Pane öffnen`}
+                      onClick={() => adoptIntoPane(slotId, s.slotId)}
+                    >
+                      {tree !== null ? (
+                        <div className="lume-library-preview-scale" aria-hidden>
+                          <PrimitiveNode
+                            node={tree as PrimitiveJson}
+                            onAction={() => undefined}
+                            onRowMenu={() => undefined}
+                          />
+                        </div>
+                      ) : (
+                        <span className="lume-library-preview-empty">
+                          Noch nicht geladen — öffnen stellt den Canvas wieder her.
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
       }
       return (
         // Cold-start: a canvas is never empty (concept §Interaction Model).

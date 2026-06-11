@@ -1138,6 +1138,35 @@ body {
   color: var(--lume-text-tertiary);
   font-size: 12px;
 }
+/* pane chooser (issue #14): fresh split pane — ask Omadia or adopt an
+   existing canvas, library card look */
+.lume-pane-chooser {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 24px;
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+.lume-pane-chooser .lume-spotlight-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.lume-pane-chooser-divider {
+  font-family: var(--lume-font-structural);
+  font-size: 11px;
+  color: var(--lume-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+.lume-pane-chooser-grid {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+.lume-pane-chooser-grid .lume-library-preview {
+  height: 110px;
+}
 
 /* ── notifications (issue #15): toast / banner / bell — §2.6 semantic
    states are TEXT colors, never pills; popover elevation for overlays ── */
