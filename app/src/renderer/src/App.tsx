@@ -881,6 +881,7 @@ export function App() {
                             node={tree as PrimitiveJson}
                             onAction={() => undefined}
                             onRowMenu={() => undefined}
+                            root
                           />
                         </div>
                       ) : (
@@ -970,10 +971,11 @@ export function App() {
             patch → per-node condensation via the condense prop. */}
         <div
           key={st.snapshotRevision ?? 'local-pending'}
-          className={st.lastApply?.kind === 'snapshot' ? 'lume-crossfade' : undefined}
+          className={`lume-canvas-root${st.lastApply?.kind === 'snapshot' ? ' lume-crossfade' : ''}`}
         >
           <PrimitiveNode
             node={st.tree as PrimitiveJson}
+            root
             onAction={onAction}
             onRowMenu={(req) => {
               setBeamDraft('');

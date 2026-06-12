@@ -47,17 +47,17 @@
   --lume-radius-md: 8px;
   --lume-radius-lg: 12px;
   --lume-radius-pill: 999px;
-  /* spacing scale — 4px base. Structural rhythm runs one step looser than the
-     v0.1 values so canvas surfaces breathe (density pass): radius softened in
-     v0.3 but spacing never followed. Primitives reach for the semantic aliases. */
+  /* spacing scale — §2.8 (v0.4 errata): the stops are a CLOSED SET.
+     No intermediate values may be introduced here (the former 20px stop
+     conformed to no spec value and is retired). Aliases must resolve to a
+     stop in the §2.8 table. Primitives reach for the semantic aliases. */
   --lume-space-1: 4px;
   --lume-space-2: 8px;
   --lume-space-3: 12px;
   --lume-space-4: 16px;
-  --lume-space-5: 20px;
   --lume-space-6: 24px;
   --lume-space-8: 32px;
-  --lume-pad-container: var(--lume-space-5); /* 20px — inside cards/containers */
+  --lume-pad-container: var(--lume-space-4); /* 16px = §2.8 space.5 — inside cards/containers */
   --lume-gap-stack: var(--lume-space-4); /* 16px — between stacked siblings */
   --lume-gap-form: var(--lume-space-4); /* 16px — between form controls */
   --lume-gap-inline: var(--lume-space-3); /* 12px — toolbar/flow/split rows */
@@ -297,14 +297,30 @@ textarea.lume-input:disabled {
   box-shadow: none; /* §4: no glow on error — the error is the salient signal */
 }
 
-/* §4.2 container: surface gradient, directional border.subtle, radius.md */
+/* §4.2 container (v0.4): framed containers are RAISED material —
+   gradient bg.surface.raised, directional border.subtle, inset
+   top-highlight (§3.4), radius.md. Separation between siblings comes from
+   the parent layout gap, not from container margins (§2.13). */
 .lume-container {
-  background: linear-gradient(180deg, var(--lume-surface-top) 0%, var(--lume-surface-btm) 100%);
+  background: linear-gradient(180deg, var(--lume-raised-top) 0%, var(--lume-raised-btm) 100%);
   border: 1px solid var(--lume-border-subtle-btm);
   border-top-color: var(--lume-border-subtle-top);
   border-radius: var(--lume-radius-md);
   padding: var(--lume-pad-container);
-  margin: var(--lume-space-3);
+  margin: 0;
+  box-shadow: inset 0 1px 0 var(--lume-border-top);
+}
+/* §2.13 frameless-first (v0.4): the tree root inside a pane contributes
+   layout only — the pane already IS the content's surface. No second frame,
+   no own background, no identity slot (§2.14, suppressed in the renderer). */
+.lume-container--frameless,
+.lume-pane.lume-container--frameless {
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
 }
 .lume-container-title {
   color: var(--lume-text-dim);
@@ -312,6 +328,17 @@ textarea.lume-input:disabled {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: var(--lume-space-3);
+}
+/* §2.13 (v0.4): the pane's content inset lives on the canvas root wrapper —
+   the frameless root container contributes no padding of its own, and a
+   non-container root (table, chart) gets the same breathing room. */
+.lume-canvas-root {
+  padding: var(--lume-space-6);
+}
+/* measure (v0.4): prose never runs pane-wide — readable line length.
+   (Form column width lives on .lume-form below.) */
+.lume-text {
+  max-width: 65ch;
 }
 /* container layout variants (schema: stack | split | grid | flow) */
 .lume-layout-stack > * + * {
@@ -329,7 +356,7 @@ textarea.lume-input:disabled {
 .lume-layout-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--lume-space-5);
+  gap: var(--lume-space-4);
 }
 .lume-layout-flow {
   display: flex;
@@ -589,11 +616,13 @@ textarea.lume-input:disabled {
 .lume-toggle input[type='checkbox']:not(.lume-toggle-switch input) {
   accent-color: var(--lume-accent);
 }
-/* §4.2 form: no per-form chrome — layout only */
+/* §4.2 form: no per-form chrome — layout only. measure (v0.4): fields
+   keep an inspector-like column, never pane-wide. */
 .lume-form {
   display: flex;
   flex-direction: column;
   gap: var(--lume-gap-form);
+  max-width: 560px;
 }
 /* §4.2 menubar: mode-bridge — hover paints accent.subtle, never glow */
 .lume-menubar {
@@ -1132,7 +1161,10 @@ textarea.lume-input:disabled {
   min-width: 0;
   min-height: 0;
   border: 1px solid var(--lume-border-subtle-btm);
-  border-radius: var(--lume-radius-md);
+  border-top-color: var(--lume-border-subtle-top);
+  /* §2.13 depth 1: the pane is the content's surface of record — radius.lg
+     (concentric with the window), directional border. */
+  border-radius: var(--lume-radius-lg);
   overflow: hidden;
   background: linear-gradient(180deg, var(--lume-surface-top) 0%, var(--lume-surface-btm) 100%);
 }

@@ -218,4 +218,50 @@ describe('PrimitiveNode', () => {
     const html = renderToStaticMarkup(<PrimitiveNode node={{ type: 'iframe' }} onAction={() => {}} />);
     expect(html).toContain('lume-unknown');
   });
+
+  // visual-spec v0.4 §2.13/§2.14 — frameless-first + chrome budget
+  it('root container renders frameless and suppresses its identity slot (§2.13/§2.14)', () => {
+    const html = renderToStaticMarkup(<PrimitiveNode node={TREE} onAction={() => {}} root />);
+    expect(html).toContain('lume-container--frameless');
+    expect(html).not.toContain('lume-container-title');
+    expect(html).not.toContain('>T<'); // the container title text never renders at root
+    expect(html).toContain('Open tickets'); // headings are content — never suppressed
+  });
+
+  it('non-root containers keep their frame and identity slot', () => {
+    const html = renderToStaticMarkup(<PrimitiveNode node={TREE} onAction={() => {}} />);
+    expect(html).not.toContain('lume-container--frameless');
+    expect(html).toContain('lume-container-title');
+    expect(html).toContain('>T<');
+  });
+
+  it('root does not leak to children — only the first container is frameless', () => {
+    const nested = {
+      type: 'container',
+      id: 'outer',
+      title: 'Outer',
+      children: [{ type: 'container', id: 'inner', title: 'Card', children: [] }],
+    };
+    const html = renderToStaticMarkup(<PrimitiveNode node={nested} onAction={() => {}} root />);
+    const frameless = html.match(/lume-container--frameless/g) ?? [];
+    expect(frameless.length).toBe(1);
+    expect(html).toContain('Card'); // depth-3 card keeps its identity slot
+    expect(html).not.toContain('Outer');
+  });
+
+  it('root passes through tabs to the active child (non-surface wrapper)', () => {
+    const tabbed = {
+      type: 'tabs',
+      id: 'tabs',
+      tabs: [
+        {
+          label: 'Wizard',
+          child: { type: 'container', id: 'wiz', title: 'X Studio', children: [] },
+        },
+      ],
+    };
+    const html = renderToStaticMarkup(<PrimitiveNode node={tabbed} onAction={() => {}} root />);
+    expect(html).toContain('lume-container--frameless');
+    expect(html).not.toContain('X Studio');
+  });
 });

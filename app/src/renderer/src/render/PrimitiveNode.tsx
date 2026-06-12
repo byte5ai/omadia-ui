@@ -53,6 +53,12 @@ interface Props {
   onRowMenu?: (req: RowMenuRequest) => void;
   condense?: CondenseInfo;
   beamTarget?: BeamTarget | null;
+  /** visual-spec §2.13/§2.14 (v0.4): tree root inside a pane. The pane
+   *  already IS the content's surface — the first container renders
+   *  frameless, and its identity slot yields to the pane-bar (slot rule,
+   *  never string comparison). Not inherited by children; propagated only
+   *  through non-surface wrappers (tabs). */
+  root?: boolean;
 }
 
 /** protocol §2: canvas content is PLAIN TEXT — agents still leak markdown
@@ -97,7 +103,7 @@ const children = (node: PrimitiveJson, ctx: Omit<Props, 'node'>): ReactNode =>
     : null;
 
 /** `tabs` keeps its active index client-side (view state, not canvas state). */
-function TabsNode({ node, ...ctx }: Props): ReactNode {
+function TabsNode({ node, root, ...ctx }: Props): ReactNode {
   const tabs = (node['tabs'] as Array<{ label: string; child: PrimitiveJson }>) ?? [];
   const initial = Math.min(Math.max(Number(node['activeStep'] ?? 0), 0), Math.max(tabs.length - 1, 0));
   const [active, setActive] = useState(initial);
@@ -117,7 +123,7 @@ function TabsNode({ node, ...ctx }: Props): ReactNode {
           </button>
         ))}
       </div>
-      {current && <PrimitiveNode node={current.child} {...ctx} />}
+      {current && <PrimitiveNode node={current.child} {...ctx} root={root} />}
     </div>
   );
 }
@@ -167,13 +173,19 @@ function ButtonNode({ node, onAction }: Pick<Props, 'node' | 'onAction'>): React
   );
 }
 
-function renderNode(node: PrimitiveJson, ctx: Omit<Props, 'node'>): ReactNode {
+function renderNode(node: PrimitiveJson, ctx: Omit<Props, 'node' | 'root'>, root: boolean): ReactNode {
   const { onAction, onRowMenu, beamTarget } = ctx;
   switch (node.type) {
     case 'container':
+      // §2.13 frameless-first: the top-level container paints no frame of
+      // its own — the pane is its surface. §2.14 chrome budget: its
+      // identity slot is suppressed; the pane-bar owns the identity.
       return (
-        <section className={`lume-container ${styleClasses(node)}`} data-id={node['id'] as string}>
-          {typeof node['title'] === 'string' && (
+        <section
+          className={`lume-container${root ? ' lume-container--frameless' : ''} ${styleClasses(node)}`}
+          data-id={node['id'] as string}
+        >
+          {!root && typeof node['title'] === 'string' && (
             <div className="lume-container-title">{node['title']}</div>
           )}
           <div className={`lume-layout-${(node['layout'] as string) ?? 'stack'}`}>
@@ -184,8 +196,13 @@ function renderNode(node: PrimitiveJson, ctx: Omit<Props, 'node'>): ReactNode {
 
     case 'pane':
       return (
-        <section className={`lume-pane ${presentationClasses(node)}`.trim()} data-id={node['id'] as string}>
-          {typeof node['title'] === 'string' && <div className="lume-container-title">{node['title']}</div>}
+        <section
+          className={`lume-pane${root ? ' lume-container--frameless' : ''} ${presentationClasses(node)}`.trim()}
+          data-id={node['id'] as string}
+        >
+          {!root && typeof node['title'] === 'string' && (
+            <div className="lume-container-title">{node['title']}</div>
+          )}
           {node['container'] !== undefined && (
             <PrimitiveNode node={node['container'] as PrimitiveJson} {...ctx} />
           )}
@@ -194,7 +211,8 @@ function renderNode(node: PrimitiveJson, ctx: Omit<Props, 'node'>): ReactNode {
       );
 
     case 'tabs':
-      return <TabsNode node={node} {...ctx} />;
+      // tabs is a non-surface wrapper — root passes through to the active child.
+      return <TabsNode node={node} {...ctx} root={root} />;
 
     case 'heading': {
       const level = Math.min(Math.max(Number(node['level'] ?? 2), 1), 6);
@@ -400,8 +418,8 @@ function renderNode(node: PrimitiveJson, ctx: Omit<Props, 'node'>): ReactNode {
   }
 }
 
-export function PrimitiveNode({ node, ...ctx }: Props): ReactNode {
-  const rendered = renderNode(node, ctx);
+export function PrimitiveNode({ node, root, ...ctx }: Props): ReactNode {
+  const rendered = renderNode(node, ctx, root === true);
   const id = node['id'];
   // §3.5 patch-condensation: nodes a patch touched condense into existence.
   // The revision-derived key remounts only the changed subtree, so the
