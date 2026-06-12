@@ -1,0 +1,46 @@
+# CI — typecheck, tests and a renderer build for every PR (and main).
+#
+# Protocol contract note: schemas + fixtures are NOT committed (no-drift
+# policy — they sync from the omadia monorepo's @omadia/canvas-core). When
+# the OMADIA_REPO_TOKEN secret is configured, the canonical contract is
+# checked out and the full parity suite runs. Without it, the build falls
+# back to the committed pre-compiled validator (OMADIA_SCHEMA_OPTIONAL=1)
+# and the fixture-parity suite skips itself.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      OMADIA_SCHEMA_OPTIONAL: '1'
+      OMADIA_REPO: ${{ github.workspace }}/omadia
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout canvas-core contract (optional — needs OMADIA_REPO_TOKEN)
+        if: ${{ secrets.OMADIA_REPO_TOKEN != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: byte5ai/omadia
+          token: ${{ secrets.OMADIA_REPO_TOKEN }}
+          path: omadia
+          sparse-checkout: middleware/packages/canvas-core
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

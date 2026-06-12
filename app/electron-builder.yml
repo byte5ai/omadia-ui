@@ -4,9 +4,28 @@ directories:
   output: dist
 files:
   - out/**
+# Stable, arch-qualified artifact names — these are what the release
+# workflow uploads to the GitHub release.
+artifactName: ${productName}-${version}-${os}-${arch}.${ext}
 mac:
-  target: [dmg, zip]
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
   category: public.app-category.productivity
   # Signing/notarization (high5 Developer ID, notarytool) lands with the GA
   # release pipeline — implementation-plan.md §7 / references/apple_dev.md.
   identity: null
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+  category: Utility

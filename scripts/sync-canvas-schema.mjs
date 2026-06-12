@@ -63,6 +63,12 @@ const SCHEMAS = [
 ];
 
 if (!existsSync(schemaSrc)) {
+  if (process.env.OMADIA_SCHEMA_OPTIONAL === '1') {
+    console.warn(
+      'sync-canvas-schema: schema sync skipped — building against the committed validator',
+    );
+    process.exit(0);
+  }
   console.error(
     'sync-canvas-schema: @omadia/canvas-core not found. Tried:\n' +
       candidateRoots.map((r) => `  - ${join(r, 'middleware/packages/canvas-core')}`).join('\n') +
