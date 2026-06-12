@@ -65,6 +65,8 @@ jobs:
     env:
       OMADIA_SCHEMA_OPTIONAL: '1'
       OMADIA_REPO: ${{ github.workspace }}/omadia
+      # secrets are not addressable in step-level `if` — hoist into env first
+      OMADIA_CONTRACT_TOKEN: ${{ secrets.OMADIA_REPO_TOKEN }}
     defaults:
       run:
         working-directory: app
@@ -75,11 +77,11 @@ jobs:
           ref: v${{ needs.release.outputs.version }}
 
       - name: Checkout canvas-core contract (optional — needs OMADIA_REPO_TOKEN)
-        if: ${{ secrets.OMADIA_REPO_TOKEN != '' }}
+        if: ${{ env.OMADIA_CONTRACT_TOKEN != '' }}
         uses: actions/checkout@v4
         with:
           repository: byte5ai/omadia
-          token: ${{ secrets.OMADIA_REPO_TOKEN }}
+          token: ${{ env.OMADIA_CONTRACT_TOKEN }}
           path: omadia
           sparse-checkout: middleware/packages/canvas-core
 
