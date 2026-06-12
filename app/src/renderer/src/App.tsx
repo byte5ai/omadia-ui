@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AppSettings, ConnectOptions, ConnectionStatus } from '../../shared/ipc.js';
 import { applyServerMessage, goBack, initialCanvasState, type CanvasState } from './store/canvasStore.js';
+import { extractRootMenu, loadStoredMenu, storeMenu } from './store/canvasMenu.js';
 import { validateTree } from './validate/validator.js';
 import {
   PrimitiveNode,
@@ -285,6 +286,9 @@ export function App() {
                   tree: e.tree,
                   revision: e.revision ?? null,
                   snapshotRevision: e.revision ?? 'restored',
+                  // §2.15: restored state may be a menu-less view (an error
+                  // tree) — fall back to the persisted app menu
+                  menu: extractRootMenu(e.tree) ?? loadStoredMenu(e.sessionId),
                 };
                 slotStates.current.set(slot.slotId, restored);
                 if (slot.slotId === activeSlotIdRef.current && stateRef.current.tree === null) {
@@ -310,6 +314,12 @@ export function App() {
           : (slotStates.current.get(slotKey) ?? initialCanvasState);
       const { state, resync } = applyServerMessage(prev, msg);
       slotStates.current.set(slotKey, state);
+      // §2.15: persist the app menu so it survives an app restart that
+      // lands on a menu-less server state (e.g. an error tree)
+      if (state.menu !== prev.menu) {
+        const sess = slotsRef.current.find((s) => s.slotId === slotKey)?.sessionId;
+        if (sess) storeMenu(sess, state.menu);
+      }
       if (slotKey === activeSlotIdRef.current) {
         setCanvas(state);
       } else {
@@ -939,6 +949,13 @@ export function App() {
     }
     return (
       <>
+        {/* §2.15 static app menu — hoisted root toolbar, sticky across
+            revisions: an error tree never strands the user without nav */}
+        {st.menu !== null && (
+          <nav className="lume-pane-menu">
+            <PrimitiveNode node={st.menu as PrimitiveJson} onAction={onAction} />
+          </nav>
+        )}
         {/* §6.1 motion split: snapshot → crossfade (key per snapshot run);
             patch → per-node condensation via the condense prop. */}
         <div
@@ -948,6 +965,7 @@ export function App() {
           <PrimitiveNode
             node={st.tree as PrimitiveJson}
             root
+            hoistedMenuId={(st.menu?.['id'] as string | undefined) ?? undefined}
             onAction={onAction}
             onRowMenu={(req) => {
               setBeamDraft('');

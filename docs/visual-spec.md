@@ -734,6 +734,28 @@ Social-Draft"), not *where they are* (the pane-bar already said so). This
 half of the budget is tree discipline, enforced as a lint/convention in the
 plugin SDK, not by the renderer.
 
+### 2.15 Deterministic navigation — root-toolbar hoisting (v0.4)
+
+A plugin's top-level navigation must not live or die with the generative
+tree. A `toolbar` that is a **direct child of the root container** is the
+plugin's **app menu**: the host hoists it out of the canvas into a static
+menu strip directly under the pane-bar (chrome region, full pane width) and
+suppresses the inline copy.
+
+**The hoisted menu is sticky per canvas.** It persists across revisions —
+when a later tree (a progress view, an **error view**) arrives *without* a
+root toolbar, the menu stays. The user can always jump back to a known view
+through deterministic actions; an error never strands them on a dead
+surface. A new root toolbar in a later revision replaces the menu; the
+menu's actions fire exactly like canvas actions (same turn path,
+`basedOnRevision` semantics unchanged).
+
+This is host behaviour over the existing wire format — no schema change.
+Any plugin opts in by sending a root-level toolbar (X Studio's
+Wizard/Drafts nav is the reference case). Visual: the strip is quiet
+chrome — `bg.surface`, hairline `border.subtle` bottom, ghost buttons
+(§4.2 menubar mode-bridge: hover paints `accent.subtle`, never glow).
+
 ---
 
 ## 3. Lume implementation primitives

@@ -1214,6 +1214,33 @@ textarea.lume-input:disabled {
   overflow: auto;
   position: relative;
 }
+/* §2.15 static app menu — the hoisted root toolbar as quiet chrome under
+   the pane-bar. Sticky: it never scrolls away, and it never dies with the
+   generative tree (menubar mode-bridge: hover paints accent.subtle). */
+.lume-pane-menu {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: linear-gradient(180deg, var(--lume-surface-top) 0%, var(--lume-surface-btm) 100%);
+  border-bottom: 1px solid var(--lume-border-subtle-btm);
+  padding: var(--lume-space-1) var(--lume-space-6);
+}
+.lume-pane-menu .lume-toolbar {
+  gap: var(--lume-space-1);
+}
+.lume-pane-menu .lume-button {
+  background: none;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--lume-text-secondary);
+  font-size: 12px;
+  padding: 4px 10px;
+}
+.lume-pane-menu .lume-button:hover {
+  background: var(--lume-accent-subtle);
+  color: var(--lume-text);
+  border-color: transparent;
+}
 .lume-pane-empty {
   display: flex;
   align-items: center;

@@ -59,6 +59,9 @@ interface Props {
    *  never string comparison). Not inherited by children; propagated only
    *  through non-surface wrappers (tabs). */
   root?: boolean;
+  /** §2.15 root-toolbar hoisting: id of the root toolbar the host renders
+   *  as the static pane menu — its inline copy is suppressed at root level */
+  hoistedMenuId?: string;
 }
 
 /** protocol §2: canvas content is PLAIN TEXT — agents still leak markdown
@@ -122,13 +125,16 @@ const pageSurfaceChild = (node: PrimitiveJson): PrimitiveJson | null => {
 };
 
 /** children of a frameless root container — the page-surface child (if any)
- *  inherits root, every other child renders normally. */
+ *  inherits root, every other child renders normally. The hoisted app menu
+ *  (§2.15) is skipped: the host already renders it as static pane chrome. */
 const rootChildren = (node: PrimitiveJson, ctx: Omit<Props, 'node'>): ReactNode => {
   const page = pageSurfaceChild(node);
   return Array.isArray(node['children'])
-    ? (node['children'] as PrimitiveJson[]).map((c, i) => (
-        <PrimitiveNode key={(c['id'] as string) ?? i} node={c} {...ctx} root={c === page} />
-      ))
+    ? (node['children'] as PrimitiveJson[])
+        .filter((c) => !(ctx.hoistedMenuId !== undefined && c['id'] === ctx.hoistedMenuId))
+        .map((c, i) => (
+          <PrimitiveNode key={(c['id'] as string) ?? i} node={c} {...ctx} root={c === page} />
+        ))
     : null;
 };
 

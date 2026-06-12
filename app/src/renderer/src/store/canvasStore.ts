@@ -1,6 +1,7 @@
 import { SURFACE_EVENT_TYPES, type ServerMessage, type SurfaceEvent } from '../../../shared/protocol.js';
 import { applyTreePatches } from '../../../shared/treePatch.js';
 import { validateSurfaceEvent, validateTree } from '../validate/validator.js';
+import { extractRootMenu, type MenuNode } from './canvasMenu.js';
 
 /** How the current tree arrived — drives the visual-spec §6.1 motion split:
  *  snapshot → full-canvas crossfade; patch → condensation on changed nodes. */
@@ -37,6 +38,9 @@ export interface CanvasState {
   /** per-container DataRef state (protocol 1.1, issue #5): refreshable=true →
    *  the server holds a recipe and refreshes this container deterministically */
   dataRefs: Record<string, { refreshable: boolean; expiresAt?: string }>;
+  /** §2.15 root-toolbar hoisting: the plugin's app menu — STICKY across
+   *  revisions, so an error tree without a toolbar never strands the user */
+  menu: MenuNode | null;
 }
 
 export const initialCanvasState: CanvasState = {
@@ -53,6 +57,7 @@ export const initialCanvasState: CanvasState = {
   notices: [],
   history: [],
   dataRefs: {},
+  menu: null,
 };
 
 const nodeId = (n: unknown): string | undefined => {
@@ -165,6 +170,8 @@ function applySurfaceEvent(state: CanvasState, ev: SurfaceEvent, now: number): A
           tree,
           revision,
           snapshotRevision: revision,
+          // §2.15: a new root toolbar replaces the menu; none → menu stays
+          menu: extractRootMenu(tree) ?? state.menu,
           // §6.1: snapshot arrival renders as a full-canvas crossfade
           lastApply: { kind: 'snapshot', revision, changedIds: [], rapid: false },
           patchTimes: [],
@@ -196,6 +203,8 @@ function applySurfaceEvent(state: CanvasState, ev: SurfaceEvent, now: number): A
             ...seen,
             tree: next,
             revision,
+            // §2.15 sticky menu — a patched-in root toolbar updates it
+            menu: extractRootMenu(next) ?? state.menu,
             patchTimes,
             lastApply: {
               kind: 'patch',

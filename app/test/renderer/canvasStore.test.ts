@@ -142,6 +142,37 @@ describe('applyServerMessage', () => {
     expect(r.state.snapshotRevision).toBe('0');
   });
 
+  it('keeps the app menu sticky across menu-less snapshots (§2.15)', () => {
+    const menuTree = {
+      type: 'container',
+      id: 'shell',
+      children: [
+        { type: 'toolbar', id: 'nav', children: [{ type: 'button', id: 'b', label: 'Wizard' }] },
+        { type: 'container', id: 'page', children: [] },
+      ],
+    };
+    const errorTree = {
+      type: 'container',
+      id: 'err',
+      children: [{ type: 'heading', id: 'h', content: 'Fehler', level: 1 }],
+    };
+    const snapshotWith = (rev: string, tree: unknown): ServerMessage => ({
+      type: 'surface_snapshot',
+      canvasSessionId: 'c',
+      surfaceSeq: 0,
+      producesRevision: rev,
+      tree,
+      protocolVersion: '1.0',
+      opsCatalogVersion: '1.0',
+    });
+    let r = applyServerMessage(initialCanvasState, snapshotWith('0', menuTree));
+    expect(r.state.menu).toMatchObject({ type: 'toolbar', id: 'nav' });
+    // the error view carries no toolbar — the menu must survive it
+    r = applyServerMessage(r.state, snapshotWith('1', errorTree));
+    expect((r.state.tree as { id: string }).id).toBe('err');
+    expect(r.state.menu).toMatchObject({ type: 'toolbar', id: 'nav' });
+  });
+
   it('flags rapid-stream when more than 5 patches land within a second', () => {
     let r = applyServerMessage(initialCanvasState, snapshot(0, '0'), 0);
     for (let i = 1; i <= 6; i += 1) {

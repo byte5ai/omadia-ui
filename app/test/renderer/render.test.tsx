@@ -266,6 +266,23 @@ describe('PrimitiveNode', () => {
     expect(html).toContain('Umsatz'); // and its identity slot
   });
 
+  it('suppresses the inline copy of the hoisted app menu at root (§2.15)', () => {
+    const shell = {
+      type: 'container',
+      id: 'shell',
+      children: [
+        { type: 'toolbar', id: 'nav', children: [{ type: 'button', id: 'b1', label: 'Wizard' }] },
+        { type: 'container', id: 'page', children: [{ type: 'text', id: 't', content: 'Inhalt' }] },
+      ],
+    };
+    const html = renderToStaticMarkup(
+      <PrimitiveNode node={shell} onAction={() => {}} root hoistedMenuId="nav" />,
+    );
+    expect(html).not.toContain('Wizard'); // the host renders the menu as chrome
+    expect(html).toContain('Inhalt');
+    expect(html).toContain('lume-container--frameless'); // descent unaffected
+  });
+
   it('two sibling surfaces keep their frames — cells, not pages', () => {
     const split = {
       type: 'container',
