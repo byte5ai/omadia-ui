@@ -7,6 +7,9 @@ files:
 # Stable, arch-qualified artifact names — these are what the release
 # workflow uploads to the GitHub release.
 artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+# Until GA signing lands, ad-hoc sign the mac bundle so downloads fail soft
+# ("unverified developer", bypassable) instead of hard ("damaged").
+afterPack: tools/adhocSign.cjs
 mac:
   target:
     - target: dmg
