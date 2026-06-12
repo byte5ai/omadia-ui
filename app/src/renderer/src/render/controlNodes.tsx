@@ -1,5 +1,6 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { PrimitiveAction, PrimitiveJson } from './PrimitiveNode.js';
+import { useCanvasForm } from './formContext.js';
 
 interface ControlProps {
   node: PrimitiveJson;
@@ -29,21 +30,32 @@ const emitValue = (
 
 /** `input` keeps draft text client-side; commits on blur/Enter as a turn action. */
 export function InputNode({ node, onAction }: ControlProps): ReactNode {
-  const [value, setValue] = useState((node['value'] as string) ?? '');
-  const lastSent = useRef((node['value'] as string) ?? '');
+  const form = useCanvasForm();
+  const nodeId = node['id'] as string;
+  const initialValue = (node['value'] as string) ?? '';
+  const [value, setValue] = useState(initialValue);
+  const lastSent = useRef(initialValue);
+  useEffect(() => {
+    form?.set(nodeId, initialValue);
+  }, []);
   const commit = (): void => {
+    if (form) return;
     if (value === lastSent.current) return;
     lastSent.current = value;
     emitValue(node, onAction, 'input_change', value);
   };
   return (
-    <label className="lume-input" data-id={node['id'] as string}>
+    <label className="lume-input" data-id={nodeId}>
       {typeof node['label'] === 'string' && <span className="lume-control-label">{node['label']}</span>}
       <input
         className="lume-input-field"
         value={value}
         placeholder={(node['placeholder'] as string) ?? ''}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => {
+          const next = e.target.value;
+          setValue(next);
+          form?.set(nodeId, next);
+        }}
         onBlur={commit}
         onKeyDown={(e) => e.key === 'Enter' && commit()}
       />
@@ -53,15 +65,25 @@ export function InputNode({ node, onAction }: ControlProps): ReactNode {
 
 /** `toggle` — checkbox (default) or switch variant; flips client-side, reports upstream. */
 export function ToggleNode({ node, onAction }: ControlProps): ReactNode {
-  const [value, setValue] = useState(Boolean(node['value']));
+  const form = useCanvasForm();
+  const nodeId = node['id'] as string;
+  const initialValue = Boolean(node['value']);
+  const [value, setValue] = useState(initialValue);
+  useEffect(() => {
+    form?.set(nodeId, initialValue);
+  }, []);
   const flip = (): void => {
     const next = !value;
     setValue(next);
+    if (form) {
+      form.set(nodeId, next);
+      return;
+    }
     emitValue(node, onAction, 'toggle_change', next);
   };
   const isSwitch = node['variant'] === 'switch';
   return (
-    <label className={`lume-toggle${isSwitch ? ' lume-toggle-switch' : ''}`} data-id={node['id'] as string}>
+    <label className={`lume-toggle${isSwitch ? ' lume-toggle-switch' : ''}`} data-id={nodeId}>
       <input type="checkbox" checked={value} onChange={flip} />
       {isSwitch && <span className="lume-switch-track" aria-hidden="true" />}
       {typeof node['label'] === 'string' && <span className="lume-control-label">{node['label']}</span>}
@@ -74,27 +96,38 @@ export function ToggleNode({ node, onAction }: ControlProps): ReactNode {
  *  pick the element LOCKS and the chosen option pulses (beam lifecycle) until
  *  the answering turn replaces the tree — no double-fires. */
 export function ChoiceNode({ node, onAction }: ControlProps): ReactNode {
+  const form = useCanvasForm();
+  const nodeId = node['id'] as string;
   const options = (node['options'] as Array<{ value: string; label: string }>) ?? [];
-  const [value, setValue] = useState((node['value'] as string) ?? '');
+  const initialValue = (node['value'] as string) ?? '';
+  const [value, setValue] = useState(initialValue);
   const [picked, setPicked] = useState(false);
+  useEffect(() => {
+    form?.set(nodeId, initialValue);
+  }, []);
   if (options.length === 0) return null;
   const emit = (next: string): void => {
-    if (picked) return;
+    if (!form && picked) return;
     setValue(next);
+    if (form) {
+      form.set(nodeId, next);
+      return;
+    }
     setPicked(true);
     emitValue(node, onAction, 'choice_select', next);
   };
+  const locked = !form && picked;
 
   if (node['variant'] === 'dropdown') {
     return (
-      <label className="lume-choice" data-id={node['id'] as string}>
+      <label className="lume-choice" data-id={nodeId}>
         {typeof node['label'] === 'string' && (
           <span className="lume-control-label">{node['label']}</span>
         )}
         <select
           className="lume-choice-select"
           value={value}
-          disabled={picked}
+          disabled={locked}
           onChange={(e) => emit(e.target.value)}
         >
           {value === '' && <option value="" disabled hidden />}
@@ -110,8 +143,8 @@ export function ChoiceNode({ node, onAction }: ControlProps): ReactNode {
 
   return (
     <fieldset
-      className={`lume-choice${picked ? ' lume-choice-locked' : ''}`}
-      data-id={node['id'] as string}
+      className={`lume-choice${locked ? ' lume-choice-locked' : ''}`}
+      data-id={nodeId}
     >
       {typeof node['label'] === 'string' && (
         <legend className="lume-control-label">{node['label']}</legend>
@@ -123,10 +156,10 @@ export function ChoiceNode({ node, onAction }: ControlProps): ReactNode {
         >
           <input
             type="radio"
-            name={(node['id'] as string) ?? 'choice'}
+            name={nodeId ?? 'choice'}
             value={o.value}
             checked={o.value === value}
-            disabled={picked}
+            disabled={locked}
             onChange={() => emit(o.value)}
           />
           <span>{o.label}</span>

@@ -1,7 +1,8 @@
-import { useState, type JSX, type ReactNode } from 'react';
+import { useRef, useState, type JSX, type ReactNode } from 'react';
 import { ChoiceNode, InputNode, ToggleNode } from './controlNodes.js';
 import { ChartNode, TreePrimitiveNode } from './dataNodes.js';
 import { CanvasRegionNode, MediaNode, TimelineNode, VectorPathNode } from './editorNodes.js';
+import { CanvasFormContext, createCanvasFormStore, useCanvasForm } from './formContext.js';
 
 /** A validated primitive-tree node. The Ajv whitelist runs BEFORE render;
  *  this component trusts the shape but still fails soft on the unexpected. */
@@ -118,6 +119,51 @@ function TabsNode({ node, ...ctx }: Props): ReactNode {
       </div>
       {current && <PrimitiveNode node={current.child} {...ctx} />}
     </div>
+  );
+}
+
+/** `form` collects descendant control values for a single submit action. */
+function FormNode({ node, ...ctx }: Props): ReactNode {
+  const store = useRef(createCanvasFormStore()).current;
+  return (
+    <CanvasFormContext.Provider value={store}>
+      <form
+        className="lume-form"
+        data-id={node['id'] as string}
+        onSubmit={(e) => e.preventDefault()}
+      >
+        {typeof node['title'] === 'string' && (
+          <div className="lume-container-title">{node['title']}</div>
+        )}
+        {children(node, ctx)}
+      </form>
+    </CanvasFormContext.Provider>
+  );
+}
+
+/** `button` keeps standalone turn semantics, or submits the nearest form snapshot. */
+function ButtonNode({ node, onAction }: Pick<Props, 'node' | 'onAction'>): ReactNode {
+  const form = useCanvasForm();
+  const action = node['action'] as { type?: string; payload?: unknown } | undefined;
+  return (
+    <button
+      type="button"
+      className={`lume-button ${styleClasses(node)}`}
+      onClick={() => {
+        if (!action?.type) return;
+        if (form) {
+          onAction({
+            type: action.type,
+            payload: { ...(action.payload as object), fields: form.collect() },
+            sourceId: node['id'] as string,
+          });
+          return;
+        }
+        onAction({ type: action.type, payload: action.payload, sourceId: node['id'] as string });
+      }}
+    >
+      {node['label'] as string}
+    </button>
   );
 }
 
@@ -254,21 +300,8 @@ function renderNode(node: PrimitiveJson, ctx: Omit<Props, 'node'>): ReactNode {
         </div>
       );
 
-    case 'button': {
-      const action = node['action'] as { type?: string; payload?: unknown } | undefined;
-      return (
-        <button
-          type="button"
-          className={`lume-button ${styleClasses(node)}`}
-          onClick={() =>
-            action?.type &&
-            onAction({ type: action.type, payload: action.payload, sourceId: node['id'] as string })
-          }
-        >
-          {node['label'] as string}
-        </button>
-      );
-    }
+    case 'button':
+      return <ButtonNode node={node} onAction={onAction} />;
 
     case 'choice':
       return <ChoiceNode node={node} onAction={onAction} />;
@@ -280,18 +313,7 @@ function renderNode(node: PrimitiveJson, ctx: Omit<Props, 'node'>): ReactNode {
       return <ToggleNode node={node} onAction={onAction} />;
 
     case 'form':
-      return (
-        <form
-          className="lume-form"
-          data-id={node['id'] as string}
-          onSubmit={(e) => e.preventDefault()}
-        >
-          {typeof node['title'] === 'string' && (
-            <div className="lume-container-title">{node['title']}</div>
-          )}
-          {children(node, ctx)}
-        </form>
-      );
+      return <FormNode node={node} {...ctx} />;
 
     case 'menubar': {
       const items = (node['items'] as Array<Record<string, unknown>>) ?? [];
