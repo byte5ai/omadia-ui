@@ -1,0 +1,112 @@
+# Release — every PR that lands on main produces a semantic release.
+#
+# Job 1 (release): semantic-release reads the conventional commits since the
+# last tag, decides the next version (feat → minor, fix → patch, breaking →
+# major), tags vX.Y.Z and creates the GitHub release with generated notes.
+# Nothing is released when no releasable commit landed (docs/chore/ci).
+#
+# Job 2 (build): per-OS electron-builder runs against the released tag and
+# uploads the installers (macOS dmg+zip, Windows nsis, Linux AppImage) to
+# that release.
+#
+# Contract note: like CI, the canvas-core schema sync is optional here — the
+# committed pre-compiled validator ships in the artifact either way.
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.semantic.outputs.new_release_published }}
+      version: ${{ steps.semantic.outputs.new_release_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Semantic release (version + notes + GitHub release)
+        id: semantic
+        uses: cycjimmy/semantic-release-action@v4
+        with:
+          extra_plugins: |
+            conventional-changelog-conventionalcommits@8
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            args: --mac
+          - os: windows-latest
+            args: --win
+          - os: ubuntu-latest
+            args: --linux
+    runs-on: ${{ matrix.os }}
+    env:
+      OMADIA_SCHEMA_OPTIONAL: '1'
+      OMADIA_REPO: ${{ github.workspace }}/omadia
+    defaults:
+      run:
+        working-directory: app
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.release.outputs.version }}
+
+      - name: Checkout canvas-core contract (optional — needs OMADIA_REPO_TOKEN)
+        if: ${{ secrets.OMADIA_REPO_TOKEN != '' }}
+        uses: actions/checkout@v4
+        with:
+          repository: byte5ai/omadia
+          token: ${{ secrets.OMADIA_REPO_TOKEN }}
+          path: omadia
+          sparse-checkout: middleware/packages/canvas-core
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - run: npm ci
+
+      - name: Stamp the released version into the app
+        run: npm version ${{ needs.release.outputs.version }} --no-git-tag-version
+
+      - run: npm run build
+
+      - name: Package installers
+        run: npx electron-builder ${{ matrix.args }} --publish never
+
+      - name: Upload installers to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          shopt -s nullglob
+          files=(dist/*.dmg dist/*.zip dist/*.exe dist/*.AppImage dist/*.blockmap)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "no installer artifacts found in dist/" >&2
+            exit 1
+          fi
+          gh release upload "v${{ needs.release.outputs.version }}" "${files[@]}" --clobber
