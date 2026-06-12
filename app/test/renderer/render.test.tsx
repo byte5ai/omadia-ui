@@ -235,18 +235,52 @@ describe('PrimitiveNode', () => {
     expect(html).toContain('>T<');
   });
 
-  it('root does not leak to children — only the first container is frameless', () => {
-    const nested = {
+  it('page-surface descent — a lone container behind chrome siblings stays frameless (§2.13)', () => {
+    const shell = {
       type: 'container',
-      id: 'outer',
-      title: 'Outer',
-      children: [{ type: 'container', id: 'inner', title: 'Card', children: [] }],
+      id: 'shell',
+      title: 'X Studio',
+      children: [
+        { type: 'toolbar', id: 'nav', children: [{ type: 'button', id: 'b1', label: 'Wizard' }] },
+        { type: 'container', id: 'page', title: 'X Studio', children: [] },
+      ],
     };
-    const html = renderToStaticMarkup(<PrimitiveNode node={nested} onAction={() => {}} root />);
+    const html = renderToStaticMarkup(<PrimitiveNode node={shell} onAction={() => {}} root />);
+    const frameless = html.match(/lume-container--frameless/g) ?? [];
+    expect(frameless.length).toBe(2); // shell AND the page surface behind the toolbar
+    expect(html).not.toContain('lume-container-title'); // no identity slot anywhere
+  });
+
+  it('content siblings stop the descent — a container among content is a card', () => {
+    const dashboard = {
+      type: 'container',
+      id: 'dash',
+      children: [
+        { type: 'heading', id: 'h', content: 'KPIs', level: 2 },
+        { type: 'container', id: 'card', title: 'Umsatz', children: [] },
+      ],
+    };
+    const html = renderToStaticMarkup(<PrimitiveNode node={dashboard} onAction={() => {}} root />);
+    const frameless = html.match(/lume-container--frameless/g) ?? [];
+    expect(frameless.length).toBe(1); // only the root — the card keeps its frame
+    expect(html).toContain('Umsatz'); // and its identity slot
+  });
+
+  it('two sibling surfaces keep their frames — cells, not pages', () => {
+    const split = {
+      type: 'container',
+      id: 'root',
+      layout: 'split',
+      children: [
+        { type: 'container', id: 'a', title: 'Links', children: [] },
+        { type: 'container', id: 'b', title: 'Rechts', children: [] },
+      ],
+    };
+    const html = renderToStaticMarkup(<PrimitiveNode node={split} onAction={() => {}} root />);
     const frameless = html.match(/lume-container--frameless/g) ?? [];
     expect(frameless.length).toBe(1);
-    expect(html).toContain('Card'); // depth-3 card keeps its identity slot
-    expect(html).not.toContain('Outer');
+    expect(html).toContain('Links');
+    expect(html).toContain('Rechts');
   });
 
   it('root passes through tabs to the active child (non-surface wrapper)', () => {

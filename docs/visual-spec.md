@@ -703,6 +703,16 @@ immediately inside another frame with nothing between them, one of the two
 yields (the inner one, per the table). This rule is renderer-enforced and
 holds for every tree, regardless of what the wire format requests.
 
+**Page-surface descent.** Real trees often wrap the page in shell layers —
+`container > toolbar-nav + container(page)`. The frameless-first rule
+descends through such shells: inside a frameless container, when **exactly
+one** child is a surface primitive (`container` / `pane`) and every other
+sibling is chrome (`toolbar`, `tabs`, `status`, `divider`), that lone
+surface child is still "the first container" — it renders frameless and
+its identity slot stays suppressed (§2.14). The descent recurses. Content
+siblings (headings, text, tables, charts, lists) stop the descent: a
+container among content is a card and keeps its frame and label.
+
 ### 2.14 Chrome budget — one identity per level (v0.4)
 
 Each level of the hierarchy announces its identity **at most once**.

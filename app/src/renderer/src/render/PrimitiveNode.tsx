@@ -102,6 +102,36 @@ const children = (node: PrimitiveJson, ctx: Omit<Props, 'node'>): ReactNode =>
       ))
     : null;
 
+/** §2.13 page-surface descent: inside a frameless container, a LONE
+ *  container/pane child whose siblings are all chrome (toolbar/tabs/
+ *  status/divider) is still "the first container" — frameless, identity
+ *  suppressed. Content siblings make it a card and stop the descent. */
+const CHROME_SIBLINGS = new Set(['toolbar', 'tabs', 'status', 'divider']);
+const pageSurfaceChild = (node: PrimitiveJson): PrimitiveJson | null => {
+  if (!Array.isArray(node['children'])) return null;
+  let page: PrimitiveJson | null = null;
+  for (const c of node['children'] as PrimitiveJson[]) {
+    if (c.type === 'container' || c.type === 'pane') {
+      if (page !== null) return null; // two surfaces → cards, keep frames
+      page = c;
+    } else if (!CHROME_SIBLINGS.has(c.type)) {
+      return null; // content sibling → the container is a card
+    }
+  }
+  return page;
+};
+
+/** children of a frameless root container — the page-surface child (if any)
+ *  inherits root, every other child renders normally. */
+const rootChildren = (node: PrimitiveJson, ctx: Omit<Props, 'node'>): ReactNode => {
+  const page = pageSurfaceChild(node);
+  return Array.isArray(node['children'])
+    ? (node['children'] as PrimitiveJson[]).map((c, i) => (
+        <PrimitiveNode key={(c['id'] as string) ?? i} node={c} {...ctx} root={c === page} />
+      ))
+    : null;
+};
+
 /** `tabs` keeps its active index client-side (view state, not canvas state). */
 function TabsNode({ node, root, ...ctx }: Props): ReactNode {
   const tabs = (node['tabs'] as Array<{ label: string; child: PrimitiveJson }>) ?? [];
@@ -189,7 +219,7 @@ function renderNode(node: PrimitiveJson, ctx: Omit<Props, 'node' | 'root'>, root
             <div className="lume-container-title">{node['title']}</div>
           )}
           <div className={`lume-layout-${(node['layout'] as string) ?? 'stack'}`}>
-            {children(node, ctx)}
+            {root ? rootChildren(node, ctx) : children(node, ctx)}
           </div>
         </section>
       );
