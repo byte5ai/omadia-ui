@@ -3,6 +3,8 @@
  *  in memory only — a restarted app re-snapshots on the next turn against the
  *  same server-side canvasSessionId. */
 
+import { prefsKey } from './prefsNamespace.js';
+
 export interface CanvasSlotMeta {
   /** client-local slot identity (stable across renames/reconnects) */
   slotId: string;
@@ -27,7 +29,7 @@ export function newSlot(index: number): CanvasSlotMeta {
 
 export function loadSlots(): { slots: CanvasSlotMeta[]; activeId: string } | null {
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '') as {
+    const parsed = JSON.parse(localStorage.getItem(prefsKey(STORAGE_KEY)) ?? '') as {
       slots?: CanvasSlotMeta[];
       activeId?: string;
     };
@@ -47,7 +49,7 @@ export function loadSlots(): { slots: CanvasSlotMeta[]; activeId: string } | nul
 
 export function saveSlots(slots: CanvasSlotMeta[], activeId: string): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ slots, activeId }));
+    localStorage.setItem(prefsKey(STORAGE_KEY), JSON.stringify({ slots, activeId }));
   } catch {
     // quota/private-mode — sidebar still works for this session
   }

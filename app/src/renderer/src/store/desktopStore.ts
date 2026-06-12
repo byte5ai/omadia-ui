@@ -1,5 +1,6 @@
 import type { DesktopLayoutWire, DesktopListEntry } from '../../../shared/protocol.js';
 import type { CanvasSlotMeta } from './canvasSlots.js';
+import { prefsKey } from './prefsNamespace.js';
 import {
   collectSlotIds,
   leaf,
@@ -73,7 +74,7 @@ function sanitizeLayout(node: unknown): WorkspaceNode | null {
  *  Falls back to a one-time migration of the legacy single-workspace layout. */
 export function loadDesktops(): { desktops: DesktopMeta[]; activeId: string } | null {
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '') as {
+    const parsed = JSON.parse(localStorage.getItem(prefsKey(STORAGE_KEY)) ?? '') as {
       desktops?: unknown;
       activeId?: unknown;
     };
@@ -130,7 +131,7 @@ export function loadDesktops(): { desktops: DesktopMeta[]; activeId: string } | 
 export function saveDesktops(desktops: DesktopMeta[], activeId: string): void {
   try {
     localStorage.setItem(
-      STORAGE_KEY,
+      prefsKey(STORAGE_KEY),
       JSON.stringify({ desktops: desktops.slice(0, MAX_DESKTOPS), activeId }),
     );
   } catch {

@@ -1,4 +1,5 @@
 import type { NotificationMsg } from '../../../shared/protocol.js';
+import { prefsKey } from './prefsNamespace.js';
 
 /** Notification history (issue #15): every notification lands here (the
  *  "bell"); persisted client-side so it survives restarts. Severity → UI
@@ -22,7 +23,7 @@ export const isToast = (n: UiNotification): boolean =>
 
 export function loadNotifications(): UiNotification[] {
   try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '') as UiNotification[];
+    const parsed = JSON.parse(localStorage.getItem(prefsKey(STORAGE_KEY)) ?? '') as UiNotification[];
     if (!Array.isArray(parsed)) return [];
     // toasts never survive a restart un-dismissed; banners do
     return parsed
@@ -36,7 +37,7 @@ export function loadNotifications(): UiNotification[] {
 
 export function persistNotifications(list: UiNotification[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0, MAX_HISTORY)));
+    localStorage.setItem(prefsKey(STORAGE_KEY), JSON.stringify(list.slice(0, MAX_HISTORY)));
   } catch {
     /* quota — history degrades to session-only */
   }

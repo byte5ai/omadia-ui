@@ -147,6 +147,12 @@ describe('Sidebar with desktop + canvas sections', () => {
     const d = { ...newDesktop(0, leaf('s1')), name: 'Vertrieb', color: 3 };
     const html = renderToStaticMarkup(
       <Sidebar
+        instances={[
+          { id: 'i1', name: 'Standard', serverUrl: 'ws://localhost:8080/omadia-ui/canvas', useAuth: false },
+        ]}
+        activeInstanceId="i1"
+        onSwitchInstance={() => {}}
+        onManageInstances={() => {}}
         desktops={[d]}
         activeDesktopId={d.desktopId}
         onSelectDesktop={() => {}}

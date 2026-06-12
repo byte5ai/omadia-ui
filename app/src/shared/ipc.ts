@@ -55,6 +55,17 @@ export interface AuthSessionInfo {
   expiresAt?: number;
 }
 
+/** one configured omadia server — the bottom-left instance switcher */
+export interface OmadiaInstance {
+  id: string;
+  name: string;
+  /** ws(s)://host/omadia-ui/canvas */
+  serverUrl: string;
+  useAuth: boolean;
+  /** optional login page override for the auth cookie flow */
+  loginUrl?: string;
+}
+
 /** user-entered server config, persisted in userData (onboarding).
  *  Persisted only after the first successful connect. */
 export interface AppSettings {
@@ -63,6 +74,10 @@ export interface AppSettings {
   useAuth: boolean;
   /** optional login page override for the auth cookie flow */
   loginUrl?: string;
+  /** all configured instances — ≥1 after migration */
+  instances?: OmadiaInstance[];
+  /** must reference an instances[i].id */
+  activeInstanceId?: string;
 }
 
 /** One socket per canvas slot — streams keep flowing for BACKGROUND
