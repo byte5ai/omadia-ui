@@ -80,8 +80,27 @@ export function Onboarding({ defaults, status, busy, canCancel, onSubmit, onCanc
   });
 
   /** web-window fallback — OIDC tenants and kernels without discovery */
-  const browserLogin = async (settings: AppSettings) => {
-    const res = await window.omadiaCanvas.authLoginBrowser(toConnectOptions(settings));
+  // For a discovered OIDC provider the login window must open the provider's
+  // START endpoint (302 → IdP → callback sets the session cookie) — the bare
+  // server origin is an API host with no login page ("Cannot GET /"). An
+  // explicit loginUrl override (the setup field) still wins.
+  const oidcStartUrl = (settings: AppSettings, providerId: string): string | undefined => {
+    if (settings.loginUrl) return undefined;
+    try {
+      const u = new URL(settings.serverUrl);
+      u.protocol = u.protocol === 'wss:' ? 'https:' : 'http:';
+      return `${u.origin}/api/v1/auth/login/${encodeURIComponent(providerId)}/start`;
+    } catch {
+      return undefined;
+    }
+  };
+
+  const browserLogin = async (settings: AppSettings, oidcProviderId?: string) => {
+    const start = oidcProviderId ? oidcStartUrl(settings, oidcProviderId) : undefined;
+    const res = await window.omadiaCanvas.authLoginBrowser({
+      ...toConnectOptions(settings),
+      ...(start ? { loginUrl: start } : {}),
+    });
     if (res.ok) onSubmit(settings);
     else setAuthError(LOGIN_ERRORS[res.error ?? 'cancelled'] as string);
   };
@@ -206,7 +225,20 @@ export function Onboarding({ defaults, status, busy, canCancel, onSubmit, onCanc
               Connection failed{status.detail ? `: ${status.detail}` : '.'}
             </div>
           )}
-          {(oidcProviders.length > 0 || !passwordProvider) && (
+          {oidcProviders.map((p) => (
+            <button
+              key={p.id}
+              className="lume-button lume-auth-browser"
+              disabled={authBusy || connecting}
+              onClick={() => {
+                const settings = candidate();
+                if (settings) void browserLogin(settings, p.id);
+              }}
+            >
+              {`Sign in with ${p.displayName}`}
+            </button>
+          ))}
+          {oidcProviders.length === 0 && !passwordProvider && (
             <button
               className="lume-button lume-auth-browser"
               disabled={authBusy || connecting}
@@ -215,9 +247,7 @@ export function Onboarding({ defaults, status, busy, canCancel, onSubmit, onCanc
                 if (settings) void browserLogin(settings);
               }}
             >
-              {oidcProviders.length > 0
-                ? `Sign in with ${oidcProviders.map((p) => p.displayName).join(' / ')}`
-                : 'Sign in via browser window'}
+              Sign in via browser window
             </button>
           )}
           <div className="lume-toolbar lume-onboarding-actions">
