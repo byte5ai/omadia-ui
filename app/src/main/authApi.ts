@@ -103,14 +103,29 @@ export interface SessionCheck {
 /** GET /api/v1/auth/me with the stored cookie. Returns null when the server
  *  is unreachable — the caller keeps the cookie and lets the WS upgrade
  *  decide, instead of throwing a stored session away on a network blip. */
-export async function validateSession(origin: string, cookie: string): Promise<SessionCheck | null> {
+export async function validateSession(
+  origin: string,
+  cookie: string,
+  onDebug?: (msg: string) => void,
+): Promise<SessionCheck | null> {
   let res: Response;
   try {
     res = await apiFetch(`${origin}/api/v1/auth/me`, { headers: { Cookie: cookie } });
-  } catch {
+  } catch (err) {
+    onDebug?.(`validate ${origin}/auth/me unreachable: ${String(err)}`);
     return null;
   }
-  if (!res.ok) return { valid: false };
+  onDebug?.(
+    `validate ${origin}/auth/me status=${res.status} cookieLen=${cookie.length} location=${res.headers.get('location') ?? '-'}`,
+  );
+  // Only a DEFINITE rejection invalidates the session: 401/403, or an auth
+  // gate bouncing the cookie to a login page (3xx under redirect:'manual').
+  // A 404 means the deployment predates the /auth/me endpoint (e.g. embedded
+  // kernels behind their own gate) — that says nothing about the cookie, so
+  // keep it and let the WS upgrade be the authority. Same for 5xx hiccups.
+  if (res.status === 401 || res.status === 403) return { valid: false };
+  if (res.status >= 300 && res.status < 400) return { valid: false };
+  if (!res.ok) return null;
   try {
     const body = (await res.json()) as { user?: { email?: unknown }; expires_at?: unknown };
     return {

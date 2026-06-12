@@ -1,4 +1,20 @@
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, app } from 'electron';
+import { appendFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+/** Auth-flow trace into userData/auth-debug.log — the embedded login flow
+ *  spans two processes and an external IdP; when it loops, this file is the
+ *  only way to see WHICH hop dropped the session. Lean, append-only. */
+export function authDebug(msg: string): void {
+  try {
+    appendFileSync(
+      join(app.getPath('userData'), 'auth-debug.log'),
+      `${new Date().toISOString()} ${msg}\n`,
+    );
+  } catch {
+    /* logging must never break auth */
+  }
+}
 
 /**
  * FALLBACK auth flow (issue #7): open the omadia web login in a window and
@@ -24,19 +40,29 @@ export async function acquireSessionCookie(httpOrigin: string): Promise<string> 
   // pre-existing cookie for that origin is stale by definition — drop it.
   const cookieScope = new URL(httpOrigin).origin;
   const ses = win.webContents.session;
+  authDebug(`loginWindow open url=${httpOrigin} scope=${cookieScope}`);
   await ses.cookies.remove(cookieScope, 'omadia_session').catch(() => undefined);
   await win.loadURL(httpOrigin);
 
   return new Promise<string>((resolve, reject) => {
+    let ticks = 0;
     const poll = setInterval(() => {
-      void ses.cookies.get({ url: cookieScope, name: 'omadia_session' }).then((cookies) => {
-        const c = cookies[0];
-        if (c) {
-          clearInterval(poll);
-          win.close();
-          resolve(`omadia_session=${c.value}`);
-        }
-      });
+      ticks += 1;
+      void ses.cookies
+        .get({ url: cookieScope, name: 'omadia_session' })
+        .then((cookies) => {
+          if (ticks % 10 === 0) {
+            authDebug(`loginWindow poll tick=${ticks} scoped=${cookies.length} page=${win.webContents.getURL().slice(0, 80)}`);
+          }
+          const c = cookies[0];
+          if (c) {
+            clearInterval(poll);
+            authDebug(`loginWindow captured cookie for ${cookieScope} after ${ticks} ticks`);
+            win.close();
+            resolve(`omadia_session=${c.value}`);
+          }
+        })
+        .catch((err) => authDebug(`loginWindow poll error: ${String(err)}`));
     }, 500);
     win.on('closed', () => {
       clearInterval(poll);
