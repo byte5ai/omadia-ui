@@ -15,12 +15,21 @@ export async function acquireSessionCookie(httpOrigin: string): Promise<string> 
     title: 'Sign in to Omadia',
     webPreferences: { partition: 'persist:omadia-auth', contextIsolation: true, nodeIntegration: false },
   });
+  // Multi-instance reality: the persistent partition accumulates
+  // omadia_session cookies from EVERY server ever signed into. An unscoped
+  // poll finds a stale cookie from another origin instantly — the window
+  // flashes shut and the wrong cookie is handed to the new server (login
+  // loop). Scope everything to the origin this window actually loads; and
+  // since this window only opens when the vaulted session is invalid, any
+  // pre-existing cookie for that origin is stale by definition — drop it.
+  const cookieScope = new URL(httpOrigin).origin;
+  const ses = win.webContents.session;
+  await ses.cookies.remove(cookieScope, 'omadia_session').catch(() => undefined);
   await win.loadURL(httpOrigin);
 
   return new Promise<string>((resolve, reject) => {
-    const ses = win.webContents.session;
     const poll = setInterval(() => {
-      void ses.cookies.get({ name: 'omadia_session' }).then((cookies) => {
+      void ses.cookies.get({ url: cookieScope, name: 'omadia_session' }).then((cookies) => {
         const c = cookies[0];
         if (c) {
           clearInterval(poll);
