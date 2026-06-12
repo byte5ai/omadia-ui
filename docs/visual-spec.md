@@ -5,6 +5,20 @@
 > Geist (structural) · Source Serif 4 (prose) · Geist Mono (data/code).
 > Codex-review-ready in the CONCEPT.md cadence.
 
+Version 0.4 — **Surface-nesting ladder & chrome budget.** Closes the two
+spec gaps that produced doubled chrome in the first shipped canvases: the
+spec never said which surface a nested container gets (§2.13 — the ladder:
+depth maps to surface tokens; the first container inside a pane is
+frameless because the pane already *is* its surface), and never said who
+owns the identity announcement (§2.14 — chrome budget: one identity per
+level, slot-based suppression enforced by the renderer, never
+string-compared). §2.8 gains an errata making the spacing stops a closed
+set — implementations must not introduce intermediate values (the shipped
+20px container padding was exactly such an invention; the legal stops are
+16 or 24). §2.2 gains a light-mode note: the nesting ladder's legibility in
+light mode is carried by frame discipline + directional borders, not by
+surface-luminance deltas alone.
+
 Version 0.3 — **Editorial-mix typography adoption.** Three typographic
 registers replace the v0.2 sans+mono pair: Geist for structural UI, Source
 Serif 4 for agent prose (narration, analysis, summary), Geist Mono for data
@@ -185,6 +199,15 @@ pipeline, not in product code.
 `background: linear-gradient(180deg, <token>.top 0%, <token>.btm 100%)`.
 Renderers that can't gradient (extreme legacy) fall back to `<token>.btm`.
 The visible delta is small per-surface and cumulative across the screen.
+
+**Light-mode legibility note (v0.4).** In light mode the luminance deltas
+between adjacent surface tokens are deliberately small (the material is
+quiet); they cannot carry the nesting structure alone. Structure in light
+mode is carried by frame discipline — the nesting ladder (§2.13), the
+directional borders (§2.4) and the inset top-highlight on raised surfaces
+(§3.4). Implementations must not compensate by darkening surface tokens or
+adding shadows to flat content; if a nesting level is illegible, the fix is
+the ladder (one frame too many), not louder paint.
 
 ### 2.3 Text tokens
 
@@ -581,6 +604,15 @@ Unchanged: 4pt grid.
 Density variants per primitive: `compact` shifts one step down, `spacious`
 one step up.
 
+**Errata (v0.4) — the stops are a closed set.** Implementations use these
+ten values and nothing else. No intermediate values may be introduced at
+implementation time (no 10px, no 20px); if a layout seems to need one, the
+correct response is a spec change, not a local token. Container padding is
+`space.5` (16px) by default and `space.6` (24px) under `spacious` — the
+20px shipped in the first host-app build conformed to neither and is
+retired. Aliases in code (`--pad-container` etc.) are permitted only when
+they resolve to a stop in this table.
+
 ### 2.9 Radii — Lume scale
 
 Lume shifts v0.1's radius scale up by one stop, with the editor exception
@@ -641,6 +673,88 @@ Unchanged: Lucide as the icon library, 14/16/20/24 px sizes with
 1.5/1.75/2.0 stroke widths. Three documented custom icons allowed
 (`magic-wand`, `brush-pressure`, `vector-pen-anchor`) for editor-specific
 glyphs Lucide doesn't cover.
+
+### 2.13 Surface nesting — the ladder (v0.4)
+
+Nesting depth maps to surface tokens. The level decides the material; a
+deeper level never answers with a second, equal frame.
+
+| Depth | What it is | Surface | Frame |
+|---|---|---|---|
+| 0 | Workspace | `bg.canvas` | none |
+| 1 | Pane (tiling cell, modal) | `bg.surface` | directional `border.subtle`, `radius.lg` |
+| 2 | **First container inside a pane** | **inherits the pane — transparent** | **none — frameless** |
+| 3 | Containers below the first / cards | `bg.surface.raised` | directional `border.subtle`, `radius.md`, inset top-highlight |
+| 4+ | Detail wells, code, secondary | `bg.surface.sunken` | optional hairline, `radius.sm` |
+
+**The frameless-first rule is the load-bearing row.** The pane already *is*
+the content's surface of record; a top-level container that paints its own
+gradient, border, margin and padding produces the doubled-pane effect — two
+equal frames announcing the same region. The first container level inside a
+pane therefore renders transparent and frameless: no background, no border,
+no margin; it contributes only its layout (`stack` / `split` / `grid` /
+`flow`) and its padding collapses to the pane's content inset. Containers
+re-materialise their own frame only from depth 3, or at depth 2 when they
+are *siblings* in a `split`/`grid` (cells need separation — each cell then
+takes the depth-3 treatment).
+
+**Never two equal frames nested directly.** If a frame would sit
+immediately inside another frame with nothing between them, one of the two
+yields (the inner one, per the table). This rule is renderer-enforced and
+holds for every tree, regardless of what the wire format requests.
+
+**Page-surface descent.** Real trees often wrap the page in shell layers —
+`container > toolbar-nav + container(page)`. The frameless-first rule
+descends through such shells: inside a frameless container, when **exactly
+one** child is a surface primitive (`container` / `pane`) and every other
+sibling is chrome (`toolbar`, `tabs`, `status`, `divider`), that lone
+surface child is still "the first container" — it renders frameless and
+its identity slot stays suppressed (§2.14). The descent recurses. Content
+siblings (headings, text, tables, charts, lists) stop the descent: a
+container among content is a card and keeps its frame and label.
+
+### 2.14 Chrome budget — one identity per level (v0.4)
+
+Each level of the hierarchy announces its identity **at most once**.
+Identity carriers, from outside in: shell pane-bar title → container
+identity slot (eyebrow/title) → content headings.
+
+**Slot rule (renderer-enforced).** If the shell's pane-bar carries a title,
+the renderer suppresses the identity slot of the pane's top-level container
+— structurally, by slot occupancy, never by string comparison. (The shipped
+failure mode was three textually different, semantically identical
+announcements: "X Studio" / "X STUDIO" / a repeating heading. String
+matching cannot catch that; slot ownership can.) Container identity slots
+reappear from depth 3, where a card legitimately labels itself.
+
+**Headings are content, not chrome.** The renderer does not suppress
+headings. Trees SHOULD NOT restate the pane identity in a heading — the
+first heading inside a pane names *what the user is doing* ("Neuer
+Social-Draft"), not *where they are* (the pane-bar already said so). This
+half of the budget is tree discipline, enforced as a lint/convention in the
+plugin SDK, not by the renderer.
+
+### 2.15 Deterministic navigation — root-toolbar hoisting (v0.4)
+
+A plugin's top-level navigation must not live or die with the generative
+tree. A `toolbar` that is a **direct child of the root container** is the
+plugin's **app menu**: the host hoists it out of the canvas into a static
+menu strip directly under the pane-bar (chrome region, full pane width) and
+suppresses the inline copy.
+
+**The hoisted menu is sticky per canvas.** It persists across revisions —
+when a later tree (a progress view, an **error view**) arrives *without* a
+root toolbar, the menu stays. The user can always jump back to a known view
+through deterministic actions; an error never strands them on a dead
+surface. A new root toolbar in a later revision replaces the menu; the
+menu's actions fire exactly like canvas actions (same turn path,
+`basedOnRevision` semantics unchanged).
+
+This is host behaviour over the existing wire format — no schema change.
+Any plugin opts in by sending a root-level toolbar (X Studio's
+Wizard/Drafts nav is the reference case). Visual: the strip is quiet
+chrome — `bg.surface`, hairline `border.subtle` bottom, ghost buttons
+(§4.2 menubar mode-bridge: hover paints `accent.subtle`, never glow).
 
 ---
 
@@ -831,9 +945,13 @@ inherits the patch-condensation animation §3.5 like any other new content.
 
 #### `container`
 
-Default container (`border: true`): directional `border.subtle`, surface
-gradient `bg.surface`, padding `space.5`, radius `radius.md` (= 8px under
-Lume). Raised variant: gradient `bg.surface.raised`, inset top-highlight.
+Surface and frame are decided by nesting depth, not by the primitive —
+see the ladder §2.13. The **first container inside a pane is frameless**
+(transparent, no border, no margin; layout only). Framed containers
+(depth 3+, or split/grid cells): directional `border.subtle`, gradient
+`bg.surface.raised`, padding `space.5`, radius `radius.md`, inset
+top-highlight. The container identity slot (eyebrow) obeys the chrome
+budget §2.14 — suppressed at top level when the pane-bar carries a title.
 
 #### `list` · `tree`
 
@@ -1374,7 +1492,23 @@ the three-palette adoption. Carry-over and new questions:
 
 ## 12. Changelog
 
-- **v0.3 (this document)** — Three-register typography adoption. Geist
+- **v0.4 (this document)** — Surface-nesting ladder & chrome budget.
+  New §2.13: nesting depth maps to surface tokens; the first container
+  inside a pane is frameless (the pane is its surface); never two equal
+  frames nested directly — renderer-enforced for every tree. New §2.14:
+  one identity announcement per level; renderer suppresses the top-level
+  container identity slot by slot occupancy (never string comparison)
+  when the pane-bar carries a title; headings are content and stay tree
+  discipline. §2.8 errata: spacing stops are a closed set — intermediate
+  implementation-invented values (the shipped 20px container padding)
+  are retired in favour of `space.5`/`space.6`. §2.2 light-mode note:
+  nesting legibility in light mode is carried by frame discipline +
+  directional borders, not surface-luminance deltas. §4.2 `container`
+  note rewritten to defer to the ladder. Motivated by the first shipped
+  canvases (X Studio): tripled identity announcement and doubled pane
+  frames traced back to these two spec gaps.
+
+- **v0.3** — Three-register typography adoption. Geist
   (structural) + Source Serif 4 (prose) + Geist Mono (data/code) replace
   the v0.2 Inter + JetBrains Mono baseline. Type scale gains
   `type.prose.*` tokens. The `style: "prose"` trait on `text` primitives
