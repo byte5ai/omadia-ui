@@ -53,6 +53,13 @@ beforeAll(async () => {
     if (req.method === 'GET' && req.url === '/api/v1/auth/me') {
       if (req.headers.cookie === VALID_COOKIE) {
         json(200, { user: { email: 'user@example.com' }, expires_at: 2_000_000_000 });
+      } else if (req.headers.cookie === 'omadia_session=legacy-404') {
+        // a deployment that predates the endpoint entirely
+        json(404, { code: 'not_found' });
+      } else if (req.headers.cookie === 'omadia_session=bounced') {
+        // a global auth gate bouncing the cookie to its login page
+        res.writeHead(302, { Location: '/login?return=%2Fapi%2Fv1%2Fauth%2Fme' });
+        res.end();
       } else {
         json(401, { code: 'auth.invalid' });
       }
@@ -136,5 +143,17 @@ describe('validateSession', () => {
 
   it('returns null when the server is unreachable (cookie must be kept)', async () => {
     expect(await validateSession('http://127.0.0.1:1', VALID_COOKIE)).toBeNull();
+  });
+
+  it('keeps the cookie when the deployment has no /auth/me (404 → null)', async () => {
+    // an embedded kernel behind its own gate (e.g. the odoo-bot harness)
+    // may predate the endpoint — 404 says nothing about the session;
+    // clearing the vault here caused a hard login loop after every
+    // successful browser sign-in
+    expect(await validateSession(origin, 'omadia_session=legacy-404')).toBeNull();
+  });
+
+  it('treats an auth-gate redirect as a definite rejection (302 → invalid)', async () => {
+    expect(await validateSession(origin, 'omadia_session=bounced')).toEqual({ valid: false });
   });
 });

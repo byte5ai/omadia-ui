@@ -8,7 +8,7 @@ import type {
   ClientTurn,
   DesktopListEntry,
 } from '../shared/protocol.js';
-import { acquireSessionCookie } from './auth.js';
+import { acquireSessionCookie, authDebug } from './auth.js';
 import { discoverProviders, loginWithPassword, validateSession, wsToHttpOrigin } from './authApi.js';
 import { CanvasSocket } from './canvasSocket.js';
 import { createFileSessionStore } from './sessionStore.js';
@@ -44,8 +44,12 @@ async function resolveVaultedSession(
     const c = cookies[0];
     if (!c) return null;
     const cookie = `omadia_session=${c.value}`;
-    const check = await validateSession(origin, cookie);
-    if (check !== null && !check.valid) return null;
+    authDebug(`vault miss for ${origin} — lifting partition cookie`);
+    const check = await validateSession(origin, cookie, authDebug);
+    if (check !== null && !check.valid) {
+      authDebug(`partition cookie for ${origin} rejected by /auth/me`);
+      return null;
+    }
     vault.save(origin, cookie, check?.expiresAt);
     return { cookie, ...(check?.expiresAt !== undefined ? { expiresAt: check.expiresAt } : {}) };
   } catch {
@@ -200,12 +204,14 @@ ipcMain.on(IPC.notificationAck, (_e, slotKey: string, id: string) =>
 ipcMain.handle(IPC.authSession, async (_e, opts: ConnectOptions) => {
   const origin = wsToHttpOrigin(opts.url);
   const stored = await resolveVaultedSession(origin);
+  authDebug(`authSession probe ${origin}: vault=${stored ? 'hit' : 'miss'}`);
   if (!stored) return { valid: false };
-  const check = await validateSession(origin, stored.cookie);
+  const check = await validateSession(origin, stored.cookie, authDebug);
   if (check === null) {
     return { valid: true, ...(stored.expiresAt !== undefined ? { expiresAt: stored.expiresAt } : {}) };
   }
   if (!check.valid) {
+    authDebug(`authSession probe ${origin}: stored cookie rejected — vault cleared`);
     getVault().clear(origin);
     return { valid: false };
   }
@@ -239,6 +245,7 @@ ipcMain.handle(IPC.authLoginBrowser, async (_e, opts: ConnectOptions) => {
   const httpOrigin = opts.url.replace(/^ws/, 'http').replace(/\/omadia-ui\/canvas$/, '');
   try {
     const cookie = await acquireSessionCookie(opts.loginUrl ?? httpOrigin);
+    authDebug(`authLoginBrowser: captured cookie, vault save under ${wsToHttpOrigin(opts.url)}`);
     getVault().save(wsToHttpOrigin(opts.url), cookie);
     return { ok: true };
   } catch (err) {
