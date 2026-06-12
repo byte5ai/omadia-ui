@@ -47,6 +47,21 @@
   --lume-radius-md: 8px;
   --lume-radius-lg: 12px;
   --lume-radius-pill: 999px;
+  /* spacing scale — 4px base. Structural rhythm runs one step looser than the
+     v0.1 values so canvas surfaces breathe (density pass): radius softened in
+     v0.3 but spacing never followed. Primitives reach for the semantic aliases. */
+  --lume-space-1: 4px;
+  --lume-space-2: 8px;
+  --lume-space-3: 12px;
+  --lume-space-4: 16px;
+  --lume-space-5: 20px;
+  --lume-space-6: 24px;
+  --lume-space-8: 32px;
+  --lume-pad-container: var(--lume-space-5); /* 20px — inside cards/containers */
+  --lume-gap-stack: var(--lume-space-4); /* 16px — between stacked siblings */
+  --lume-gap-form: var(--lume-space-4); /* 16px — between form controls */
+  --lume-gap-inline: var(--lume-space-3); /* 12px — toolbar/flow/split rows */
+  --lume-gap-tight: var(--lume-space-2); /* 8px — chips, label↔control */
   /* §2.10 elevation (dark) — cards get NO shadow, only popover/modal/drag */
   --lume-elev-popover: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.45);
   --lume-elev-modal:
@@ -278,23 +293,23 @@ body {
   border: 1px solid var(--lume-border-subtle-btm);
   border-top-color: var(--lume-border-subtle-top);
   border-radius: var(--lume-radius-md);
-  padding: 16px;
-  margin: 12px;
+  padding: var(--lume-pad-container);
+  margin: var(--lume-space-3);
 }
 .lume-container-title {
   color: var(--lume-text-dim);
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  margin-bottom: 8px;
+  margin-bottom: var(--lume-space-3);
 }
 /* container layout variants (schema: stack | split | grid | flow) */
 .lume-layout-stack > * + * {
-  margin-top: 10px;
+  margin-top: var(--lume-gap-stack);
 }
 .lume-layout-split {
   display: flex;
-  gap: 12px;
+  gap: var(--lume-gap-stack);
   align-items: stretch;
 }
 .lume-layout-split > * {
@@ -304,12 +319,12 @@ body {
 .lume-layout-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
+  gap: var(--lume-space-5);
 }
 .lume-layout-flow {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 12px;
+  gap: var(--lume-space-3) var(--lume-space-4);
 }
 .lume-heading {
   margin: 0;
@@ -322,7 +337,7 @@ body {
 .lume-table th,
 .lume-table td {
   text-align: left;
-  padding: 8px 10px;
+  padding: var(--lume-space-3) var(--lume-space-4);
   border-bottom: 1px solid var(--lume-border-subtle-btm);
 }
 .lume-table th {
@@ -355,7 +370,7 @@ body {
 }
 .lume-toolbar {
   display: flex;
-  gap: 8px;
+  gap: var(--lume-gap-inline);
 }
 /* §4.2 secondary button: raised gradient, directional border, inset highlight */
 .lume-button {
@@ -396,9 +411,9 @@ body {
 .lume-choice {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--lume-gap-tight);
   border: none;
-  margin: 8px 0;
+  margin: var(--lume-space-3) 0;
   padding: 0;
   max-width: 720px;
 }
@@ -407,7 +422,7 @@ body {
   font-family: var(--lume-font-structural);
   font-size: 13px;
   line-height: 1.4;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 .lume-choice-option {
   position: relative;
@@ -419,7 +434,7 @@ body {
   border-top-color: var(--lume-border-top);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   border-radius: var(--lume-radius-md);
-  padding: 10px 16px;
+  padding: var(--lume-space-3) var(--lume-space-4);
   cursor: pointer;
   transition:
     border-color var(--lume-motion-quick) var(--lume-ease-standard),
@@ -494,7 +509,7 @@ body {
 .lume-input {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--lume-gap-tight);
   max-width: 720px;
 }
 .lume-input-field {
@@ -568,7 +583,7 @@ body {
 .lume-form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--lume-gap-form);
 }
 /* §4.2 menubar: mode-bridge — hover paints accent.subtle, never glow */
 .lume-menubar {
@@ -1487,7 +1502,11 @@ body {
 }
 .lume-list {
   margin: 0;
-  padding-left: 20px;
+  padding-left: var(--lume-space-6);
+  line-height: 1.6;
+}
+.lume-list li + li {
+  margin-top: var(--lume-space-2);
 }
 
 /* §tone — semantic severity hint carried on primitives via the schema `tone`
