@@ -254,8 +254,15 @@ body {
 }
 
 /* §4 input recipe: raised gradient, directional border, inset top-highlight;
-   focus = accent border + layered glow shadow. radius.sm per §2.9. */
-.lume-input {
+   focus = accent border + layered glow shadow. radius.sm per §2.9.
+   SCOPED to bare <input>/<textarea> elements (spotlight/prompt chrome): the
+   canvas input PRIMITIVE renders a <label class="lume-input"> WRAPPER (label +
+   .lume-input-field) — an unscoped `.lume-input` here collided with that
+   wrapper, painting it a bordered surface with zero padding so the control
+   label hugged the border. Scoping keeps the wrapper clean (it is layout-only,
+   see the `.lume-input` flex rule further down). */
+input.lume-input,
+textarea.lume-input {
   background: linear-gradient(180deg, var(--lume-raised-top) 0%, var(--lume-raised-btm) 100%);
   border: 1px solid var(--lume-border-btm);
   border-top-color: var(--lume-border-top);
@@ -268,17 +275,20 @@ body {
     border-color var(--lume-motion-quick) var(--lume-ease-standard),
     box-shadow var(--lume-motion-quick) var(--lume-ease-standard);
 }
-.lume-input::placeholder {
+input.lume-input::placeholder,
+textarea.lume-input::placeholder {
   color: var(--lume-text-tertiary);
 }
-.lume-input:focus {
+input.lume-input:focus,
+textarea.lume-input:focus {
   border-color: var(--lume-accent);
   box-shadow:
     0 0 0 1px var(--lume-accent),
     0 0 0 4px var(--lume-accent-glow),
     0 0 12px var(--lume-accent-glow-core);
 }
-.lume-input:disabled {
+input.lume-input:disabled,
+textarea.lume-input:disabled {
   color: var(--lume-text-disabled);
 }
 .lume-input-error,
