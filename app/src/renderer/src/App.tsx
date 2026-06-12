@@ -939,34 +939,6 @@ export function App() {
     }
     return (
       <>
-        {/* canvas chrome (focused pane only) — view-only back navigation +
-            deterministic refresh (issue #5) */}
-        {focused &&
-          (canvas.history.length > 0 ||
-            (canvas.revision !== null &&
-              (canvas.tree as { id?: string }).id !== 'local-pending')) && (
-            <div className="lume-canvas-chrome">
-              {canvas.history.length > 0 && (
-                <button
-                  className="lume-button lume-back-button"
-                  onClick={() => setCanvas((c) => goBack(c))}
-                >
-                  ← Zurück
-                </button>
-              )}
-              {canvas.revision !== null &&
-                (canvas.tree as { id?: string }).id !== 'local-pending' && (
-                  <button
-                    className="lume-button lume-refresh-button"
-                    title="Daten neu laden — gleiche Ansicht, frische Daten"
-                    disabled={canvas.turnPending || status.state !== 'ready'}
-                    onClick={() => refreshCanvas()}
-                  >
-                    ↻ Aktualisieren
-                  </button>
-                )}
-            </div>
-          )}
         {/* §6.1 motion split: snapshot → crossfade (key per snapshot run);
             patch → per-node condensation via the condense prop. */}
         <div
@@ -993,6 +965,36 @@ export function App() {
             beamTarget={focused ? beam : null}
           />
         </div>
+      </>
+    );
+  };
+
+  // chrome budget (visual-spec §2.14): back navigation + deterministic
+  // refresh (issue #5) live IN the pane-bar — one chrome row per pane,
+  // never a second row above the canvas tree. Focused pane only.
+  const paneBarNav = (slotId: string): ReactNode => {
+    if (slotId !== activeSlotId || canvas.tree === null) return null;
+    const canBack = canvas.history.length > 0;
+    const canRefresh =
+      canvas.revision !== null && (canvas.tree as { id?: string }).id !== 'local-pending';
+    if (!canBack && !canRefresh) return null;
+    return (
+      <>
+        {canBack && (
+          <button type="button" title="Zurück (vorherige Ansicht)" onClick={() => setCanvas((c) => goBack(c))}>
+            ←
+          </button>
+        )}
+        {canRefresh && (
+          <button
+            type="button"
+            title="Aktualisieren — gleiche Ansicht, frische Daten"
+            disabled={canvas.turnPending || status.state !== 'ready'}
+            onClick={() => refreshCanvas()}
+          >
+            ↻
+          </button>
+        )}
       </>
     );
   };
@@ -1044,6 +1046,7 @@ export function App() {
           busySlotIds={busySlots}
           canClose={layout.kind === 'split'}
           paneTitle={(id) => slots.find((s) => s.slotId === id)?.title ?? 'Canvas'}
+          paneBarExtras={paneBarNav}
           renderPane={renderPane}
           onFocus={focusSlot}
           onSplit={splitPane}

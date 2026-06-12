@@ -1015,12 +1015,6 @@ textarea.lume-input:disabled {
 }
 
 /* canvas chrome row — back navigation + deterministic refresh (issue #5) */
-.lume-canvas-chrome {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
 /* native sign-in (issue #7): the browser-window fallback affordance sits
    between the credential fields and the action row */
 .lume-auth-browser {
@@ -1787,25 +1781,6 @@ textarea.lume-input:disabled {
 }
 .lume-debug-marker:hover {
   color: var(--lume-accent);
-}
-/* view-only back navigation — in-flow above the canvas tree (never a fixed
-   overlay on content), ghost treatment: chrome recedes, data carries weight */
-.lume-back-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin: 12px 12px 0;
-  padding: 4px 10px;
-  font-size: 13px;
-  background: none;
-  border-color: transparent;
-  box-shadow: none;
-  color: var(--lume-text-secondary);
-}
-.lume-back-button:hover {
-  color: var(--lume-accent);
-  background: var(--lume-accent-subtle);
-  border-color: transparent;
 }
 /* Context-invoke action panel (concept §Interaction Model): deterministic
    affordances + agent-pre-supplied suggestedActions + beam field. Raised

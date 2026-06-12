@@ -8,6 +8,9 @@ interface Props {
   /** false when the layout is a single leaf — the last pane cannot close */
   canClose: boolean;
   paneTitle: (slotId: string) => string;
+  /** chrome budget §2.14: per-pane navigation (back/refresh) lives IN the
+   *  pane-bar — one chrome row per pane, never a second row in the body */
+  paneBarExtras?: (slotId: string) => ReactNode;
   renderPane: (slotId: string) => ReactNode;
   onFocus: (slotId: string) => void;
   onSplit: (slotId: string, dir: SplitDir) => void;
@@ -44,6 +47,7 @@ function Node({ node, path, ...props }: Props & { node: WorkspaceNode; path: str
             {props.paneTitle(slotId)}
           </span>
           <span className="lume-pane-bar-actions">
+            {props.paneBarExtras?.(slotId)}
             <button type="button" title="Neue Spalte (Canvas rechts daneben)" onClick={() => props.onSplit(slotId, 'columns')}>
               ◫
             </button>
