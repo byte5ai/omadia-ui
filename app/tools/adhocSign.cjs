@@ -14,6 +14,13 @@ const { join } = require('node:path');
 
 exports.default = async function adhocSign(context) {
   if (context.electronPlatformName !== 'darwin') return;
+  // Real signing path (issue #19): when a Developer ID is provided via
+  // CSC_LINK, electron-builder signs with it — re-signing ad-hoc here would
+  // DESTROY that signature. Strictly a fallback for credential-less builds.
+  if (process.env.CSC_LINK) {
+    console.log('adhocSign: CSC_LINK present — real identity signs, hook skipped');
+    return;
+  }
   const appName = `${context.packager.appInfo.productFilename}.app`;
   const appPath = join(context.appOutDir, appName);
   console.log(`adhocSign: codesign --force --deep --sign - "${appPath}"`);

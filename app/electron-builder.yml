@@ -17,9 +17,17 @@ mac:
     - target: zip
       arch: [arm64, x64]
   category: public.app-category.productivity
-  # Signing/notarization (high5 Developer ID, notarytool) lands with the GA
-  # release pipeline — implementation-plan.md §7 / references/apple_dev.md.
-  identity: null
+  # Signing (issue #19, implementation-plan §7): the identity is discovered
+  # from the CI keychain (CSC_LINK/CSC_KEY_PASSWORD — high5 Developer ID
+  # Application). Without credentials (local dev, secretless CI) discovery
+  # finds nothing, electron-builder skips signing and the afterPack hook
+  # ad-hoc signs as the fail-soft fallback.
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  # apple_dev.md gotcha: the plist must contain NO XML comments —
+  # AMFIUnserializeXML rejects them while plutil accepts them silently.
+  entitlements: resources/entitlements.mac.plist
+  entitlementsInherit: resources/entitlements.mac.plist
 win:
   target:
     - target: nsis
