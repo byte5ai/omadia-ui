@@ -22,6 +22,9 @@ const SITE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const REPO_ROOT = resolve(SITE_DIR, '..');
 const SPEC_PATH = 'docs/visual-spec.md'; // path within the repo (stable across history)
 const GH = 'https://github.com/byte5ai/omadia-ui';
+// Same default as .vitepress/config.mts. VitePress does NOT prepend base to raw
+// HTML anchors, so the preview links below must carry it themselves.
+const BASE = process.env.DOCS_BASE ?? '/omadia-ui/';
 
 // Newest first. `commit: null` means "current working tree" (the live latest).
 // Commit→version mapping verified against `git log --follow -- docs/visual-spec.md`.
@@ -43,9 +46,22 @@ function readSpecAt(commit) {
   return git(`show ${commit}:${SPEC_PATH}`);
 }
 
-/** Rewrite the spec's relative companion links to site-absolute /previews/ paths. */
+/**
+ * Rewrite the spec's relative companion-preview links.
+ *
+ * The previews are standalone static .html files served from /previews/. They
+ * are NOT VitePress pages, so an in-app (SPA) click would be intercepted by the
+ * router — and cleanUrls strips the `.html`, producing a 404 even though the
+ * file resolves on a full load. Emitting a real anchor with target="_blank"
+ * makes VitePress skip SPA interception: the browser does a full navigation to
+ * the .html, and the preview opens in a new tab. VitePress prepends `base` to
+ * the `/`-rooted href at build time, so it must NOT be hard-coded here.
+ */
 function fixLinks(md) {
-  return md.replace(/\]\(\.\/(visual-spec-preview[^)]*\.html)\)/g, '](/previews/$1)');
+  return md.replace(
+    /\[`\.?\/?(visual-spec-preview[^`]*\.html)`\]\(\.\/visual-spec-preview[^)]*\.html\)/g,
+    (_m, file) => `<a href="${BASE}previews/${file}" target="_blank" rel="noreferrer"><code>${file}</code></a>`,
+  );
 }
 
 /** Insert a version banner right after the document's first H1. */
