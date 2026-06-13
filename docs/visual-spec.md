@@ -209,6 +209,18 @@ directional borders (§2.4) and the inset top-highlight on raised surfaces
 adding shadows to flat content; if a nesting level is illegible, the fix is
 the ladder (one frame too many), not louder paint.
 
+<details class="lume-example">
+<summary>Example — surface gradients</summary>
+<div class="lume-ex-body">
+<div class="lume-swatches">
+<div class="lume-sw lume-sw--canvas"><i></i><span>bg.canvas</span></div>
+<div class="lume-sw lume-sw--surface"><i></i><span>bg.surface</span></div>
+<div class="lume-sw lume-sw--raised"><i></i><span>bg.surface.raised</span></div>
+<div class="lume-sw lume-sw--sunken"><i></i><span>bg.surface.sunken</span></div>
+</div>
+</div>
+</details>
+
 ### 2.3 Text tokens
 
 | Token | OKLCH (light) | sRGB (light) | OKLCH (dark) | sRGB (dark) | Use |
@@ -359,6 +371,17 @@ light metaphor in light mode.
 | `accent.glow` | — | `rgba(111, 200, 214, 0.32)` |
 | `accent.glow-strong` | — | `rgba(111, 200, 214, 0.48)` |
 | `accent.glow-core` | — | `rgba(210, 245, 250, 0.50)` |
+
+<details class="lume-example">
+<summary>Example — the three palettes</summary>
+<div class="lume-ex-body">
+<div class="lume-swatches">
+<div class="lume-sw lume-sw--petrol"><i></i><span>Petrol · 235°</span></div>
+<div class="lume-sw lume-sw--atelier"><i></i><span>Atelier · 50°</span></div>
+<div class="lume-sw lume-sw--lagoon"><i></i><span>Lagoon · 200° (default)</span></div>
+</div>
+</div>
+</details>
 
 #### 2.5.4 Palette binding — user-controlled, context-aware
 
@@ -537,6 +560,15 @@ panes).
 Weights used: 400, 450 (mono only), 500 (Geist optional emphasis), 600. No
 300, no 700+.
 
+<details class="lume-example">
+<summary>Example — the three registers</summary>
+<div class="lume-ex-body lume-ex-type">
+<p class="sans">Geist — structural UI, headings, labels</p>
+<p class="serif">Source Serif 4 — the prose register for agent narration, analysis and summary. Larger body size compensates for serif air.</p>
+<p class="mono">Geist Mono — data &amp; code · 0/O 1/l/I · -&gt; &gt;= != =&gt; · 1234567890</p>
+</div>
+</details>
+
 #### Variable-axis usage
 
 - **Geist** — weight axis 400, 500, 600. No slant. `font-variation-settings`
@@ -625,6 +657,18 @@ remaining at 0.
 | `radius.md` | 8px | Containers, cards, popovers |
 | `radius.lg` | 12px | Modals, panes, outermost windows — matches macOS window-corner radius (Apple's "concentric corners" rule) |
 | `radius.pill` | 999px | Switches, badge chips, progress bars |
+
+<details class="lume-example">
+<summary>Example — the radius scale</summary>
+<div class="lume-ex-body">
+<div class="lume-radii">
+<div class="sm"><i></i><b>radius.sm 6</b></div>
+<div class="md"><i></i><b>radius.md 8</b></div>
+<div class="lg"><i></i><b>radius.lg 12</b></div>
+<div class="pill"><i></i><b>radius.pill</b></div>
+</div>
+</div>
+</details>
 
 **Rationale — softer than v0.1.** Light has no edges. If the material is
 condensed luminosity, hard corners fight the metaphor. The shift is one
@@ -787,6 +831,13 @@ box-shadow:
   0 4px 12px var(--accent-glow);         /* wider corona, accent-tinted */
 ```
 
+<details class="lume-example">
+<summary>Example — two-stop glow (hover the button)</summary>
+<div class="lume-ex-body">
+<button class="lume-ex-btn" type="button">Primary action</button>
+</div>
+</details>
+
 For **emphasis states** (focused input, hovered primary button), the recipe
 intensifies:
 
@@ -857,6 +908,13 @@ border: 1px solid var(--border-default-btm);
 border-top-color: var(--border-default-top);
 box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset; /* top-edge highlight, raised surfaces */
 ```
+
+<details class="lume-example">
+<summary>Example — directional border</summary>
+<div class="lume-ex-body">
+<div class="lume-ex-card">Raised surface — top edge catches more light; 1px inset highlight gives perceived thickness.</div>
+</div>
+</details>
 
 For raised surfaces (cards, modal), the inset highlight is mandatory.
 For sunken surfaces (`bg.surface.sunken`), omit the highlight (sunken

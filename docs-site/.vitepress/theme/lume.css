@@ -150,3 +150,88 @@ body {
 ::selection {
   background: var(--lume-accent-subtle);
 }
+
+/* ── Collapsible in-spec examples (<details class="lume-example">) ──────── */
+/* Small live demos embedded in the spec; styled via classes (not inline) so
+ * they render in Lume on the site. They collapse on GitHub too (plain). */
+details.lume-example {
+  margin: var(--lume-radius-md, 8px) 0 20px;
+  border: 1px solid var(--lume-border-default-btm);
+  border-top-color: var(--lume-border-default-top);
+  border-radius: var(--lume-radius-md);
+  background: linear-gradient(180deg, var(--lume-bg-raised-top) 0%, var(--lume-bg-raised-btm) 100%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+  overflow: hidden;
+}
+details.lume-example > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 10px 14px;
+  font-family: var(--lume-font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--lume-accent);
+  user-select: none;
+}
+details.lume-example > summary::-webkit-details-marker { display: none; }
+details.lume-example > summary::before { content: '▸ '; }
+details.lume-example[open] > summary::before { content: '▾ '; }
+details.lume-example[open] > summary { border-bottom: 1px solid var(--lume-border-subtle-btm); }
+.lume-ex-body { padding: 16px; }
+.lume-ex-body > :first-child { margin-top: 0; }
+
+.lume-swatches { display: flex; flex-wrap: wrap; gap: 12px; }
+.lume-sw { width: 116px; }
+.lume-sw i {
+  display: block; height: 44px; border-radius: var(--lume-radius-sm);
+  border: 1px solid var(--lume-border-default-btm); border-top-color: var(--lume-border-default-top);
+}
+.lume-sw span {
+  display: block; margin-top: 6px;
+  font-family: var(--lume-font-mono); font-size: 0.75rem; color: var(--lume-text-3);
+}
+.lume-sw--canvas i { background: linear-gradient(180deg, var(--lume-bg-canvas-top), var(--lume-bg-canvas-btm)); }
+.lume-sw--surface i { background: linear-gradient(180deg, var(--lume-bg-surface-top), var(--lume-bg-surface-btm)); }
+.lume-sw--raised i { background: linear-gradient(180deg, var(--lume-bg-raised-top), var(--lume-bg-raised-btm)); }
+.lume-sw--sunken i { background: linear-gradient(180deg, var(--lume-bg-sunken-top), var(--lume-bg-sunken-btm)); }
+/* Palette accents (spec §2.5 light-mode base hues) */
+.lume-sw--petrol i { background: #0F7AB8; }
+.lume-sw--atelier i { background: #B36B2E; }
+.lume-sw--lagoon i { background: #1F8FA3; }
+
+.lume-ex-btn {
+  appearance: none; border: 0; cursor: pointer;
+  padding: 8px 16px; border-radius: var(--lume-radius-sm);
+  background: var(--lume-accent); color: #fff;
+  font-family: var(--lume-font-sans); font-size: 0.875rem; font-weight: 600;
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+}
+.lume-ex-btn:hover {
+  background: var(--lume-accent-hover);
+  box-shadow: 0 0 6px var(--lume-accent-glow-core), 0 6px 18px var(--lume-accent-glow-strong);
+}
+.lume-ex-card {
+  padding: 16px; border-radius: var(--lume-radius-md);
+  background: linear-gradient(180deg, var(--lume-bg-surface-top), var(--lume-bg-surface-btm));
+  border: 1px solid var(--lume-border-default-btm); border-top-color: var(--lume-border-default-top);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+  color: var(--lume-text-2); font-family: var(--lume-font-sans); font-size: 0.875rem;
+}
+.lume-radii { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+.lume-radii i {
+  display: block; width: 64px; height: 48px;
+  background: var(--lume-accent-subtle);
+  border: 1px solid var(--lume-accent);
+}
+.lume-radii b { display: block; margin-top: 6px; font-family: var(--lume-font-mono); font-size: 0.7rem; color: var(--lume-text-3); font-weight: 400; }
+.lume-radii .sm i { border-radius: var(--lume-radius-sm); }
+.lume-radii .md i { border-radius: var(--lume-radius-md); }
+.lume-radii .lg i { border-radius: var(--lume-radius-lg); }
+.lume-radii .pill i { border-radius: var(--lume-radius-pill); }
+.lume-ex-type p { margin: 0 0 8px; }
+.lume-ex-type .sans { font-family: var(--lume-font-sans); font-size: 1.125rem; font-weight: 600; color: var(--lume-text-1); }
+.lume-ex-type .serif { font-family: var(--lume-font-serif); font-size: 1rem; line-height: 1.65; color: var(--lume-text-1); }
+.lume-ex-type .mono { font-family: var(--lume-font-mono); font-size: 0.8125rem; color: var(--lume-text-2); }
+@media (max-width: 760px) { .lume-sw { width: calc(50% - 6px); } }
