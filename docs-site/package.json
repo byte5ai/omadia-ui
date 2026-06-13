@@ -1,0 +1,18 @@
+{
+  "name": "omadia-ui-docs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "VitePress site that publishes the versioned Lume visual specification.",
+  "scripts": {
+    "generate": "node scripts/generate.mjs",
+    "predocs:dev": "node scripts/generate.mjs",
+    "docs:dev": "vitepress dev .",
+    "predocs:build": "node scripts/generate.mjs",
+    "docs:build": "vitepress build .",
+    "docs:preview": "vitepress preview ."
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.3"
+  }
+}
