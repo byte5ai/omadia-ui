@@ -2205,3 +2205,93 @@ textarea.lume-input:disabled {
     content: '…';
   }
 }
+
+/* ── instance switcher (bottom-left): which omadia this surface talks to.
+   Quiet chrome — ghost chip, raised popover list above it (§2.10 popover). ── */
+.lume-instance-switcher {
+  margin-top: auto;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.lume-instance-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--lume-radius-sm);
+  color: var(--lume-text-secondary);
+  font-family: var(--lume-font-structural);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+.lume-instance-chip:hover {
+  background: var(--lume-accent-subtle);
+  color: var(--lume-text);
+}
+.lume-instance-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lume-instance-caret {
+  color: var(--lume-text-tertiary);
+  font-size: 10px;
+}
+.lume-instance-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--lume-text-disabled);
+  flex: none;
+}
+/* the active connection is LIT (§3.2 — small two-stop glow) */
+.lume-instance-dot-live {
+  background: var(--lume-accent);
+  box-shadow: 0 0 6px var(--lume-accent-glow-strong);
+}
+.lume-instance-list {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--lume-space-1);
+  background: linear-gradient(180deg, var(--lume-raised-top) 0%, var(--lume-raised-btm) 100%);
+  border: 1px solid var(--lume-border-subtle-btm);
+  border-top-color: var(--lume-border-subtle-top);
+  border-radius: var(--lume-radius-md);
+  box-shadow: var(--lume-elev-popover);
+  z-index: 30;
+}
+.lume-instance-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: none;
+  border: none;
+  border-radius: var(--lume-radius-sm);
+  color: var(--lume-text-secondary);
+  font-family: var(--lume-font-structural);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+.lume-instance-item:hover {
+  background: var(--lume-accent-subtle);
+  color: var(--lume-text);
+}
+.lume-instance-active {
+  color: var(--lume-text);
+}
+.lume-instance-active .lume-instance-dot {
+  background: var(--lume-accent);
+}

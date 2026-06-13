@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AppSettings, ConnectOptions, ConnectionStatus } from '../../shared/ipc.js';
 import { applyServerMessage, goBack, initialCanvasState, type CanvasState } from './store/canvasStore.js';
 import { extractRootMenu, loadStoredMenu, storeMenu } from './store/canvasMenu.js';
+import { syncNamespace } from './store/prefsNamespace.js';
 import { validateTree } from './validate/validator.js';
 import {
   PrimitiveNode,
@@ -355,6 +356,15 @@ export function App() {
       if (slotKey === activeSlotIdRef.current) setStatus(st);
     });
     void window.omadiaCanvas.getSettings().then((saved) => {
+      // instance switcher: prefs are namespaced per instance. When the
+      // recorded namespace differs from the active instance (first run
+      // after the update, switch from the setup card, external edit),
+      // adopt/record it and reboot the renderer so every store re-reads
+      // under the right keys — nothing below has dialed yet.
+      if (saved?.activeInstanceId && syncNamespace(saved.activeInstanceId)) {
+        window.location.reload();
+        return;
+      }
       setSettings(saved);
       if (!saved) return;
       // every pane of the persisted workspace dials its own socket — the
@@ -404,6 +414,11 @@ export function App() {
       setSettings(pending);
       setPending(null);
       setShowSetup(false);
+      // a setup that changed the ACTIVE instance moves the prefs namespace —
+      // reboot the renderer so every store re-reads under the new keys
+      if (pending.activeInstanceId && syncNamespace(pending.activeInstanceId)) {
+        window.location.reload();
+      }
     }
   }, [pending, status]);
 
@@ -655,7 +670,62 @@ export function App() {
     }
   };
 
-  const submitSetup = (candidate: AppSettings) => {
+  // bottom-left instance switcher: persist the new active instance (the
+  // settings store mirrors serverUrl/useAuth/loginUrl from it), record the
+  // prefs namespace, then reboot the renderer — the boot path re-reads the
+  // namespaced workspace and re-fetches EVERYTHING from the new server
+  // (registry materialisation included).
+  const switchInstance = (instanceId: string) => {
+    if (!settings?.instances || instanceId === settings.activeInstanceId) return;
+    if (!settings.instances.some((i) => i.id === instanceId)) return;
+    const next: AppSettings = { ...settings, activeInstanceId: instanceId };
+    void window.omadiaCanvas
+      .saveSettings(next)
+      .then(() => window.omadiaCanvas.disconnectAll())
+      .catch(() => undefined)
+      .then(() => {
+        syncNamespace(instanceId);
+        window.location.reload();
+      });
+  };
+
+  // setup card → multi-instance settings: a known serverUrl updates that
+  // instance, a new one is appended (named after its host) and becomes
+  // active. Keeps the legacy single-server candidate shape working.
+  const withInstance = (candidate: AppSettings): AppSettings => {
+    const instances = settings?.instances ? [...settings.instances] : [];
+    const existing = instances.find((i) => i.serverUrl === candidate.serverUrl);
+    if (existing) {
+      const updated = {
+        ...existing,
+        useAuth: candidate.useAuth,
+        ...(candidate.loginUrl !== undefined ? { loginUrl: candidate.loginUrl } : {}),
+      };
+      return {
+        ...candidate,
+        instances: instances.map((i) => (i.id === existing.id ? updated : i)),
+        activeInstanceId: existing.id,
+      };
+    }
+    const name = (() => {
+      try {
+        return new URL(candidate.serverUrl.replace(/^ws/, 'http')).host;
+      } catch {
+        return `Instanz ${instances.length + 1}`;
+      }
+    })();
+    const created = {
+      id: crypto.randomUUID(),
+      name,
+      serverUrl: candidate.serverUrl,
+      useAuth: candidate.useAuth,
+      ...(candidate.loginUrl !== undefined ? { loginUrl: candidate.loginUrl } : {}),
+    };
+    return { ...candidate, instances: [...instances, created], activeInstanceId: created.id };
+  };
+
+  const submitSetup = (rawCandidate: AppSettings) => {
+    const candidate = withInstance(rawCandidate);
     setPending(candidate);
     // optimistic: the last status may still be 'ready' from the old connection.
     // A server change invalidates EVERY slot's socket and parked tree.
@@ -1020,6 +1090,10 @@ export function App() {
   return (
     <div style={{ display: 'flex', flexDirection: 'row', height: '100%' }}>
       <Sidebar
+        instances={settings?.instances ?? []}
+        activeInstanceId={settings?.activeInstanceId}
+        onSwitchInstance={switchInstance}
+        onManageInstances={() => setShowSetup(true)}
         desktops={desktops}
         activeDesktopId={activeDesktopId}
         onSelectDesktop={switchDesktop}
