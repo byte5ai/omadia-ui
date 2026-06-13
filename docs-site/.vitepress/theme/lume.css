@@ -1,0 +1,152 @@
+/*
+ * Lume material applied to VitePress.
+ *
+ * The --lume-* custom properties are generated from docs/visual-spec.md §2
+ * (lume-tokens.css). This file maps them onto VitePress' theme variables and
+ * implements the structural Lume recipes from §3 (surface gradient, two-stop
+ * glow, directional border, soft radii) plus the three-register typography
+ * from §2.7 (Geist structural · Source Serif 4 prose · Geist Mono data/code).
+ */
+
+/* Fallback fonts per spec §2.7 "Fallback chains" */
+:root {
+  --lume-font-sans: 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --lume-font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --lume-font-serif: 'Source Serif 4', Charter, 'Iowan Old Style', Georgia, serif;
+}
+
+/* ── Token → VitePress mapping (light) ─────────────────────────────────── */
+:root {
+  --vp-c-bg: var(--lume-bg-canvas-btm);
+  --vp-c-bg-alt: var(--lume-bg-sunken-btm);
+  --vp-c-bg-soft: var(--lume-bg-sunken-top);
+  --vp-c-bg-elv: var(--lume-bg-raised-top);
+
+  --vp-c-text-1: var(--lume-text-1);
+  --vp-c-text-2: var(--lume-text-2);
+  --vp-c-text-3: var(--lume-text-3);
+
+  --vp-c-divider: var(--lume-border-default-btm);
+  --vp-c-border: var(--lume-border-default-btm);
+  --vp-c-gutter: var(--lume-border-subtle-btm);
+
+  /* accent — single slot, three palettes bind to it; site ships Lagoon default */
+  --vp-c-brand-1: var(--lume-accent);
+  --vp-c-brand-2: var(--lume-accent-hover);
+  --vp-c-brand-3: var(--lume-accent-active);
+  --vp-c-brand-soft: var(--lume-accent-subtle);
+  --vp-c-brand-softer: var(--lume-accent-subtle);
+
+  --vp-font-family-base: var(--lume-font-sans);
+  --vp-font-family-mono: var(--lume-font-mono);
+
+  /* soft corners — light has no edges (§2.9) */
+  --vp-code-block-bg: var(--lume-bg-sunken-btm);
+}
+
+/* Brand button text must stay legible on the accent fill */
+:root {
+  --vp-button-brand-bg: var(--lume-accent);
+  --vp-button-brand-hover-bg: var(--lume-accent-hover);
+  --vp-button-brand-active-bg: var(--lume-accent-active);
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-hover-border: transparent;
+}
+
+/* ── Lume material ─────────────────────────────────────────────────────── */
+
+/* Surface gradient (§3.1): every surface is a 180° top→btm gradient. */
+body {
+  background: linear-gradient(180deg, var(--lume-bg-canvas-top) 0%, var(--lume-bg-canvas-btm) 100%);
+  background-attachment: fixed;
+}
+.VPSidebar,
+.VPNavBar:not(.has-sidebar) {
+  background: linear-gradient(180deg, var(--lume-bg-sunken-top) 0%, var(--lume-bg-sunken-btm) 100%) !important;
+}
+.vp-doc div[class*='language-'],
+.custom-block,
+.VPFeature {
+  background: linear-gradient(180deg, var(--lume-bg-raised-top) 0%, var(--lume-bg-raised-btm) 100%);
+  /* Directional border (§3.4): top edge catches more light, inset highlight. */
+  border: 1px solid var(--lume-border-default-btm);
+  border-top-color: var(--lume-border-default-top);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+  border-radius: var(--lume-radius-md);
+}
+.VPFeature {
+  border-radius: var(--lume-radius-lg);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+/* Two-stop glow (§3.2) as the hover/focus light. */
+.VPFeature:hover {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 0 4px var(--lume-accent-glow-core),
+    0 4px 12px var(--lume-accent-glow);
+  transform: translateY(-1px);
+}
+.VPButton.brand {
+  border-radius: var(--lume-radius-sm);
+}
+.VPButton.brand:hover {
+  box-shadow:
+    0 0 6px var(--lume-accent-glow-core),
+    0 6px 18px var(--lume-accent-glow-strong);
+}
+/* Focus ring = accent + glow-core, not a flat outline. */
+.vp-doc a:focus-visible,
+.VPNavBarMenuLink:focus-visible,
+:where(button, a, input, .DocSearch-Button):focus-visible {
+  outline: 2px solid var(--lume-accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 6px var(--lume-accent-glow-core);
+  border-radius: var(--lume-radius-sm);
+}
+/* Search box reads as an input surface with focus glow. */
+.DocSearch-Button {
+  border-radius: var(--lume-radius-sm) !important;
+  border: 1px solid var(--lume-border-default-btm) !important;
+  border-top-color: var(--lume-border-default-top) !important;
+}
+
+/* Soft corners on the bigger surfaces (§2.9 ladder up one stop). */
+.vp-doc table,
+.vp-doc img,
+.custom-block {
+  border-radius: var(--lume-radius-md);
+}
+
+/* ── Three-register typography (§2.7) ──────────────────────────────────── */
+/* Structural UI + headings: Geist (the --vp-font-family-base default). */
+/* Prose register: Source Serif 4 for the document's reading body. */
+.vp-doc p,
+.vp-doc li,
+.vp-doc blockquote {
+  font-family: var(--lume-font-serif);
+  font-optical-sizing: auto;
+  font-size: 1rem; /* type.prose 16px */
+  line-height: 1.65; /* type.prose */
+}
+/* Keep structural elements (headings, tables, custom-block titles, nav) on Geist. */
+.vp-doc h1, .vp-doc h2, .vp-doc h3, .vp-doc h4,
+.vp-doc table, .custom-block-title,
+.VPFeature .title, .VPHero .name, .VPHero .text {
+  font-family: var(--lume-font-sans);
+}
+/* Data/code register: Geist Mono with tabular figures. */
+.vp-doc code,
+.vp-doc div[class*='language-'] code {
+  font-family: var(--lume-font-mono);
+  font-feature-settings: 'tnum';
+}
+/* Inline code keeps the surface tint, soft corner. */
+.vp-doc :not(pre) > code {
+  background: var(--lume-bg-sunken-btm);
+  border-radius: var(--lume-radius-sm);
+}
+
+/* Accent-tinted selection — light through water. */
+::selection {
+  background: var(--lume-accent-subtle);
+}

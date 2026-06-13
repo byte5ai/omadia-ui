@@ -1399,6 +1399,17 @@ button { font: inherit; cursor: pointer; }
   display: flex; gap: var(--space-3); justify-content: flex-end;
   margin-top: var(--space-5);
 }
+
+/* LUME-RESPONSIVE — mobile optimisation (collapse grids, fluid widths, scrollable tables) */
+@media (max-width: 760px) {
+  html, body { overflow-x: hidden; }
+  .wrap, [class*="wrap"], main, .container { max-width: 100% !important; padding-left: 16px !important; padding-right: 16px !important; box-sizing: border-box; }
+  [class*="grid"], [style*="grid-template-columns"], .compare-pair, .halo-grid { grid-template-columns: 1fr !important; }
+  input, select, textarea, .input { width: 100% !important; max-width: 100% !important; box-sizing: border-box; }
+  table { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  pre, code { white-space: pre-wrap; word-break: break-word; }
+  img, svg, canvas { max-width: 100%; height: auto; }
+}
 </style>
 </head>
 <body>
