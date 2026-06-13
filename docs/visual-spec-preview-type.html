@@ -501,14 +501,22 @@ button { font: inherit; cursor: pointer; font-family: var(--font-sans); }
 .oq-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
 .oq-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.55; }
 
-/* LUME-RESPONSIVE — mobile optimisation (collapse grids, fluid widths, scrollable tables) */
+
+/* LUME-RESPONSIVE — mobile optimisation v2 (stack header, wrap controls, collapse grids) */
 @media (max-width: 760px) {
   html, body { overflow-x: hidden; }
   .wrap, [class*="wrap"], main, .container { max-width: 100% !important; padding-left: 16px !important; padding-right: 16px !important; box-sizing: border-box; }
+  /* page header: title stacks above controls, un-stick so it doesn't dominate the viewport */
+  .page-header { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; position: static !important; }
+  .controls { flex-wrap: wrap !important; width: 100%; gap: 12px !important; }
+  .control-group { flex-wrap: wrap !important; }
+  /* any space-between flex header wraps instead of overflowing */
+  .section-header, .idiom-header, .accent-card-header, .toolbar, .split, .nc-pane-header { flex-wrap: wrap !important; }
+  /* collapse multi-column grids to a single column */
   [class*="grid"], [style*="grid-template-columns"], .compare-pair, .halo-grid { grid-template-columns: 1fr !important; }
   input, select, textarea, .input { width: 100% !important; max-width: 100% !important; box-sizing: border-box; }
   table { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  pre, code { white-space: pre-wrap; word-break: break-word; }
+  pre { white-space: pre-wrap; word-break: break-word; }
   img, svg, canvas { max-width: 100%; height: auto; }
 }
 </style>
