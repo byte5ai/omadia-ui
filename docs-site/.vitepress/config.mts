@@ -29,9 +29,19 @@ export default defineConfig({
   lastUpdated: true,
   ignoreDeadLinks: true,
   head: [
-    ['meta', { name: 'theme-color', content: '#0b6b6b' }],
+    ['meta', { name: 'theme-color', content: '#1F8FA3' }], // Lagoon accent (spec §2.5.3)
     ['meta', { property: 'og:title', content: 'Omadia UI — Lume Visual Spec' }],
     ['meta', { property: 'og:type', content: 'website' }],
+    // Three-register typography (§2.7): Geist · Source Serif 4 · Geist Mono — all OFL.
+    ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
+    ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
+    ['link', {
+      rel: 'stylesheet',
+      href: 'https://fonts.googleapis.com/css2?family=Geist:wght@400..600'
+        + '&family=Geist+Mono:wght@400..600'
+        + '&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600'
+        + '&display=swap',
+    }],
   ],
   themeConfig: {
     nav: [
