@@ -132,7 +132,7 @@ jobs:
         run: npx electron-builder ${{ matrix.args }} ${EB_NOTARIZE:-} --publish never
 
       # The .app is notarized + stapled by electron-builder above; the DMG
-      # needs its own ticket for `stapler validate`/`spctl -t install` to
+      # needs its own ticket for `stapler validate`/`spctl -t open` to
       # pass on the disk image itself (apple_dev.md / plan §7).
       - name: Notarize + staple the DMGs
         if: ${{ matrix.os == 'macos-latest' && env.APPLE_P12_BASE64 != '' }}
@@ -159,7 +159,12 @@ jobs:
             xcrun stapler validate "$app"
           done
           for dmg in dist/*.dmg; do
-            spctl -a -vv -t install "$dmg"
+            # A DMG is assessed with type `open` (how Gatekeeper evaluates a
+            # downloaded disk image) — NOT `install`, which is for .pkg
+            # installers and reports "no usable signature" on a DMG that
+            # carries only a notarization ticket. stapler validate is the
+            # authoritative proof the ticket is attached.
+            spctl -a -vvv -t open --context context:primary-signature "$dmg"
             xcrun stapler validate "$dmg"
           done
 
