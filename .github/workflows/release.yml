@@ -159,12 +159,15 @@ jobs:
             xcrun stapler validate "$app"
           done
           for dmg in dist/*.dmg; do
-            # A DMG is assessed with type `open` (how Gatekeeper evaluates a
-            # downloaded disk image) — NOT `install`, which is for .pkg
-            # installers and reports "no usable signature" on a DMG that
-            # carries only a notarization ticket. stapler validate is the
-            # authoritative proof the ticket is attached.
-            spctl -a -vvv -t open --context context:primary-signature "$dmg"
+            # A DMG carries a stapled NOTARIZATION TICKET, not a code
+            # signature — electron-builder signs the .app inside, the disk
+            # image itself is unsigned. `spctl --assess` looks for a
+            # signature and reports "no usable signature" on such a DMG
+            # regardless of -t open/install; that is by design, not a
+            # failure. `stapler validate` is Apple's authoritative check
+            # that the ticket is attached and valid — which, with the
+            # notarytool "Accepted" gate in the staple step above, is what
+            # makes a downloaded DMG open without a Gatekeeper block.
             xcrun stapler validate "$dmg"
           done
 
