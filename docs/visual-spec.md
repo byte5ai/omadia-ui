@@ -995,6 +995,11 @@ explicitly contradicted here.
 
 #### `text` · `heading`
 
+<details class="lume-example" data-ex="text">
+<summary>Example — text & heading</summary>
+<div class="lume-ex-body"><div class="lume-ex-type"><p class="sans">Section heading — Geist 600</p><p class="serif">Body prose set in Source Serif 4 — typography carries hierarchy, light does not.</p></div></div>
+</details>
+
 Inherit body and section-title styles from v0.1. No Lume-specific
 treatment — typography carries hierarchy, light does not.
 
@@ -1002,6 +1007,11 @@ Exception: an `h1`-equivalent at the top of a freshly-materialised pane
 inherits the patch-condensation animation §3.5 like any other new content.
 
 #### `container`
+
+<details class="lume-example" data-ex="container">
+<summary>Example — container</summary>
+<div class="lume-ex-body"><div class="lume-ex-card">Framed container — surface.raised gradient, directional border, inset top-highlight, radius.md.</div></div>
+</details>
 
 Surface and frame are decided by nesting depth, not by the primitive —
 see the ladder §2.13. The **first container inside a pane is frameless**
@@ -1012,6 +1022,11 @@ top-highlight. The container identity slot (eyebrow) obeys the chrome
 budget §2.14 — suppressed at top level when the pane-bar carries a title.
 
 #### `list` · `tree`
+
+<details class="lume-example" data-ex="list">
+<summary>Example — list with selection</summary>
+<div class="lume-ex-body"><div class="lume-ex-list"><div class="item">Inbox</div><div class="item selected">Flagged by the agent</div><div class="item">Archive</div></div></div>
+</details>
 
 Selection rendering uses the two-stop glow §3.2:
 
@@ -1040,6 +1055,11 @@ the lit pocket*, not a paint stroke.
 
 #### `table`
 
+<details class="lume-example" data-ex="table">
+<summary>Example — table with a highlighted row</summary>
+<div class="lume-ex-body"><table class="lume-ex-table"><tr><th>Region</th><th>Revenue</th></tr><tr><td>EU</td><td>1.24M</td></tr><tr class="hl"><td>NA</td><td>2.01M</td></tr></table></div>
+</details>
+
 Highlighted row (the agent flagged this row): same recipe as selected
 list-item, but with `background-position: 0 50%` so the gradient sits
 toward the left of the row (where the eye enters). Sort-active column
@@ -1050,6 +1070,11 @@ Skeleton rows: `state.loading` linear-gradient with skeleton-pulse
 animation §3.5 — unchanged from v0.1.
 
 #### `button`
+
+<details class="lume-example" data-ex="button">
+<summary>Example — button variants</summary>
+<div class="lume-ex-body"><div class="lume-ex-row"><button class="lume-ex-btn" type="button">Primary</button><button class="lume-ex-btn secondary" type="button">Secondary</button><button class="lume-ex-btn ghost" type="button">Ghost</button></div></div>
+</details>
 
 - **Primary:** `linear-gradient(180deg, accent, accent.hover)` fill,
   `border: 1px solid accent.hover; border-top-color: rgba(255,255,255,0.18)`,
@@ -1064,6 +1089,11 @@ animation §3.5 — unchanged from v0.1.
 
 #### `input`
 
+<details class="lume-example" data-ex="input">
+<summary>Example — input (focus for the glow)</summary>
+<div class="lume-ex-body"><input class="lume-ex-input" type="text" placeholder="Focus me — accent ring + glow" /></div>
+</details>
+
 Default: gradient `bg.surface.raised`, directional `border.default`,
 inset top-highlight (1px). Focus: `border-color: accent`, layered shadow
 `box-shadow: 0 0 0 1px accent, 0 0 0 4px accent.glow, 0 0 12px accent.glow-core`.
@@ -1072,6 +1102,11 @@ Error: `border-color: state.error.edge`, error-message helper below.
 No glow on error state — the error is the salient signal, glow would compete.
 
 #### `choice` · `toggle`
+
+<details class="lume-example" data-ex="choice">
+<summary>Example — switch & checkbox</summary>
+<div class="lume-ex-body"><div class="lume-ex-row"><span class="lume-ex-switch"><span class="track"></span>Enabled</span><span class="lume-ex-check"><span class="box">✓</span>Checked</span></div></div>
+</details>
 
 Dropdown trigger inherits secondary-button look. Open menu: `bg.surface.raised`
 gradient, `elev.popover`, directional border. Selected item in menu:
@@ -1083,6 +1118,11 @@ glow because the elements are small: `0 0 3px accent.glow-core, 0 0 6px accent.g
 
 #### `image` · `chart`
 
+<details class="lume-example" data-ex="chart">
+<summary>Example — chart bars</summary>
+<div class="lume-ex-body"><div class="lume-ex-chart"><span class="bar" style="height:40%"></span><span class="bar" style="height:72%"></span><span class="bar" style="height:55%"></span><span class="bar" style="height:90%"></span></div></div>
+</details>
+
 Image: surface-sunken background as placeholder; no Lume chrome — images
 are content, not material.
 
@@ -1093,6 +1133,11 @@ on a single hue (per v0.1).
 
 #### `form`
 
+<details class="lume-example" data-ex="form">
+<summary>Example — form row</summary>
+<div class="lume-ex-body"><div class="lume-ex-stack"><input class="lume-ex-input" type="text" placeholder="Name" /><div class="lume-ex-row"><button class="lume-ex-btn" type="button">Save</button><button class="lume-ex-btn secondary" type="button">Cancel</button></div></div></div>
+</details>
+
 Inspector mode (with context-binding trait): label-left grid layout,
 inputs use Lume input recipe above, no per-form chrome.
 
@@ -1100,17 +1145,32 @@ Submit row: primary button + secondary "Cancel".
 
 #### `toolbar`
 
+<details class="lume-example" data-ex="toolbar">
+<summary>Example — toolbar</summary>
+<div class="lume-ex-body"><div class="lume-ex-toolbar"><button class="lume-ex-btn ghost" type="button">Cut</button><button class="lume-ex-btn ghost" type="button">Copy</button><span class="sep"></span><button class="lume-ex-btn ghost" type="button">Paste</button></div></div>
+</details>
+
 Surface `bg.surface` gradient, directional `border.subtle` (top or bottom
 depending on toolbar position). Separators 1px `border.subtle`, vertical,
 16px tall.
 
 #### `menubar`
 
+<details class="lume-example" data-ex="menubar">
+<summary>Example — menu</summary>
+<div class="lume-ex-body"><div class="lume-ex-menu"><div class="item">New canvas</div><div class="item sel">Open…</div><div class="item">Export</div></div></div>
+</details>
+
 Menu surface: `bg.surface.raised`, `elev.popover`, directional border.
 Item hover: `accent.subtle` background (no glow — menubars are mode-bridges,
 glow would noise them).
 
 #### `tabs`
+
+<details class="lume-example" data-ex="tabs">
+<summary>Example — tabs (active is lit)</summary>
+<div class="lume-ex-body"><div class="lume-ex-tabs"><span class="tab active">Overview</span><span class="tab">Data</span><span class="tab">Settings</span></div></div>
+</details>
 
 Tab labels: `type.body`, `text.secondary` inactive, `text.primary` active.
 Active tab: 2px `accent` underline + 1px `accent.glow` underglow below
@@ -1119,6 +1179,11 @@ Active tab: 2px `accent` underline + 1px `accent.glow` underglow below
 Wizard variant: step dots use a small donut-glow §3.3 around the current step.
 
 #### `pane`
+
+<details class="lume-example" data-ex="pane">
+<summary>Example — pane</summary>
+<div class="lume-ex-body"><div class="lume-ex-card">Pane — surface gradient, directional border, radius.md (modal variant uses radius.lg).</div></div>
+</details>
 
 Container surface: gradient `bg.surface`, directional border, `radius.md`
 (= 8px). Modal pane variant: `radius.lg` (= 12px, concentric with window),
@@ -1129,6 +1194,11 @@ on drag (it's a transient operation, not an active state).
 
 #### `status` · `progress`
 
+<details class="lume-example" data-ex="status">
+<summary>Example — status & progress</summary>
+<div class="lume-ex-body"><div class="lume-ex-stack"><span class="lume-ex-status"><span class="dot"></span>Running</span><div class="lume-ex-progress"><div class="fill"></div></div></div></div>
+</details>
+
 Status: text only, optional leading icon. When carrying `loading: true`
 trait, icon-area renders an 8×12px skeleton pulse-bar.
 
@@ -1138,10 +1208,20 @@ Knob (for scrubbers): accent-fill circle with surrounding glow.
 
 #### `divider`
 
+<details class="lume-example" data-ex="divider">
+<summary>Example — divider</summary>
+<div class="lume-ex-body"><div class="lume-ex-type"><p class="sans">Above</p><div class="lume-ex-divider"></div><p class="sans">Below</p></div></div>
+</details>
+
 Single 1px line, `border.subtle.btm` color. No Lume glow — dividers are
 quiet by design.
 
 #### `media` · `canvas-region` · `timeline` · `vector-path` *(editor-class)*
+
+<details class="lume-example" data-ex="editor">
+<summary>Example — canvas-region (the Lume boundary)</summary>
+<div class="lume-ex-body"><div class="lume-ex-canvas">canvas-region — opaque, sharp corners, accent boundary + ambient glow</div></div>
+</details>
 
 **`canvas-region`** — the Lume boundary marker.
 
@@ -1194,6 +1274,11 @@ material.
 
 ### 5.1 Norton-Commander
 
+<details class="lume-example" data-ex="norton">
+<summary>Example — Norton-Commander</summary>
+<div class="lume-ex-body"><div class="lume-ex-row" style="align-items:stretch"><div class="lume-ex-card" style="flex:1">~/left pane</div><div class="lume-ex-card" style="flex:1">~/right pane</div></div></div>
+</details>
+
 Two panes side-by-side, equal width by default. Each pane: directional
 border, surface gradient, internal `list` with `type.mono.data` for the
 data-grid feel. Resize divider between them carries the standard pane
@@ -1206,6 +1291,11 @@ What is **not** taken: blue-on-white box-drawing, function-key labels at
 bottom, heavy borders. The agent expresses the layout; Lume renders it.
 
 ### 5.2 Wizard
+
+<details class="lume-example" data-ex="wizard">
+<summary>Example — wizard steps</summary>
+<div class="lume-ex-body"><div class="lume-ex-steps"><span class="dot done"></span><span class="line done"></span><span class="dot current"></span><span class="line todo"></span><span class="dot todo"></span></div></div>
+</details>
 
 `container` with step `tabs` + `form` per step + `toolbar` (back/next).
 
@@ -1221,6 +1311,11 @@ Form renders inspector-mode (label-left grid). Back / Next: secondary /
 primary buttons at bottom, right-aligned for forward motion.
 
 ### 5.3 Spotlight
+
+<details class="lume-example" data-ex="spotlight">
+<summary>Example — Spotlight (the showcase)</summary>
+<div class="lume-ex-body"><div class="lume-ex-spot"><div class="field">Search the canvas…</div><div class="hits"><div class="hit on">visual-spec.md</div><div class="hit">CONCEPT.md</div></div></div></div>
+</details>
 
 Centered `input` + `list` of hits. The **showcase moment** for Lume.
 
@@ -1238,6 +1333,11 @@ box and more like the agent *lighting up* in response.
 
 ### 5.4 Dashboard
 
+<details class="lume-example" data-ex="dashboard">
+<summary>Example — dashboard KPIs</summary>
+<div class="lume-ex-body"><div class="lume-ex-kpi"><div class="card"><div class="v">2.01M</div><div class="d">▲ 12%</div></div><div class="card"><div class="v">847</div><div class="d">▲ 4%</div></div><div class="card"><div class="v">99.9%</div><div class="d">uptime</div></div></div></div>
+</details>
+
 `grid` of `container` with `chart`, `status`, KPI-`text`.
 
 KPI cards: standard raised-surface treatment (gradient + directional
@@ -1249,6 +1349,11 @@ small text-shadow in `accent.glow` when positive
 Charts: bars use `accent` fill with `accent.glow` underglow.
 
 ### 5.5 Photoshop-workspace
+
+<details class="lume-example" data-ex="photoshop">
+<summary>Example — Photoshop-workspace</summary>
+<div class="lume-ex-body"><div class="lume-ex-ps"><div class="bar"><div class="tool on"></div><div class="tool"></div><div class="tool"></div></div><div class="stage"></div><div class="insp"></div></div></div>
+</details>
 
 The critical Lume test — material around an opaque editor boundary.
 

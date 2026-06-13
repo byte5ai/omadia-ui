@@ -1,0 +1,159 @@
+/*
+ * Demo components for the per-primitive (§4) and composition-idiom (§5)
+ * collapsible examples in the spec. Each renders a small live Lume widget,
+ * styled from the generated --lume-* tokens. Loaded after lume.css.
+ */
+
+/* shared bits */
+.lume-ex-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.lume-ex-stack { display: flex; flex-direction: column; gap: 10px; }
+
+/* secondary / ghost button variants (primary = .lume-ex-btn in lume.css) */
+.lume-ex-btn.secondary {
+  background: linear-gradient(180deg, var(--lume-bg-raised-top), var(--lume-bg-raised-btm));
+  color: var(--lume-text-1);
+  border: 1px solid var(--lume-border-default-btm); border-top-color: var(--lume-border-default-top);
+}
+.lume-ex-btn.secondary:hover { box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset; background: linear-gradient(180deg, var(--lume-bg-raised-top), var(--lume-bg-raised-top)); }
+.lume-ex-btn.ghost { background: transparent; color: var(--lume-accent); }
+.lume-ex-btn.ghost:hover { background: var(--lume-accent-subtle); box-shadow: none; }
+
+/* input */
+.lume-ex-input {
+  width: 240px; max-width: 100%; padding: 8px 10px; font-family: var(--lume-font-sans); font-size: 0.875rem;
+  color: var(--lume-text-1); border-radius: var(--lume-radius-sm);
+  background: linear-gradient(180deg, var(--lume-bg-raised-top), var(--lume-bg-raised-btm));
+  border: 1px solid var(--lume-border-default-btm); border-top-color: var(--lume-border-default-top);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset;
+}
+.lume-ex-input:focus {
+  outline: none; border-color: var(--lume-accent);
+  box-shadow: 0 0 0 1px var(--lume-accent), 0 0 0 4px var(--lume-accent-glow), 0 0 12px var(--lume-accent-glow-core);
+}
+
+/* list / tree with a selected row (two-stop glow + accent left bar) */
+.lume-ex-list { display: flex; flex-direction: column; gap: 2px; max-width: 320px; }
+.lume-ex-list .item {
+  position: relative; padding: 8px 12px; border-radius: var(--lume-radius-sm);
+  font-family: var(--lume-font-sans); font-size: 0.875rem; color: var(--lume-text-2);
+}
+.lume-ex-list .item.selected {
+  color: var(--lume-text-1);
+  background:
+    radial-gradient(ellipse at 30% 50%, var(--lume-accent-glow-core) 0%, var(--lume-accent-glow) 20%, transparent 70%),
+    linear-gradient(180deg, var(--lume-accent-subtle), transparent);
+  box-shadow: 0 0 12px -2px var(--lume-accent-glow-core), 0 0 24px -6px var(--lume-accent-glow-strong);
+}
+.lume-ex-list .item.selected::before {
+  content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 2px;
+  background: var(--lume-accent); border-radius: 2px; box-shadow: 0 0 6px var(--lume-accent-glow-strong);
+}
+
+/* table with a highlighted row */
+.lume-ex-table { border-collapse: collapse; font-family: var(--lume-font-sans); font-size: 0.8125rem; min-width: 260px; }
+.lume-ex-table th, .lume-ex-table td { padding: 6px 12px; text-align: left; border-bottom: 1px solid var(--lume-border-subtle-btm); }
+.lume-ex-table th { color: var(--lume-text-2); font-weight: 600; }
+.lume-ex-table td { color: var(--lume-text-1); font-family: var(--lume-font-mono); }
+.lume-ex-table tr.hl td { background: linear-gradient(90deg, var(--lume-accent-subtle), transparent); }
+
+/* switch + checkbox */
+.lume-ex-switch { display: inline-flex; align-items: center; gap: 8px; font-family: var(--lume-font-sans); font-size: 0.875rem; color: var(--lume-text-2); }
+.lume-ex-switch .track { width: 34px; height: 20px; border-radius: var(--lume-radius-pill); background: var(--lume-accent); position: relative; box-shadow: 0 0 3px var(--lume-accent-glow-core), 0 0 6px var(--lume-accent-glow); }
+.lume-ex-switch .track::after { content: ''; position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+.lume-ex-check { display: inline-flex; align-items: center; gap: 8px; font-family: var(--lume-font-sans); font-size: 0.875rem; color: var(--lume-text-2); }
+.lume-ex-check .box { width: 16px; height: 16px; border-radius: 4px; background: var(--lume-accent); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; box-shadow: 0 0 3px var(--lume-accent-glow-core); }
+
+/* chart — accent bars with underglow */
+.lume-ex-chart { display: flex; align-items: flex-end; gap: 10px; height: 80px; }
+.lume-ex-chart .bar { width: 28px; background: var(--lume-accent); border-radius: var(--lume-radius-sm) var(--lume-radius-sm) 0 0; box-shadow: 0 0 6px var(--lume-accent-glow); }
+
+/* toolbar */
+.lume-ex-toolbar {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: var(--lume-radius-md);
+  background: linear-gradient(180deg, var(--lume-bg-surface-top), var(--lume-bg-surface-btm));
+  border: 1px solid var(--lume-border-subtle-btm); border-top-color: var(--lume-border-subtle-top);
+}
+.lume-ex-toolbar .sep { width: 1px; height: 16px; background: var(--lume-border-subtle-btm); }
+
+/* menubar */
+.lume-ex-menu {
+  display: inline-block; padding: 4px; border-radius: var(--lume-radius-md); min-width: 160px;
+  background: linear-gradient(180deg, var(--lume-bg-raised-top), var(--lume-bg-raised-btm));
+  border: 1px solid var(--lume-border-default-btm); border-top-color: var(--lume-border-default-top);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset;
+}
+.lume-ex-menu .item { padding: 6px 10px; border-radius: var(--lume-radius-sm); font-family: var(--lume-font-sans); font-size: 0.875rem; color: var(--lume-text-1); }
+.lume-ex-menu .item.sel { background: var(--lume-accent-subtle); }
+
+/* tabs — active gets accent underline + underglow */
+.lume-ex-tabs { display: flex; gap: 18px; border-bottom: 1px solid var(--lume-border-subtle-btm); }
+.lume-ex-tabs .tab { padding: 8px 2px; font-family: var(--lume-font-sans); font-size: 0.875rem; color: var(--lume-text-2); position: relative; }
+.lume-ex-tabs .tab.active { color: var(--lume-text-1); }
+.lume-ex-tabs .tab.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--lume-accent); box-shadow: 0 1px 4px var(--lume-accent-glow); }
+
+/* progress */
+.lume-ex-progress { width: 240px; max-width: 100%; height: 4px; border-radius: var(--lume-radius-pill); background: linear-gradient(180deg, var(--lume-bg-sunken-top), var(--lume-bg-sunken-btm)); }
+.lume-ex-progress .fill { width: 62%; height: 100%; border-radius: var(--lume-radius-pill); background: var(--lume-accent); box-shadow: 0 0 6px var(--lume-accent-glow); }
+
+/* status — text only with a dot */
+.lume-ex-status { display: inline-flex; align-items: center; gap: 8px; font-family: var(--lume-font-sans); font-size: 0.875rem; color: var(--lume-text-1); }
+.lume-ex-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lume-accent); box-shadow: 0 0 6px var(--lume-accent-glow); }
+
+/* divider */
+.lume-ex-divider { height: 1px; background: var(--lume-border-subtle-btm); margin: 6px 0; }
+
+/* canvas-region — opaque, sharp corners, accent border + ambient glow (the Lume boundary) */
+.lume-ex-canvas {
+  height: 96px; border-radius: 0; background: var(--lume-bg-sunken-btm);
+  border: 2px solid var(--lume-accent); box-shadow: 0 0 20px var(--lume-accent-glow);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--lume-font-mono); font-size: 0.75rem; color: var(--lume-text-3);
+}
+
+/* wizard step dots */
+.lume-ex-steps { display: flex; align-items: center; gap: 0; }
+.lume-ex-steps .dot { width: 14px; height: 14px; border-radius: 50%; }
+.lume-ex-steps .line { width: 40px; height: 2px; }
+.lume-ex-steps .done { background: var(--lume-accent); }
+.lume-ex-steps .line.done { background: var(--lume-accent); }
+.lume-ex-steps .current { background: var(--lume-bg-raised-top); border: 2px solid var(--lume-accent); box-shadow: 0 0 0 4px var(--lume-accent-glow-strong); }
+.lume-ex-steps .todo { background: var(--lume-bg-raised-top); border: 1px solid var(--lume-border-subtle-btm); }
+.lume-ex-steps .line.todo { background: var(--lume-border-subtle-btm); }
+
+/* spotlight — glowing stage + input + results */
+.lume-ex-spot { padding: 24px; border-radius: var(--lume-radius-md); background: radial-gradient(ellipse at 50% 30%, var(--lume-accent-glow), transparent 70%); }
+.lume-ex-spot .field {
+  height: 44px; display: flex; align-items: center; padding: 0 14px; border-radius: var(--lume-radius-md);
+  background: linear-gradient(180deg, var(--lume-bg-raised-top), var(--lume-bg-raised-btm));
+  border: 1px solid var(--lume-accent);
+  box-shadow: 0 0 0 4px var(--lume-accent-glow), 0 0 16px var(--lume-accent-glow-core), 0 12px 40px var(--lume-accent-glow-strong);
+  font-family: var(--lume-font-sans); color: var(--lume-text-2);
+}
+.lume-ex-spot .hits { margin-top: 10px; border-radius: var(--lume-radius-md); overflow: hidden; background: linear-gradient(180deg, var(--lume-bg-raised-top), var(--lume-bg-raised-btm)); border: 1px solid var(--lume-border-default-btm); }
+.lume-ex-spot .hit { padding: 8px 14px; font-family: var(--lume-font-sans); font-size: 0.875rem; color: var(--lume-text-2); }
+.lume-ex-spot .hit.on { color: var(--lume-text-1); background: radial-gradient(at 25% 50%, var(--lume-accent-glow-core), var(--lume-accent-glow), transparent 70%); }
+
+/* dashboard KPI cards */
+.lume-ex-kpi { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.lume-ex-kpi .card {
+  padding: 14px; border-radius: var(--lume-radius-md);
+  background: linear-gradient(180deg, var(--lume-bg-raised-top), var(--lume-bg-raised-btm));
+  border: 1px solid var(--lume-border-default-btm); border-top-color: var(--lume-border-default-top);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset;
+}
+.lume-ex-kpi .v { font-family: var(--lume-font-mono); font-size: 1.5rem; color: var(--lume-text-1); }
+.lume-ex-kpi .d { font-family: var(--lume-font-sans); font-size: 0.75rem; color: var(--lume-accent); text-shadow: 0 0 6px var(--lume-accent-glow); }
+
+/* photoshop-workspace mini layout */
+.lume-ex-ps { display: grid; grid-template-columns: 48px 1fr 120px; gap: 8px; height: 130px; }
+.lume-ex-ps .bar { border-radius: var(--lume-radius-sm); background: linear-gradient(180deg, var(--lume-bg-sunken-top), var(--lume-bg-sunken-btm)); border: 1px solid var(--lume-border-subtle-btm); display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 8px; }
+.lume-ex-ps .tool { width: 26px; height: 26px; border-radius: var(--lume-radius-sm); background: var(--lume-bg-raised-top); }
+.lume-ex-ps .tool.on { border: 1px solid var(--lume-accent); background: radial-gradient(circle at center, var(--lume-accent-subtle) 35%, var(--lume-accent-glow-core) 75%, transparent); box-shadow: 0 0 12px var(--lume-accent-glow-core); }
+.lume-ex-ps .stage { border-radius: 0; background: var(--lume-bg-sunken-btm); border: 2px solid var(--lume-accent); box-shadow: 0 0 20px var(--lume-accent-glow); }
+.lume-ex-ps .insp { border-radius: var(--lume-radius-sm); background: linear-gradient(180deg, var(--lume-bg-surface-top), var(--lume-bg-surface-btm)); border: 1px solid var(--lume-border-default-btm); border-top-color: var(--lume-border-default-top); }
+
+@media (max-width: 760px) {
+  .lume-ex-kpi { grid-template-columns: 1fr; }
+  .lume-ex-ps { grid-template-columns: 40px 1fr; }
+  .lume-ex-ps .insp { display: none; }
+}
