@@ -1,0 +1,64 @@
+# Docs — publish the versioned Lume visual spec to GitHub Pages.
+#
+# The site (docs-site/, VitePress) reconstructs every published version of
+# docs/visual-spec.md from git history at build time, so the build needs the
+# full history (fetch-depth: 0). Deploys via the GitHub Pages Actions flow —
+# requires Pages to be enabled with "GitHub Actions" as the source (one-time
+# repo setting).
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/visual-spec.md'
+      - 'docs-site/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs-site
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history — version snapshots are reconstructed from git
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+
+      - run: npm ci
+
+      - name: Build the versioned site
+        run: npm run docs:build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs-site/.vitepress/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
