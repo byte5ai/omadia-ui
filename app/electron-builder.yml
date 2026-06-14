@@ -11,6 +11,8 @@ artifactName: ${productName}-${version}-${os}-${arch}.${ext}
 # ("unverified developer", bypassable) instead of hard ("damaged").
 afterPack: tools/adhocSign.cjs
 mac:
+  # App icon — Lagoon palette (the app's Standard/default, palette.ts §2.5.4).
+  icon: resources/icon.icns
   target:
     - target: dmg
       arch: [arm64, x64]
@@ -29,6 +31,7 @@ mac:
   entitlements: resources/entitlements.mac.plist
   entitlementsInherit: resources/entitlements.mac.plist
 win:
+  icon: resources/icon.ico
   target:
     - target: nsis
       arch: [x64]
@@ -36,6 +39,7 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
 linux:
+  icon: resources/icon.png
   target:
     - target: AppImage
       arch: [x64]
