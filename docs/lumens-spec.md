@@ -355,7 +355,7 @@ type Wire     = { from: { ref: TargetRef, port: string }, to: { ref: TargetRef, 
   one highlights in the other. Tier-1, no turn.
 - **Wires** route a node's typed `out` port to another's `in` port by stable id;
   the host resolves and propagates at Tier 1 (Class A). Examples: table
-  selection → map highlight; slider → sim `state` input; Tetris `game-over` →
+  selection → map highlight; slider → sim `state` input; a game's `game-over` →
   `status` text + `writeData`.
 - **Least-privilege.** A node reads **only** what is wired to it — it cannot
   reach arbitrary other elements' internals. Wires are declared data,
@@ -397,7 +397,7 @@ the `CONCEPT.md` forward-compat hooks: `canvasOwnership` extends to
 `{kind:"group", members}`; the channel plugin (the fan-out point) multicasts
 surface events. The recipient's Tier 1 **re-validates** and shows the capability
 manifest for **consent before first run**. Determinism ⇒ every member runs the
-identical Lumen; per-user capability grants ⇒ a shared Tetris saves *your* score,
+identical Lumen; per-user capability grants ⇒ a shared game saves *your* score,
 not *mine*. Real-time multiplayer is v2 but *unblocked* by determinism.
 
 ---
@@ -479,7 +479,7 @@ accordingly and idioms degrade gracefully — the same principle as
 
 Conformance is the schema set in `schema/` (Lumen, LX-AST, scene, ports/wires,
 capability manifest) + accept/reject fixtures, plus four reference Lumens
-(Tetris, interactive workflow, defrag-viz, map) traced end-to-end like
+(an arcade game, interactive workflow, defrag-viz, map) traced end-to-end like
 `walkthroughs.md`. Open tuning items (gas/frame/state caps, LX std-lib surface,
 scene perf ceiling, capability-consent granularity, determinism-vs-real-time,
 LLM reliability emitting LX, preset trust/distribution) are enumerated in

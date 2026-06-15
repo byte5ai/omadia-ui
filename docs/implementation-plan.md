@@ -718,7 +718,7 @@ maintainer as a GitHub issue. Suggested phasing, smallest mergeable units first:
 | **L6 — ports & wires** | typed ports on primitives/Lumens, Tier-1 wire resolution, shared `viewState.selection` cross-element | host app + orchestrator |
 | **L7 — lifecycle & presets** | author-once/patch; `lumen-presets/**` + `lumen-state/**` stores; resolve-then-generate lookup; fork+patch; behaviour-idiom library in the UI Skill | `omadia-ui-orchestrator` |
 | **L8 — sharing** | `canvasOwnership` group extension + channel fan-out + import consent (rides the v2 shared-canvas hooks) | channel + orchestrator |
-| **L9 — reference Lumens** | Tetris · interactive workflow · defrag-viz · map, traced end-to-end like `walkthroughs.md`; conformance fixtures | this repo |
+| **L9 — reference Lumens** | an arcade game · interactive workflow · defrag-viz · map, traced end-to-end like `walkthroughs.md`; conformance fixtures | this repo |
 
 **Riskiest items** (mirror `interactivity-concept.md` §13): LLM reliability
 emitting valid LX (likely a strong-model authoring job, fast-model patching);

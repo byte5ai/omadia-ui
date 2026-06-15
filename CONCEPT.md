@@ -1204,7 +1204,7 @@ This section becomes the input for the v2 design phase. It is not a v1 deliverab
 ## Extension — Live Interactivity (Lumens)
 
 A planned **additive** extension brings rich, agent-generated, **Tier-1-fast**
-interactivity to the canvas — games (Tetris), interactive data workflows,
+interactivity to the canvas — small games, interactive data workflows,
 unusual visualisations (defrag-style), live maps — the Omadia answer to
 sandbox-style "live artifacts", deliberately re-aimed. Its thesis: most of what
 arbitrary-code sandboxes block is blocked by missing **capabilities**, not

@@ -1,7 +1,7 @@
 # Omadia UI — Live Interactivity Concept (Lumens)
 
 > How Omadia UI gains rich, agent-generated, **Tier-1-fast** interactivity —
-> Tetris, interactive data workflows, unusual visualisations (think the old
+> small games, interactive data workflows, unusual visualisations (think the old
 > HDD-defragmenter view), live maps — **without** giving up the whitelist /
 > no-arbitrary-code security model that makes the canvas safe.
 >
@@ -74,7 +74,7 @@ interactive thing", and both are wrong for Omadia:
 The key diagnosis — and the thesis of this document:
 
 > **Most of what Live Artifacts blocks is blocked by missing *capabilities*,
-> not missing *compute*.** Tetris does not need network. A map needs *tiles*,
+> not missing *compute*.** A game loop does not need network. A map needs *tiles*,
 > not arbitrary JS. A data workflow needs *your data and a write-back path*,
 > not a Turing-complete escape hatch.
 >
@@ -107,11 +107,11 @@ type Lumen = {
 
 Plain-English mapping:
 
-- **`state`** — the Lumen's memory. For Tetris: the board grid, the active
-  piece, score, level, game-over flag. Typed and size-capped.
+- **`state`** — the Lumen's memory. For a game: the board, the moving
+  token(s), score, level, game-over flag. Typed and size-capped.
 - **`transitions`** — the rules. Pure functions `(state, event) → newState`,
   written in **Lume Expressions** (a small, total, sandboxed expression
-  language — §3). For Tetris: `tick` drops the piece, `moveLeft`, `rotate`,
+  language — §3). For a game: `tick` advances the board, `moveLeft`, `rotate`,
   `lockPiece`, `clearLines`. No I/O, no host access, deterministic.
 - **`view`** — the look. A pure function `state → tree`, producing either
   ordinary Omadia primitives (so a Lumen can be a live form/table/dashboard)
@@ -312,7 +312,7 @@ the dependent `view` branches (retained-mode + memoisation).
 live** and torn down when it settles. **At rest a Lumen costs ~0 % CPU** — a
 kiosk showing a beautiful, mostly-static screen burns nothing until someone
 touches it or a single badge pulses. One Lumen routinely mixes all three: a
-Tetris scene ticks at 60 Hz, the score label beside it is `reactive`, the
+a game's scene ticks at 60 Hz, the score label beside it is `reactive`, the
 surrounding chrome is `static`. Only the part that must move pays.
 
 ### Motion comes from a declarative animation layer, not from LX
@@ -413,7 +413,7 @@ Because the client only ever does *bounded interpretation* + *raster of a
 draw-list it already has* (everything heavy is brokered to Tier 2/3), the
 thin client is the design centre, not the stress test:
 
-- 🟢 **Flüssig:** puzzle/board/card games (Tetris, 2048, chess), interactive
+- 🟢 **Flüssig:** puzzle/board/card games (2048, chess, solitaire), interactive
   dashboards & workflows, data-viz incl. defrag-style grids to ~5–10 k cells
   (canvas2d; more on WebGL), maps (tiles are GPU-composited images fetched by
   Tier 2/3 — the client doesn't compute the map).
@@ -449,14 +449,14 @@ in the Lumen, effect-classified, and brokered by Tier 2. Default deny.
 
 | Capability | Effect class | Broker path | Example |
 |---|---|---|---|
-| `persist(key, value)` | `internal` | Tier 2 → `memoryStore@1` under a Lumen-scoped namespace | Tetris high score; map's last viewport |
+| `persist(key, value)` | `internal` | Tier 2 → `memoryStore@1` under a Lumen-scoped namespace | a game's high score; map's last viewport |
 | `loadData(dataRef)` | `internal` | Tier 2 hands the Lumen a **read-only, size-capped projection** of an existing `DataRef` | drive a defrag-style viz from a real dataset; bind a map to a places table |
 | `writeData(target, value)` | `internal` / `external-effect` | reuses the **Class-D mutation contract** + `writeCapabilities` manifest | an interactive triage workflow that commits status changes back to Jira |
 | `tiles(provider, z/x/y)` | `internal` | Tier 2/3 fetches from a **provider-allowlisted** endpoint, returns sprite `DataRef`s | OpenStreetMap / Mapbox map tiles |
 | `fetch(declaredEndpoint)` | `internal` / `external-effect` | Tier 3 tool call against an **allowlisted, agent-approved** endpoint only | a live feed into a visualisation |
 | `clipboard(text)` | `external-effect` | confirmation-modal gate | "copy result" |
 | `generateAsset(spec)` | `internal` / `external-effect` | Tier 2 → **omadia-core LLM connectors** (Tier 3); returns a `DataRef` | generate an image / sound / TTS voice line for the scene |
-| `share(lumen)` / `savePreset(lumen)` | `external-effect` | §7 | share Tetris with a colleague; save as a gallery preset |
+| `share(lumen)` / `savePreset(lumen)` | `external-effect` | §7 | share a game with a colleague; save as a gallery preset |
 
 Mechanics: a capability call from the running Lumen is *not* a direct call. It
 emits a capability-request action (effect-classified) up through the channel;
@@ -550,9 +550,9 @@ and the channel plugin (already the designated **fan-out point**) multicasts
 surface events to connected members. The recipient's Tier 1 **re-validates**
 the Lumen and shows its **capability manifest for consent before first run**.
 Because behaviour is deterministic, every member sees the identical Lumen;
-because capabilities are per-user-granted, a shared Tetris can save *your*
+because capabilities are per-user-granted, a shared game can save *your*
 high score without touching *mine*. Real-time multiplayer (two people in one
-Tetris) is a v2 topic but is *unblocked* by determinism — deterministic ops
+game) is a v2 topic but is *unblocked* by determinism — deterministic ops
 are exactly what lockstep/CRDT need.
 
 **Save as a preset.** A Lumen can be named, optionally **parameterised**
@@ -568,7 +568,7 @@ because they are validated, deterministic, capability-declared data, not code.
 
 ## 8. Lumen lifecycle & reuse — author once, then instantiate & patch (never rebuild)
 
-Regenerating a kiosk surface or a Tetris from scratch on every turn would be
+Regenerating a kiosk surface or a game from scratch on every turn would be
 expensive (tokens), slow (a full generation), and inconsistent (two "builds"
 drift). It must not happen, and the architecture already has the pieces to
 stop it. This is the Omadia counterpart to Claude's artifact logic
@@ -585,7 +585,7 @@ bumping `treeRevision`:
 
 | User says | What the agent emits | Cost |
 |---|---|---|
-| "Build me Tetris" *(nothing reusable exists)* | one `surface_snapshot` with the full Lumen | one expensive turn (once) |
+| "Build me a game" *(nothing reusable exists)* | one `surface_snapshot` with the full Lumen | one expensive turn (once) |
 | "Make it faster as the score climbs" | `surface_patch` touching only the `tick` transition | a few tokens |
 | "Bigger board" | `surface_patch` on one `state` field + the `view` grid bounds | a few tokens |
 | "Change the accent to Atelier" | accent re-tint patch (existing palette mechanic) | trivial |
@@ -602,7 +602,7 @@ The durable answer is the **preset library** (§7). A vetted Lumen is authored
 parameterised**. Thereafter the agent does not build it — it **instantiates**
 it:
 
-> "Gib mir Tetris" → Tier 2 resolves the intent to the `tetris@2` preset,
+> "Instantiate the game" → Tier 2 resolves the intent to the `arcade@2` preset,
 > binds its parameters (board size, palette, data), and renders it.
 > **Near-zero LLM, sub-second, byte-identical every time.**
 
@@ -610,14 +610,14 @@ Library scopes, outermost to innermost (first match wins, like CSS cascade):
 
 | Scope | Namespace | Holds |
 |---|---|---|
-| **First-party** | shipped with the orchestrator | curated, audited Lumens (Tetris, map, defrag-viz, standup board) |
+| **First-party** | shipped with the orchestrator | curated, audited Lumens (an arcade game, map, defrag-viz, standup board) |
 | **Tenant / org** | `lumen-presets/<tenant>/shared/**` | the organisation's vetted library |
 | **User** | `lumen-presets/<tenant>/<user>/**` | "my defrag-style project viewer" |
 | **Canvas-local** | canvas-state | the instance currently on screen |
 
 Because a preset is **content-addressed** (`preset-<sha256(spec)[:16]>`) and
 **deterministic**, every instantiation is identical — there is no
-"two-divergent-Tetris" problem, and a shared preset replays the same on every
+"two-divergent-instances" problem, and a shared preset replays the same on every
 machine (§2 determinism, §6.1 content-addressing).
 
 ### 8.3 Two-speed generation — the cost & consistency model
@@ -628,7 +628,7 @@ machine (§2 determinism, §6.1 content-addressing).
 | **Warm reuse** | a preset matches (exactly or after a small edit) | none, or a fast model for a parametric patch | sub-second | **the common case** |
 
 After a cold authoring, Tier 2 **offers to save the result as a preset**
-("Save this Tetris to your gallery?"). The expensive build is paid **once**;
+("Save this game to your gallery?"). The expensive build is paid **once**;
 every later use is warm. This is the same economics that makes Claude
 artifacts feel cheap after creation — generalised into a persistent library
 instead of a per-conversation artifact.
@@ -651,8 +651,8 @@ generation. Generation is the fallback, not the first move.
 
 ### 8.5 Fork & vary — copy-on-write, with lineage
 
-"Tetris, but hexagonal" does **not** rebuild Tetris. Tier 2 **forks** the
-`tetris` preset (copy-on-write → new content-addressed id, parent id recorded
+"the game, but on a hexagonal board" does **not** rebuild it. Tier 2 **forks**
+the `arcade` preset (copy-on-write → new content-addressed id, parent id recorded
 for provenance) and applies a **targeted patch** to the affected
 transitions/view. Cheap, consistent with the original, and the lineage is
 auditable — important for the trust model when forks are shared (§2 point 5).
@@ -697,7 +697,7 @@ Lumens are generated agentically (Tier 2 composes the Lumen the way it
 composes primitive trees today; heavy generation or data binding can recruit
 Tier 3). But the deeper win over Live Artifacts is **bidirectionality**:
 
-- **Agentic generation.** "Build me a Tetris" → Tier 2 emits a Lumen
+- **Agentic generation.** "Build me a game" → Tier 2 emits a Lumen
   (state/transitions/view/events) via `surface_snapshot`. "Make it faster as
   the score climbs" → `surface_patch` adjusting the `tick` transition. The
   agent refines the *running* behaviour conversationally.
@@ -746,7 +746,7 @@ Concrete:
 - **`form`/slider → simulation Lumen.** A `choice`/slider primitive is wired to
   a Lumen `state` input (gravity, speed, grid size). Dragging the slider
   retunes the running sim live — declarative, no turn.
-- **Lumen output → primitive.** Tetris `game-over` (a Lumen output) wired to a
+- **Lumen output → primitive.** A game's `game-over` (a Lumen output) wired to a
   `status` primitive ("New high score!") and to a `writeData` capability that
   persists the score back through Tier 3.
 - **List ⇄ defrag-viz Lumen.** Hover/select a file in a `list` → its blocks
@@ -773,7 +773,7 @@ values currently flowing through them* (view-state).
 
 | Use case | state | view | events | capabilities | Tier split |
 |---|---|---|---|---|---|
-| **Tetris** (build · play · share) | board grid, active piece, score, level | `scene` cell grid | declared keys + host `tick` (≤60 fps) | `persist` (high score), `share` | loop is pure **Class A** on Tier 1; generation/share on Tier 2 |
+| **An arcade game** (build · play · share) | board, moving token(s), score, level | `scene` cell grid | declared keys + host `tick` (≤60 fps) | `persist` (high score), `share` | loop is pure **Class A** on Tier 1; generation/share on Tier 2 |
 | **Interactive data workflow** | working set, step, selection, edits | primitives (table/form) or `scene` | pointer/submit | `loadData` (real data in), `writeData` (commit back via Class-D + `writeCapabilities`) | Tier 1 interaction; Tier 2 brokers writes; Tier 3 owns the system of record |
 | **Defrag-style / unusual viz** | dataset projection, animation cursor | `scene` coloured-cell grid | host `tick` for animation | `loadData` | data fetch via Tier 2/3; animation pure Tier 1 |
 | **Interactive map** | viewport, markers, selection | `scene` (sprites = tiles, markers) + pan/zoom | pointer (pan/zoom/click) | `tiles` (provider-allowlisted), `loadData` (places), `persist` (last viewport) | pan/zoom/render pure Tier 1; tiles brokered Tier 2/3 |
@@ -836,7 +836,7 @@ dangerous one, open the useful one.**
 
 1. **Gas & frame-budget numbers.** Initial caps for LX gas/frame, state size,
    scene draw-list length, tick rate — measured against the four reference
-   Lumens (Tetris, workflow, defrag-viz, map). Spike-tunable, like the
+   Lumens (an arcade game, workflow, defrag-viz, map). Spike-tunable, like the
    `viewState` budget in `CONCEPT.md`.
 2. **LX surface area.** Exactly which standard-library functions ship in
    `LX/1.0`. Bias small; grow by minor bump. Risk: too small blocks real
