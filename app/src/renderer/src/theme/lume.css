@@ -2441,3 +2441,55 @@ textarea.lume-input:disabled {
   bottom: 16px;
   z-index: 5;
 }
+
+/* Onboarding discovery flow (Scenario A "On this network" + manual hint) */
+.lume-discovered-empty {
+  display: flex;
+  align-items: center;
+  gap: var(--lume-space-2);
+  padding: var(--lume-space-2) var(--lume-space-3);
+  color: var(--lume-text-tertiary);
+  font-size: 13px;
+  border: 1px dashed var(--lume-border-subtle-btm);
+  border-radius: var(--lume-radius-md);
+  background: var(--lume-sunken-btm);
+}
+.lume-spinner-sm {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--lume-accent-subtle);
+  border-top-color: var(--lume-accent);
+  animation: lume-spin 0.8s linear infinite;
+  flex: none;
+}
+@keyframes lume-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.lume-discovered-host {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lume-space-2);
+  width: 100%;
+  text-align: left;
+}
+.lume-discovered-host-auth {
+  font-size: 11px;
+  color: var(--lume-text-tertiary);
+  border: 1px solid var(--lume-border-subtle-btm);
+  border-radius: var(--lume-radius-pill);
+  padding: 1px 8px;
+}
+.lume-onboarding-subhint {
+  margin: var(--lume-space-1) 0 0;
+  font-size: 12px;
+  color: var(--lume-text-tertiary);
+}
+.lume-onboarding-subhint code {
+  font-family: var(--lume-font-mono, monospace);
+  font-size: 11px;
+  color: var(--lume-text-secondary);
+}
