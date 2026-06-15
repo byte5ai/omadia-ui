@@ -14,6 +14,13 @@
 > (the *why*). This document is **concept only** — no implementation, no PR
 > plan. It extends, and stays inside, the architecture in `CONCEPT.md`.
 
+Version 0.5 — expands §9 with §9.1 "Composition & cross-element interaction":
+a Lumen is just a node in the same primitive tree (composes in
+container/pane/grid/tabs; a Lumen's `view` can hold primitives and vice
+versa). Elements interact **bidirectionally and deterministically on Tier 1**
+via shared `viewState.selection` by stable id and declarative **ports & wires**
+(typed inputs/outputs, `from`→`to` bindings), with a least-privilege boundary
+(a node reads only what is wired to it). Authority split unchanged.
 Version 0.4 — adds §8 "Lumen lifecycle & reuse — author once, then instantiate
 & patch (never rebuild)": the Omadia counterpart to Claude's artifact logic.
 Author once (`surface_snapshot`), persist in canvas-state, edit by **targeted
@@ -698,10 +705,64 @@ Tier 3). But the deeper win over Live Artifacts is **bidirectionality**:
 - **Beam into a Lumen.** A user can beam a scene element ("why is this block
   red?") or a region; the existing `TargetRef`/beam machinery resolves inside
   the Lumen.
-- **Composability on one canvas.** A Lumen is ordinary tree content, so a map
-  Lumen sits next to a Jira `table` and they can be wired (select a marker →
-  filter the table) through normal canvas mechanics. Live Artifacts are
-  isolated islands; Lumens are first-class canvas citizens.
+- **Composability on one canvas.** A Lumen is ordinary tree content (see §9.1),
+  so a map Lumen sits next to a Jira `table` and they interact through normal
+  canvas mechanics. Live Artifacts are isolated islands; Lumens are first-class
+  canvas citizens.
+
+### 9.1 Composition & cross-element interaction (it is just one tree)
+
+A Lumen is a node in the same primitive tree as every other primitive. There
+is **no separate surface, no iframe, no island**. Two consequences:
+
+**(a) It composes like any primitive.** A Lumen lives inside `container` /
+`pane` / `grid` / `tabs`, obeys the same layout, the same surface-nesting
+ladder, the same Lume material, the same validator and the same render pass.
+The agent places a map Lumen in one pane, a Jira `table` in another, a `chart`
+below — one canvas, one tree. The boundary is porous *both ways*: a Lumen's
+`view` itself emits ordinary primitives (a `button`, a `table`, a `status`),
+so a Lumen can contain regular UI and regular UI can contain a Lumen.
+
+**(b) Elements interact — bidirectionally, deterministically, on Tier 1.**
+The wiring reuses machinery that already exists, so it costs **no turn** and
+runs at 60 fps:
+
+| Mechanism | How it wires | Direction | Tier |
+|---|---|---|---|
+| **Shared selection / view-state** | a `table` and a Lumen both reference the same `DataRef` + **stable IDs**; selection lives in `viewState.selection` keyed by those IDs (`CONCEPT.md` Authority Model) | UI ⇄ Lumen | **1 (Class A)** — no server |
+| **Declarative ports & wires** | a node declares typed **inputs** and **outputs**; the agent declares **wires** (`from` → `to`) by stable id. The host routes values at Tier 1 | UI ⇄ Lumen, Lumen ⇄ Lumen | **1 (Class A)** |
+| **Lumen capability → patch** | a Lumen output bound to `writeData`/`generateAsset`/etc. patches another container via Tier 2 | Lumen → UI (semantic) | 2 / 3 |
+| **Beam / agent** | user beams across both ("compare these rows with the map"); agent reasons over the wired set | either, semantic | 2 |
+
+Concrete:
+
+- **Map Lumen ⇄ Jira `table`.** Select rows in the table → the bound markers
+  on the map glow (shared selection by `rowKey`). Tap a marker → the table
+  filters/scrolls to that `rowKey` (Lumen output wired to the table's
+  view-state). Both directions are pure Tier 1.
+- **`form`/slider → simulation Lumen.** A `choice`/slider primitive is wired to
+  a Lumen `state` input (gravity, speed, grid size). Dragging the slider
+  retunes the running sim live — declarative, no turn.
+- **Lumen output → primitive.** Tetris `game-over` (a Lumen output) wired to a
+  `status` primitive ("New high score!") and to a `writeData` capability that
+  persists the score back through Tier 3.
+- **List ⇄ defrag-viz Lumen.** Hover/select a file in a `list` → its blocks
+  light up in the scene; click a block cluster → the list scrolls to that file.
+
+**The boundary that keeps it safe.** Cross-element wiring is **declared data**
+(validated by the whitelist parser), and a node can only read what is **wired
+to it** — it cannot reach arbitrary other elements' internals. This is
+least-privilege by construction: the same port/wire boundary that makes a
+Lumen safe to share makes cross-element interaction auditable and
+shared-canvas-safe (wires resolve by stable id, deterministically, so they
+replay and multicast unchanged). The **authority split is unchanged**: the
+agent owns *which elements and wires exist* (structure); the client owns *the
+values currently flowing through them* (view-state).
+
+> **SDK delta:** declarative **`ports`** (typed inputs/outputs) on primitives
+> and Lumens, and **`wires`** (a `[{from: TargetRef+port, to: TargetRef+port}]`
+> list) at the container/canvas level — additive tree content, Tier-1-resolved,
+> whitelist-validated. No new transport.
 
 ---
 
@@ -729,6 +790,7 @@ authority split, and security surface. No wire-grammar rewrite.
 |---|---|
 | **Primitives** | add `scene` (editor-class) — protocol minor bump (`1.x`); draw-list is whitelisted shape data |
 | **Tree content** | add the `behavior`/`lumen` section (state/transitions/view/events/capabilities) — validated by an **extended whitelist parser** (schema + LX-AST validator) |
+| **Composition / interaction** (§9.1) | declarative **`ports`** (typed inputs/outputs) on primitives & Lumens + **`wires`** (`from`→`to` by `TargetRef`) at container/canvas level; Tier-1-resolved by stable id, whitelist-validated; reuses shared `viewState.selection`. No new transport |
 | **Tier-1 client** | new **Lumen runtime**: deterministic LX evaluator, gas + frame ceiling, scene rasteriser, event dispatch, seeded `random`/clock. All Class-A; the frame loop never touches the server |
 | **Tier-2 orchestrator** | composes/patches Lumens; **brokers capability calls**; grants/scopes capability manifests; persists Lumen state & presets; manages share/ownership |
 | **Lifecycle / reuse** (§8) | **resolve-then-generate**: library lookup before any build (same shape as the existing pre-Tier-3 data-cache check); preset **instantiate** (no LLM) / **fork+patch** (fast model) / **cold-author** (strong model); content-addressed, versioned, parameterised presets; behaviour-idiom library in the UI Skill |
