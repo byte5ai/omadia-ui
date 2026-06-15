@@ -10,6 +10,8 @@ import type {
 } from '../shared/protocol.js';
 import { acquireSessionCookie, authDebug } from './auth.js';
 import { discoverProviders, loginWithPassword, validateSession, wsToHttpOrigin } from './authApi.js';
+import { discoverPairing } from './discovery.js';
+import { startMdnsBrowser, type MdnsBrowserHandle } from './mdnsBrowser.js';
 import { CanvasSocket } from './canvasSocket.js';
 import { createFileSessionStore } from './sessionStore.js';
 import { createSessionVault, type SessionVault } from './sessionVault.js';
@@ -255,6 +257,27 @@ ipcMain.handle(IPC.authLoginBrowser, async (_e, opts: ConnectOptions) => {
       detail: err instanceof Error ? err.message : String(err),
     };
   }
+});
+
+// Friction-free pairing (#293): resolve a human-typed host/URL into a
+// connect-ready descriptor. Runs in the main process so it is not bound by the
+// renderer's CSP / mixed-content rules and can probe http LAN hosts.
+ipcMain.handle(IPC.pairingDiscover, (_e, input: string) => discoverPairing(input));
+
+// LAN discovery (#293, Scenario A): one browser at a time, streaming the host
+// list to the renderer. A second start tears the previous one down first so a
+// re-opened setup card never leaks responders.
+let mdnsBrowser: MdnsBrowserHandle | null = null;
+ipcMain.handle(IPC.pairingScanStart, async () => {
+  mdnsBrowser?.stop();
+  mdnsBrowser = await startMdnsBrowser(
+    (hosts) => safeSend(IPC.pairingDiscovered, hosts),
+    (msg) => authDebug(msg),
+  );
+});
+ipcMain.handle(IPC.pairingScanStop, () => {
+  mdnsBrowser?.stop();
+  mdnsBrowser = null;
 });
 
 ipcMain.handle(IPC.settingsGet, () => createFileSettingsStore(app.getPath('userData')).load());

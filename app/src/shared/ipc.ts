@@ -55,6 +55,43 @@ export interface AuthSessionInfo {
   expiresAt?: number;
 }
 
+/** friction-free pairing descriptor (#293) — the unified shape every entry
+ *  path (HTTP discovery, manual paste, future LAN mDNS) resolves to, so the
+ *  connect code stays source-agnostic. */
+export interface PairingAuth {
+  /** `unknown` → discovery gave no auth hint (legacy `/omadia-ui/info`); the
+   *  caller probes `/api/v1/auth/providers` the usual way. */
+  mode: 'none' | 'password' | 'oidc' | 'unknown';
+  providers?: AuthProvider[];
+  /** absolute auth base the client should use (`…/api/v1/auth` or a proxied
+   *  `…/bot-api/v1/auth`); absent → derive from the wsUrl origin */
+  loginStartUrl?: string;
+}
+
+export interface PairingDescriptor {
+  /** human label for the host, when the server supplied one */
+  name?: string;
+  /** absolute `ws(s)://host/omadia-ui/canvas` */
+  wsUrl: string;
+  protocolVersion: string;
+  auth: PairingAuth;
+}
+
+/** a host found on the LAN via mDNS (`_omadia._tcp`, #293) — feeds the
+ *  "Discovered hosts" picker. The user clicks one and the normal HTTP
+ *  discovery resolves it into a PairingDescriptor. */
+export interface DiscoveredHost {
+  /** stable key for de-dup + React lists (service fqdn or name@address:port) */
+  id: string;
+  /** human label (TXT `name`, else the mDNS service name) */
+  name: string;
+  /** resolvable host or IP — what we hand to discovery as `address:port` */
+  address: string;
+  port: number;
+  /** auth hint from the TXT record, when present */
+  authMode?: 'none' | 'password' | 'oidc';
+}
+
 /** one configured omadia server — the bottom-left instance switcher */
 export interface OmadiaInstance {
   id: string;
@@ -109,6 +146,14 @@ export interface OmadiaCanvasApi {
   onStatus(cb: (slotKey: string, status: ConnectionStatus) => void): () => void;
   getSettings(): Promise<AppSettings | null>;
   saveSettings(settings: AppSettings): Promise<void>;
+  /** friction-free pairing (#293): resolve a human-typed host/URL into a
+   *  connect-ready descriptor (absolute wsUrl + auth). null → nothing on any
+   *  candidate origin answered the discovery probe. */
+  pairingDiscover(input: string): Promise<PairingDescriptor | null>;
+  /** LAN discovery (#293, Scenario A): browse `_omadia._tcp` and stream the
+   *  growing host list to `onHosts`. Returns a stop fn that ends the scan and
+   *  unsubscribes — call it on connect / unmount. */
+  pairingScan(onHosts: (hosts: DiscoveredHost[]) => void): () => void;
   /** native auth (issue #7): vault-backed session probe, method discovery,
    *  JSON credential login; the embedded-web-window flow stays as fallback
    *  for OIDC tenants and kernels without the discovery endpoint */
@@ -140,6 +185,10 @@ export const IPC = {
   status: 'canvas:status',
   settingsGet: 'settings:get',
   settingsSave: 'settings:save',
+  pairingDiscover: 'pairing:discover',
+  pairingScanStart: 'pairing:scan-start',
+  pairingScanStop: 'pairing:scan-stop',
+  pairingDiscovered: 'pairing:discovered',
   authSession: 'auth:session',
   authDiscover: 'auth:discover',
   authLogin: 'auth:login',

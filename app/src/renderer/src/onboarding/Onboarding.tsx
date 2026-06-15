@@ -1,13 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type {
   AppSettings,
   AuthDiscovery,
   ConnectOptions,
   ConnectionStatus,
+  DiscoveredHost,
 } from '../../../shared/ipc.js';
 
 const WS_PATTERN = /^wss?:\/\/\S+$/;
 const HTTP_PATTERN = /^https?:\/\/\S+$/;
+const CANVAS_SUFFIX = '/omadia-ui/canvas';
+
+/** A full canvas transport URL the user pasted directly (manual fallback) —
+ *  anything else is treated as a human address to run discovery against. */
+const isCanvasUrl = (v: string): boolean =>
+  WS_PATTERN.test(v) && v.replace(/\/+$/, '').endsWith(CANVAS_SUFFIX);
 
 export interface OnboardingProps {
   defaults: AppSettings;
@@ -45,21 +52,34 @@ export function Onboarding({ defaults, status, busy, canCancel, onSubmit, onCanc
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
+  // friction-free pairing (#293): resolving a human address → canvas wsUrl
+  const [discovering, setDiscovering] = useState(false);
+  // LAN mDNS picker (Scenario A) — hosts found on the network
+  const [lanHosts, setLanHosts] = useState<DiscoveredHost[]>([]);
 
   const connecting = busy && status.state !== 'failed';
   const failed = busy && status.state === 'failed';
 
-  const candidate = (): AppSettings | null => {
-    const trimmedUrl = url.trim();
+  // Browse `_omadia._tcp` while the server step is open; tear the responder
+  // down once we leave it / start connecting (one-shot per visit).
+  useEffect(() => {
+    if (step !== 'server' || connecting) return;
+    const stop = window.omadiaCanvas.pairingScan(setLanHosts);
+    return stop;
+  }, [step, connecting]);
+
+  /** Validate an already-resolved canvas URL into settings. `serverUrl` is the
+   *  resolved `ws(s)://…/omadia-ui/canvas` (discovery output or manual paste). */
+  const validateSettings = (serverUrl: string): AppSettings | null => {
     const trimmedLogin = loginUrl.trim();
-    if (!WS_PATTERN.test(trimmedUrl)) {
-      setError('Enter a ws:// or wss:// server URL.');
+    if (!WS_PATTERN.test(serverUrl)) {
+      setError('Enter a server address, or a ws:// canvas URL.');
       return null;
     }
     // the canvas endpoint path is protocol-fixed — a typo here persists and
     // 404s every canvas connect while the auth API (origin-only) still works
-    if (!trimmedUrl.endsWith('/omadia-ui/canvas')) {
-      setError('The server URL must end with /omadia-ui/canvas.');
+    if (!serverUrl.replace(/\/+$/, '').endsWith(CANVAS_SUFFIX)) {
+      setError(`The server URL must end with ${CANVAS_SUFFIX}.`);
       return null;
     }
     if (useAuth && trimmedLogin && !HTTP_PATTERN.test(trimmedLogin)) {
@@ -67,10 +87,39 @@ export function Onboarding({ defaults, status, busy, canCancel, onSubmit, onCanc
       return null;
     }
     return {
-      serverUrl: trimmedUrl,
+      serverUrl,
       useAuth,
       ...(useAuth && trimmedLogin ? { loginUrl: trimmedLogin } : {}),
     };
+  };
+
+  /** Re-validate the current (resolved) URL — used by the sign-in step where
+   *  `url` already holds the discovered canvas URL. */
+  const candidate = (): AppSettings | null => validateSettings(url.trim());
+
+  /** Resolve whatever the user typed into a canvas URL: a pasted transport URL
+   *  is used verbatim, anything else (https://host, bare host, .local) goes
+   *  through server-owned discovery. Returns the resolved URL, or null on a
+   *  miss (error already surfaced). */
+  const resolveServerUrl = async (override?: string): Promise<string | null> => {
+    const typed = (override ?? url).trim();
+    if (override !== undefined) setUrl(override);
+    if (isCanvasUrl(typed)) return typed;
+    setDiscovering(true);
+    try {
+      const descriptor = await window.omadiaCanvas.pairingDiscover(typed);
+      if (!descriptor) {
+        setError(
+          'No Omadia server found at that address. Check it, or paste the full ws:// canvas URL.',
+        );
+        return null;
+      }
+      // Surface the resolved transport URL so it is what gets persisted.
+      setUrl(descriptor.wsUrl);
+      return descriptor.wsUrl;
+    } finally {
+      setDiscovering(false);
+    }
   };
 
   const toConnectOptions = (s: AppSettings): ConnectOptions => ({
@@ -105,9 +154,12 @@ export function Onboarding({ defaults, status, busy, canCancel, onSubmit, onCanc
     else setAuthError(LOGIN_ERRORS[res.error ?? 'cancelled'] as string);
   };
 
-  const submit = async () => {
-    if (connecting || authBusy) return;
-    const settings = candidate();
+  const submit = async (override?: string) => {
+    if (connecting || authBusy || discovering) return;
+    setError('');
+    const serverUrl = await resolveServerUrl(override);
+    if (!serverUrl) return;
+    const settings = validateSettings(serverUrl);
     if (!settings) return;
     if (!settings.useAuth) {
       onSubmit(settings);
@@ -285,19 +337,20 @@ export function Onboarding({ defaults, status, busy, canCancel, onSubmit, onCanc
       <div className="lume-card">
         <h2 className="lume-heading lume-onboarding-title">Connect to Omadia</h2>
         <p className="lume-onboarding-hint">
-          Enter the canvas endpoint of your Omadia server. It is stored locally on this machine
-          once the connection succeeds.
+          Enter your Omadia server&apos;s address — the same URL you open in the browser. We figure
+          out the canvas connection for you. It is stored locally on this machine once the
+          connection succeeds.
         </p>
         <label className="lume-field-label" htmlFor="server-url">
-          Server URL
+          Server address
         </label>
         <input
           id="server-url"
           className={`lume-input lume-onboarding-input${error ? ' lume-input-error' : ''}`}
           autoFocus
           spellCheck={false}
-          disabled={connecting || authBusy}
-          placeholder="ws://127.0.0.1:8080/omadia-ui/canvas"
+          disabled={connecting || authBusy || discovering}
+          placeholder="https://omadia.example.com  ·  omadia.local:8080"
           value={url}
           onChange={(e) => {
             setUrl(e.target.value);
@@ -306,6 +359,24 @@ export function Onboarding({ defaults, status, busy, canCancel, onSubmit, onCanc
           onKeyDown={(e) => e.key === 'Enter' && void submit()}
         />
         {error && <div className="lume-field-error">{error}</div>}
+        {lanHosts.length > 0 && (
+          <div className="lume-discovered">
+            <span className="lume-field-label">On this network</span>
+            {lanHosts.map((host) => (
+              <button
+                key={host.id}
+                type="button"
+                className="lume-button lume-discovered-host"
+                disabled={connecting || authBusy || discovering}
+                onClick={() => void submit(`${host.address}:${host.port}`)}
+                title={`${host.address}:${host.port}`}
+              >
+                {host.name}
+                {host.authMode && host.authMode !== 'none' ? ' · sign-in' : ''}
+              </button>
+            ))}
+          </div>
+        )}
         <label className="lume-check-row">
           <input
             type="checkbox"
@@ -343,17 +414,23 @@ export function Onboarding({ defaults, status, busy, canCancel, onSubmit, onCanc
         )}
         <div className="lume-toolbar lume-onboarding-actions">
           {canCancel && (
-            <button className="lume-button" disabled={connecting || authBusy} onClick={onCancel}>
+            <button
+              className="lume-button"
+              disabled={connecting || authBusy || discovering}
+              onClick={onCancel}
+            >
               Cancel
             </button>
           )}
           <button
             className="lume-button lume-button-primary"
-            disabled={connecting || authBusy}
+            disabled={connecting || authBusy || discovering}
             onClick={() => void submit()}
           >
-            {connecting || authBusy ? (
-              <span className="lume-busy-verb">{authBusy ? 'Checking' : 'Connecting'}</span>
+            {connecting || authBusy || discovering ? (
+              <span className="lume-busy-verb">
+                {discovering ? 'Finding server' : authBusy ? 'Checking' : 'Connecting'}
+              </span>
             ) : (
               'Connect'
             )}
