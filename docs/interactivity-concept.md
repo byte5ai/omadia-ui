@@ -14,6 +14,15 @@
 > (the *why*). This document is **concept only** — no implementation, no PR
 > plan. It extends, and stays inside, the architecture in `CONCEPT.md`.
 
+Version 0.4 — adds §8 "Lumen lifecycle & reuse — author once, then instantiate
+& patch (never rebuild)": the Omadia counterpart to Claude's artifact logic.
+Author once (`surface_snapshot`), persist in canvas-state, edit by **targeted
+`surface_patch`** (not regeneration, not string-replace); a **preset library**
+(first-party / tenant / user / canvas scopes, content-addressed, versioned,
+parameterised) so reuse is **instantiate-without-an-LLM**; a **two-speed**
+model (rare cold authoring vs. constant warm reuse); **resolve-then-generate**
+lookup before any build; **fork+patch** with lineage for variations; a
+behaviour-idiom library so even cold builds assemble vetted fragments.
 Version 0.3 — review fixes. **Lume correctness**: the motion/effect vocabulary
 is now exact to `visual-spec.md` — Lume is **light-as-material** (surface
 luminosity, accent-as-illumination, directional borders, soft corners), *not*
@@ -547,7 +556,132 @@ because they are validated, deterministic, capability-declared data, not code.
 
 ---
 
-## 8. The agent relationship — generation *and* live introspection
+## 8. Lumen lifecycle & reuse — author once, then instantiate & patch (never rebuild)
+
+Regenerating a kiosk surface or a Tetris from scratch on every turn would be
+expensive (tokens), slow (a full generation), and inconsistent (two "builds"
+drift). It must not happen, and the architecture already has the pieces to
+stop it. This is the Omadia counterpart to Claude's artifact logic
+(create-once, then `update`) — extended from "one artifact per conversation"
+to a **persistent, versioned, shareable component library**.
+
+### 8.1 Author once, edit by patch — never regenerate
+
+A Lumen is generated **once** (`surface_snapshot`) and then **lives in
+canvas-state** (`CONCEPT.md` §"State Model"), persisting across turns and Host
+App restarts. The agent does **not** re-emit it to keep it alive. Subsequent
+changes are **targeted `surface_patch`es** addressed by stable id/path,
+bumping `treeRevision`:
+
+| User says | What the agent emits | Cost |
+|---|---|---|
+| "Build me Tetris" *(nothing reusable exists)* | one `surface_snapshot` with the full Lumen | one expensive turn (once) |
+| "Make it faster as the score climbs" | `surface_patch` touching only the `tick` transition | a few tokens |
+| "Bigger board" | `surface_patch` on one `state` field + the `view` grid bounds | a few tokens |
+| "Change the accent to Atelier" | accent re-tint patch (existing palette mechanic) | trivial |
+
+This is exactly Claude's create-then-update model — but a patch targets a
+**validated tree by stable id**, not a string-replace on source code, so there
+is no resync/drift surface and no risk of an edit corrupting the program. The
+*structure is preserved by construction* across edits → consistency for free.
+
+### 8.2 The reuse library — presets & templates (the real "not from scratch")
+
+The durable answer is the **preset library** (§7). A vetted Lumen is authored
+**once** and saved as a preset: **named, versioned, content-addressed,
+parameterised**. Thereafter the agent does not build it — it **instantiates**
+it:
+
+> "Gib mir Tetris" → Tier 2 resolves the intent to the `tetris@2` preset,
+> binds its parameters (board size, palette, data), and renders it.
+> **Near-zero LLM, sub-second, byte-identical every time.**
+
+Library scopes, outermost to innermost (first match wins, like CSS cascade):
+
+| Scope | Namespace | Holds |
+|---|---|---|
+| **First-party** | shipped with the orchestrator | curated, audited Lumens (Tetris, map, defrag-viz, standup board) |
+| **Tenant / org** | `lumen-presets/<tenant>/shared/**` | the organisation's vetted library |
+| **User** | `lumen-presets/<tenant>/<user>/**` | "my defrag-style project viewer" |
+| **Canvas-local** | canvas-state | the instance currently on screen |
+
+Because a preset is **content-addressed** (`preset-<sha256(spec)[:16]>`) and
+**deterministic**, every instantiation is identical — there is no
+"two-divergent-Tetris" problem, and a shared preset replays the same on every
+machine (§2 determinism, §6.1 content-addressing).
+
+### 8.3 Two-speed generation — the cost & consistency model
+
+| Mode | When | Model | Latency | Frequency |
+|---|---|---|---|---|
+| **Cold authoring** | nothing in the library fits | strong model (Sonnet/Opus) | seconds | **rare** — once per genuinely new idea |
+| **Warm reuse** | a preset matches (exactly or after a small edit) | none, or a fast model for a parametric patch | sub-second | **the common case** |
+
+After a cold authoring, Tier 2 **offers to save the result as a preset**
+("Save this Tetris to your gallery?"). The expensive build is paid **once**;
+every later use is warm. This is the same economics that makes Claude
+artifacts feel cheap after creation — generalised into a persistent library
+instead of a per-conversation artifact.
+
+### 8.4 Resolve-then-generate — the lookup before the build
+
+Before generating anything, Tier 2 runs a **library lookup** — the *same
+shape* as the existing "check the per-canvas data cache before calling Tier 3"
+rule in `CONCEPT.md` §"Per-canvas data cache":
+
+```
+intent ──▶ library lookup (semantic + capability match across scopes)
+            ├─ exact hit      ──▶ instantiate preset           (no LLM)
+            ├─ near hit        ──▶ fork preset + targeted patch  (fast model)
+            └─ miss            ──▶ cold-author + offer to save   (strong model)
+```
+
+So "build me X" is, by default, a **retrieve-and-bind** operation, not a
+generation. Generation is the fallback, not the first move.
+
+### 8.5 Fork & vary — copy-on-write, with lineage
+
+"Tetris, but hexagonal" does **not** rebuild Tetris. Tier 2 **forks** the
+`tetris` preset (copy-on-write → new content-addressed id, parent id recorded
+for provenance) and applies a **targeted patch** to the affected
+transitions/view. Cheap, consistent with the original, and the lineage is
+auditable — important for the trust model when forks are shared (§2 point 5).
+
+### 8.6 Compose from idioms, not from zero
+
+Even cold authoring is not truly from scratch. The UI Skill carries a
+**behaviour-idiom library** — the behaviour-layer extension of the
+composition-idiom library already in `CONCEPT.md` §"The UI Skill" (Norton
+Commander → two panes, etc.). Vetted building blocks the agent assembles:
+
+- a **scene-grid** skeleton (board/cell-matrix render),
+- a **tick-loop** skeleton (gravity / animation step),
+- **input-binding sets** (WASD/arrows/touch-swipe → moves),
+- **Lume effect bundles** (a glow-pulse, a Ken-Burns hero, a condensation-in).
+
+Cold builds therefore assemble audited LX fragments rather than inventing
+control flow each time — cheaper to generate **and** more consistent across
+builds. This is the single biggest lever on both cost and reliability of cold
+authoring.
+
+### 8.7 vs. Claude artifact logic
+
+| | Claude artifacts | Omadia Lumens |
+|---|---|---|
+| Persistence | per-conversation | cross-session canvas-state + **cross-user preset library** |
+| Edit mechanism | string `update` / `rewrite` on source | **structural patch on a validated tree by stable id** (no drift) |
+| Reuse | copy text into a new chat | **named, versioned, parameterised preset** — instantiate without an LLM |
+| Consistency | re-generation can drift | content-addressed + deterministic ⇒ byte-identical |
+| Sharing | share the code | share a **vetted, capability-manifested** preset (§7) |
+| Variation | re-prompt | **fork + patch** with tracked lineage |
+
+The thesis: **the agent's job is to author rarely and reuse constantly.** A
+Lumen is a durable, versioned component — built once, instantiated and patched
+forever after.
+
+---
+
+## 9. The agent relationship — generation *and* live introspection
 
 Lumens are generated agentically (Tier 2 composes the Lumen the way it
 composes primitive trees today; heavy generation or data binding can recruit
@@ -571,7 +705,7 @@ Tier 3). But the deeper win over Live Artifacts is **bidirectionality**:
 
 ---
 
-## 9. The user's four use cases, mapped
+## 10. The user's four use cases, mapped
 
 | Use case | state | view | events | capabilities | Tier split |
 |---|---|---|---|---|---|
@@ -586,7 +720,7 @@ in the Lumen model.
 
 ---
 
-## 10. How it fits the existing architecture (deltas, not rewrites)
+## 11. How it fits the existing architecture (deltas, not rewrites)
 
 Everything below is **additive** and stays inside the `CONCEPT.md` tier model,
 authority split, and security surface. No wire-grammar rewrite.
@@ -597,6 +731,7 @@ authority split, and security surface. No wire-grammar rewrite.
 | **Tree content** | add the `behavior`/`lumen` section (state/transitions/view/events/capabilities) — validated by an **extended whitelist parser** (schema + LX-AST validator) |
 | **Tier-1 client** | new **Lumen runtime**: deterministic LX evaluator, gas + frame ceiling, scene rasteriser, event dispatch, seeded `random`/clock. All Class-A; the frame loop never touches the server |
 | **Tier-2 orchestrator** | composes/patches Lumens; **brokers capability calls**; grants/scopes capability manifests; persists Lumen state & presets; manages share/ownership |
+| **Lifecycle / reuse** (§8) | **resolve-then-generate**: library lookup before any build (same shape as the existing pre-Tier-3 data-cache check); preset **instantiate** (no LLM) / **fork+patch** (fast model) / **cold-author** (strong model); content-addressed, versioned, parameterised presets; behaviour-idiom library in the UI Skill |
 | **Tier-3** | reached only via brokered capabilities (`tiles`, `fetch`, `writeData`, AI ops) — unchanged interface |
 | **Transport** | Lumen rides existing `surface_snapshot`/`surface_patch`; capability calls reuse the effect-classified action path + `surface_action_result`/patch; **one** new optional event family `surface_capability_*` if streaming results need it |
 | **Security** | extend whitelist parser to LX-AST + scene + capability manifest; reuse HMAC scoping for capability tokens; reuse `local`/`internal`/`external-effect` + confirmation modal |
@@ -609,7 +744,7 @@ engaged only behind the `canvas` capability.
 
 ---
 
-## 11. The sweet-spot dial (answering the user's central ask)
+## 12. The sweet-spot dial (answering the user's central ask)
 
 The user's framing: Live Artifacts errs too far toward restriction; find the
 better-tuned point between *possibility* and *safety*. The Lumen model tunes
@@ -632,7 +767,7 @@ dangerous one, open the useful one.**
 
 ---
 
-## 12. Open questions for the spike (flagged, not answered)
+## 13. Open questions for the spike (flagged, not answered)
 
 1. **Gas & frame-budget numbers.** Initial caps for LX gas/frame, state size,
    scene draw-list length, tick rate — measured against the four reference
@@ -661,7 +796,7 @@ dangerous one, open the useful one.**
 
 ---
 
-## 13. What this is not (scope discipline)
+## 14. What this is not (scope discipline)
 
 - **Not arbitrary code execution.** No `eval`, no iframe-with-script, no WASM
   in v1. If a use case truly needs Turing-complete compute, it is a flagged
