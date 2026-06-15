@@ -14,10 +14,18 @@
 > (the *why*). This document is **concept only** — no implementation, no PR
 > plan. It extends, and stays inside, the architecture in `CONCEPT.md`.
 
-Version 0.1 — first draft. Introduces the **Lumen**: a self-contained,
-declarative, deterministic interactive unit that runs in a bounded VM on
-Tier 1, is generated and brokered agentically on Tiers 2/3, and is safe to
-share and to save as a preset *because* it is data, not code.
+Version 0.2 — adds §5 "Render cadence, motion & the thin-client / kiosk
+envelope": cadence is declared per region (`static` / `reactive` / `tick`),
+**reactive-by-default (~0 % CPU at rest)** — 60 Hz never applies to the whole
+tree; presentation motion is a **declarative, GPU-run animation layer**
+(transitions, parallax, Ken-Burns, particles, glow), distinct from LX
+simulation ticks; the "wow" comes from existing assets + generated layout +
+native effects; plus the thin-client/kiosk capability ladder and a mapping to
+the four priorities (security · performance · visuals · wow · generative).
+v0.1 — first draft. Introduces the **Lumen**: a self-contained, declarative,
+deterministic interactive unit that runs in a bounded interpreter on Tier 1,
+is generated and brokered agentically on Tiers 2/3, and is safe to share and
+to save as a preset *because* it is data, not code.
 
 ---
 
@@ -83,7 +91,7 @@ Plain-English mapping:
   to keys it did not declare.
 - **`capabilities`** — the *only* way a Lumen touches anything outside its
   own state: persistence, data fetch, map tiles, clipboard, share. Default
-  deny. Each is effect-classified and brokered by Tier 2 (§5).
+  deny. Each is effect-classified and brokered by Tier 2 (§6).
 
 Because all five parts are declarative data validated by the same kind of
 whitelist parser Omadia already ships, a Lumen flows through the **existing**
@@ -250,7 +258,107 @@ a specific marker or cell).
 
 ---
 
-## 5. Capabilities — the mediated doors
+## 5. Render cadence, motion & the thin-client / kiosk envelope
+
+Nothing about a Lumen forces 60 Hz. A blanket game-loop is the *wrong* default
+for almost everything and ruinous for an always-on kiosk. This section pins
+the rendering model and the realistic capability envelope on weak hardware.
+
+### Reactive by default — 60 Hz only where it earns it
+
+Cadence is declared **per node/region, not globally**, in three classes:
+
+| Cadence | When it runs | LX cost at rest | For |
+|---|---|---|---|
+| **`static`** | rendered once; redrawn only when a `surface_patch` changes it | **zero** | most kiosk/dashboard content: layout, imagery, copy, KPIs |
+| **`reactive`** *(default)* | `view` re-evaluated only for the sub-tree whose `state` slice changed, on event/data | **zero** until something changes | forms, tables, controls, selection |
+| **`{ tick: hz }`** | host clock drives an LX transition at a declared, capped rate, **scoped to that sub-tree only** | one bounded transition/frame for that region only | the falling tetromino, a live chart, a defrag animation |
+
+The runtime **dirty-tracks** which `state` slices changed and re-evaluates only
+the dependent `view` branches (retained-mode + memoisation).
+`requestAnimationFrame` is scheduled **only while a ticking/animating region is
+live** and torn down when it settles. **At rest a Lumen costs ~0 % CPU** — a
+kiosk showing a beautiful, mostly-static screen burns nothing until someone
+touches it or a single badge pulses. One Lumen routinely mixes all three: a
+Tetris scene ticks at 60 Hz, the score label beside it is `reactive`, the
+surrounding chrome is `static`. Only the part that must move pays.
+
+### Motion comes from a declarative animation layer, not from LX
+
+"Animation" conflates two different things; separating them is what makes
+*wow on weak hardware* possible:
+
+- **Simulation** — state genuinely evolves by rules each step (a piece falls,
+  cells flip). This is an LX **tick**, used sparingly.
+- **Presentation motion** — a panel slides in, a glow pulses, a number counts
+  up, a camera eases, an image slowly pans (Ken Burns). This must **not** be an
+  LX tick recomputing state per frame. It is a **declarative animation** the
+  host runs on the compositor/GPU:
+
+  ```json
+  { "animate": { "property": "opacity", "from": 0, "to": 1, "duration": 300, "easing": "ease-out" } }
+  ```
+
+The agent *declares* enter/exit/change transitions, easing, pulses, parallax
+layers, Ken-Burns pan-zoom, backdrop blur/gradient/glow, and (as a native
+effect) particle emitters. The **host executes them natively on the GPU** —
+zero LX per frame, 60 fps smoothness on a fanless thin client. The Lume visual
+language (glow, frosted glass, surface luminosity) *is* exactly this class of
+GPU-composited effect, so the wow is cheap and on-rails, never hand-coded
+pixel math.
+
+### Where the "wow" actually comes from (generated, natively executed)
+
+A stunning generated kiosk screen = **existing assets + generated layout +
+native Lume effects + a touch of declarative motion**:
+
+- **Existing image/video material** → `sprite`/`image`/`media` via `DataRef`
+  (brand imagery, product photos, loops). The agent *composes*; it does not
+  synthesise pixels on-device.
+- **Native effect vocabulary** (whitelisted, GPU): glow, backdrop-blur,
+  gradient, shadow, parallax, Ken-Burns, particle emitter — *declared*, not
+  computed in LX.
+- **Generative authorship, native execution**: the agent generates the
+  composition, the motion declarations, and the asset bindings as data; the
+  host runs them on native rails. The result looks like a hand-tuned demo,
+  but it was generated.
+
+### Thin-client / kiosk capability ladder
+
+Because the client only ever does *bounded interpretation* + *raster of a
+draw-list it already has* (everything heavy is brokered to Tier 2/3), the
+thin client is the design centre, not the stress test:
+
+- 🟢 **Flüssig:** puzzle/board/card games (Tetris, 2048, chess), interactive
+  dashboards & workflows, data-viz incl. defrag-style grids to ~5–10 k cells
+  (canvas2d; more on WebGL), maps (tiles are GPU-composited images fetched by
+  Tier 2/3 — the client doesn't compute the map).
+- 🟡 **Mit Maßnahmen:** large cellular automata / sims over big grids (drop to
+  30 Hz, smaller grid, or push the step to Tier 3), very large scenes (WebGL
+  rasteriser, same declarative draw-list).
+- 🔴 **Nicht in reinem LX:** realtime 3D, thousand-body physics, 100 k-particle
+  systems, per-pixel image processing, heavy solvers/ML. → escape hatches:
+  **native local-ops catalog** (Class B, pixel work), **Tier 3** (heavy
+  compute returns a `DataRef` the Lumen merely visualises), **v2 WASM** (hard
+  gated, rare outliers).
+
+The decisive kiosk property no "arbitrary-code-in-sandbox" approach has: the
+**gas budget guarantees a clean halt** — a badly generated Lumen never freezes
+an always-on display, it is stopped with a `surface_error`.
+
+### Mapping to the four priorities
+
+| Priority | How the cadence/motion model delivers it |
+|---|---|
+| **Security** | host-owned capped clock; `static`/`reactive` branches execute *no logic* at rest; motion is declarative (no per-frame code); capability default-deny unchanged; gas guarantees a clean halt |
+| **Performance** | ~0 % CPU at rest; only ticking/animating sub-trees cost frames; GPU does the pretty part — built for fanless always-on kiosks |
+| **High-quality visuals** | native Lume effects + GPU compositing + real assets via `DataRef`; consistent, on-theme, never a foreign iframe |
+| **Wow-effect** | declarative transitions, parallax, Ken-Burns, particles, glow — generated by the agent, run natively at 60 fps even on thin clients |
+| **Generative** | the agent authors structure, motion and asset bindings as data; existing material is referenced, not regenerated |
+
+---
+
+## 6. Capabilities — the mediated doors
 
 Capabilities are the heart of "better than Live Artifacts". Each is declared
 in the Lumen, effect-classified, and brokered by Tier 2. Default deny.
@@ -263,7 +371,7 @@ in the Lumen, effect-classified, and brokered by Tier 2. Default deny.
 | `tiles(provider, z/x/y)` | `internal` | Tier 2/3 fetches from a **provider-allowlisted** endpoint, returns sprite `DataRef`s | OpenStreetMap / Mapbox map tiles |
 | `fetch(declaredEndpoint)` | `internal` / `external-effect` | Tier 3 tool call against an **allowlisted, agent-approved** endpoint only | a live feed into a visualisation |
 | `clipboard(text)` | `external-effect` | confirmation-modal gate | "copy result" |
-| `share(lumen)` / `savePreset(lumen)` | `external-effect` | §6 | share Tetris with a colleague; save as a gallery preset |
+| `share(lumen)` / `savePreset(lumen)` | `external-effect` | §7 | share Tetris with a colleague; save as a gallery preset |
 
 Mechanics: a capability call from the running Lumen is *not* a direct call. It
 emits a capability-request action (effect-classified) up through the channel;
@@ -281,7 +389,7 @@ Trace**.
 
 ---
 
-## 6. Sharing & presets — safe because it's data
+## 7. Sharing & presets — safe because it's data
 
 Two user-facing features the user explicitly asked for, both essentially free
 once a Lumen is declarative+deterministic+capability-manifested:
@@ -310,7 +418,7 @@ because they are validated, deterministic, capability-declared data, not code.
 
 ---
 
-## 7. The agent relationship — generation *and* live introspection
+## 8. The agent relationship — generation *and* live introspection
 
 Lumens are generated agentically (Tier 2 composes the Lumen the way it
 composes primitive trees today; heavy generation or data binding can recruit
@@ -334,7 +442,7 @@ Tier 3). But the deeper win over Live Artifacts is **bidirectionality**:
 
 ---
 
-## 8. The user's four use cases, mapped
+## 9. The user's four use cases, mapped
 
 | Use case | state | view | events | capabilities | Tier split |
 |---|---|---|---|---|---|
@@ -349,7 +457,7 @@ in the Lumen model.
 
 ---
 
-## 9. How it fits the existing architecture (deltas, not rewrites)
+## 10. How it fits the existing architecture (deltas, not rewrites)
 
 Everything below is **additive** and stays inside the `CONCEPT.md` tier model,
 authority split, and security surface. No wire-grammar rewrite.
@@ -372,7 +480,7 @@ engaged only behind the `canvas` capability.
 
 ---
 
-## 10. The sweet-spot dial (answering the user's central ask)
+## 11. The sweet-spot dial (answering the user's central ask)
 
 The user's framing: Live Artifacts errs too far toward restriction; find the
 better-tuned point between *possibility* and *safety*. The Lumen model tunes
@@ -395,7 +503,7 @@ dangerous one, open the useful one.**
 
 ---
 
-## 11. Open questions for the spike (flagged, not answered)
+## 12. Open questions for the spike (flagged, not answered)
 
 1. **Gas & frame-budget numbers.** Initial caps for LX gas/frame, state size,
    scene draw-list length, tick rate — measured against the four reference
@@ -424,7 +532,7 @@ dangerous one, open the useful one.**
 
 ---
 
-## 12. What this is not (scope discipline)
+## 13. What this is not (scope discipline)
 
 - **Not arbitrary code execution.** No `eval`, no iframe-with-script, no WASM
   in v1. If a use case truly needs Turing-complete compute, it is a flagged
