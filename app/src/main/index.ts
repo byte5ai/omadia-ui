@@ -16,12 +16,20 @@ import { CanvasSocket } from './canvasSocket.js';
 import { createFileSessionStore } from './sessionStore.js';
 import { createSessionVault, type SessionVault } from './sessionVault.js';
 import { createFileSettingsStore } from './settingsStore.js';
+import { createSplashWindow } from './splash.js';
 
 /** the ops-catalog subset this build implements. M1 ships none; M2 adds
  *  brush/blur/select-magic-wand — extend here AND in the catalog handler. */
 const LOCAL_OPERATIONS: string[] = [];
 
 let win: BrowserWindow | null = null;
+/** Startup splash — shown before the main window, closed once it's ready. */
+let splash: BrowserWindow | null = null;
+/** Wall-clock when the splash was created, so we can hold it for a minimum. */
+let splashShownAt = 0;
+/** Keep the splash up at least this long even if the renderer is ready sooner —
+ *  on a fast machine it would otherwise flash by. */
+const MIN_SPLASH_MS = 3_000;
 /** One socket per canvas slot — background canvases keep their streams
  *  flowing while another canvas is in front (multi-canvas sidebar). */
 const sockets = new Map<string, CanvasSocket>();
@@ -71,6 +79,9 @@ function createWindow(): void {
   win = new BrowserWindow({
     width: 1440,
     height: 920,
+    // Hidden until `ready-to-show` so the splash covers the renderer boot and
+    // the main window appears already painted (no blank/half-rendered flash).
+    show: false,
     // pre-paint fill matching the Lume bg.canvas pair (visual-spec §2.2):
     // dark #1B1D24 / light #F7F8FB — avoids a wrong-scheme flash before CSS
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#1b1d24' : '#f7f8fb',
@@ -106,6 +117,23 @@ function createWindow(): void {
     },
   ]);
   Menu.setApplicationMenu(menu);
+
+  /** Reveal the main window and dismiss the splash. Idempotent — the timeout
+   *  fallback and the `ready-to-show` event race, whichever wins runs it once. */
+  const reveal = (): void => {
+    if (win && !win.isDestroyed() && !win.isVisible()) win.show();
+    if (splash && !splash.isDestroyed()) splash.close();
+    splash = null;
+  };
+  // Hold the splash for at least MIN_SPLASH_MS, then reveal — if the renderer
+  // took longer than that, reveal right away (wait clamps to 0).
+  win.once('ready-to-show', () => {
+    const wait = Math.max(0, MIN_SPLASH_MS - (Date.now() - splashShownAt));
+    setTimeout(reveal, wait);
+  });
+  // Safety net: if the renderer errors out or stalls, never strand the splash
+  // (or leave the user staring at nothing) — force the main window after 15s.
+  setTimeout(reveal, 15_000);
 
   if (process.env['ELECTRON_RENDERER_URL']) {
     void win.loadURL(process.env['ELECTRON_RENDERER_URL']); // electron-vite dev
@@ -286,6 +314,8 @@ ipcMain.handle(IPC.settingsSave, (_e, settings: AppSettings) =>
 );
 
 void app.whenReady().then(() => {
+  splash = createSplashWindow();
+  splashShownAt = Date.now();
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
