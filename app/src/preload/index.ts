@@ -8,6 +8,8 @@ import {
   type ConnectOptions,
   type ConnectionStatus,
   type OmadiaCanvasApi,
+  type PairingDescriptor,
+  type DiscoveredHost,
 } from '../shared/ipc.js';
 import type {
   CanvasListEntry,
@@ -53,6 +55,17 @@ const api: OmadiaCanvasApi = {
   getSettings: () => ipcRenderer.invoke(IPC.settingsGet) as Promise<AppSettings | null>,
   saveSettings: (settings: AppSettings) =>
     ipcRenderer.invoke(IPC.settingsSave, settings) as Promise<void>,
+  pairingDiscover: (input: string) =>
+    ipcRenderer.invoke(IPC.pairingDiscover, input) as Promise<PairingDescriptor | null>,
+  pairingScan: (onHosts: (hosts: DiscoveredHost[]) => void) => {
+    const listener = (_e: IpcRendererEvent, hosts: DiscoveredHost[]) => onHosts(hosts);
+    ipcRenderer.on(IPC.pairingDiscovered, listener);
+    void ipcRenderer.invoke(IPC.pairingScanStart);
+    return () => {
+      ipcRenderer.removeListener(IPC.pairingDiscovered, listener);
+      void ipcRenderer.invoke(IPC.pairingScanStop);
+    };
+  },
   authSession: (opts: ConnectOptions) =>
     ipcRenderer.invoke(IPC.authSession, opts) as Promise<AuthSessionInfo>,
   authDiscover: (opts: ConnectOptions) =>
