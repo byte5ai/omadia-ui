@@ -1738,6 +1738,19 @@ textarea.lume-input:disabled {
   margin-top: 20px;
   justify-content: flex-end;
 }
+.lume-discovered {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+}
+.lume-discovered .lume-field-label {
+  margin-bottom: 2px;
+}
+.lume-discovered-host {
+  justify-content: flex-start;
+  text-align: left;
+}
 .lume-login-label {
   margin-top: 14px;
 }
