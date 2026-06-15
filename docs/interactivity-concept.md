@@ -14,6 +14,19 @@
 > (the *why*). This document is **concept only** — no implementation, no PR
 > plan. It extends, and stays inside, the architecture in `CONCEPT.md`.
 
+Version 0.3 — review fixes. **Lume correctness**: the motion/effect vocabulary
+is now exact to `visual-spec.md` — Lume is **light-as-material** (surface
+luminosity, accent-as-illumination, directional borders, soft corners), *not*
+glassmorphism; the erroneous "frosted glass / backdrop-blur" effects are
+removed (the only blur is the transient 800 ms condensation). **Touch & pointer
+input** added to §5 as first-class (tap/longPress/drag/pinch/swipe, 44 pt
+hit-targets, host gesture arbitration, no hover dependency, input-modality
+handshake) for kiosk/iPad. **Assets** §6.1 — transport + **content-addressed,
+never-stale caching** (`id = kind-sha256(content)`, cache-busting by
+construction, HMAC-signed fetch, explicit invalidation). **Generated material**
+§6.2 — images/sounds/voice come from **omadia-core LLM connectors** (Tier 3),
+the Lumen only requests (`generateAsset`) and renders; nothing generated on the
+client.
 Version 0.2 — adds §5 "Render cadence, motion & the thin-client / kiosk
 envelope": cadence is declared per region (`static` / `reactive` / `tick`),
 **reactive-by-default (~0 % CPU at rest)** — 60 Hz never applies to the whole
@@ -300,12 +313,18 @@ surrounding chrome is `static`. Only the part that must move pays.
   ```
 
 The agent *declares* enter/exit/change transitions, easing, pulses, parallax
-layers, Ken-Burns pan-zoom, backdrop blur/gradient/glow, and (as a native
-effect) particle emitters. The **host executes them natively on the GPU** —
-zero LX per frame, 60 fps smoothness on a fanless thin client. The Lume visual
-language (glow, frosted glass, surface luminosity) *is* exactly this class of
-GPU-composited effect, so the wow is cheap and on-rails, never hand-coded
-pixel math.
+layers, Ken-Burns pan-zoom on assets, **accent glow / halo / aura** (the
+two-stop and donut glow recipes), **surface luminosity**, **directional
+light**, the **patch-condensation** materialisation, and (as a native effect)
+light-mote particle emitters. The **host executes them natively on the GPU** —
+zero LX per frame, 60 fps smoothness on a fanless thin client. This *is* the
+Lume material — **light-as-material**, condensed out of light: surface
+luminosity, accent-as-illumination, directional borders, soft corners
+(`visual-spec.md` §1.2). **Lume is explicitly *not* glassmorphism** — no
+refraction, no blur-as-chrome, "solid light, not see-through plastic"
+(`visual-spec.md` §1.3). The only blur is the transient 800 ms condensation
+materialisation, never standing chrome. So the wow is cheap and on-rails,
+never hand-coded pixel math.
 
 ### Where the "wow" actually comes from (generated, natively executed)
 
@@ -315,13 +334,59 @@ native Lume effects + a touch of declarative motion**:
 - **Existing image/video material** → `sprite`/`image`/`media` via `DataRef`
   (brand imagery, product photos, loops). The agent *composes*; it does not
   synthesise pixels on-device.
-- **Native effect vocabulary** (whitelisted, GPU): glow, backdrop-blur,
-  gradient, shadow, parallax, Ken-Burns, particle emitter — *declared*, not
-  computed in LX.
+- **Native Lume effect vocabulary** (whitelisted, GPU): surface-luminosity
+  gradients, accent glow / halo / aura (two-stop + donut), `glow-core` inner
+  light, directional light, elevation, parallax depth, Ken-Burns pan-zoom,
+  light-mote particles — *declared*, not computed in LX. No glassmorphism, no
+  blur-as-chrome (`visual-spec.md` §1.3).
 - **Generative authorship, native execution**: the agent generates the
   composition, the motion declarations, and the asset bindings as data; the
   host runs them on native rails. The result looks like a hand-tuned demo,
   but it was generated.
+
+### Touch & pointer input — first-class, not an afterthought (kiosk · iPad)
+
+Kiosks and iPads are touch-first, so touch is in the Lumen event model from
+day one — it is **not** mouse events with a shim. A Lumen's `events` declare
+**pointer-semantic** inputs that resolve identically across mouse, trackpad
+and touch (the same abstraction `CONCEPT.md` already uses for *context-invoke*
+= long-press):
+
+| Declared event | Touch | Mouse/trackpad | Use |
+|---|---|---|---|
+| `tap` | tap | click | activate a control, place, select |
+| `longPress` (~400 ms) | press-and-hold | right-click / hold | **context-invoke** → action panel + Beam (per `CONCEPT.md`) |
+| `drag` | one-finger drag | press-move | move a piece, pan a board, reorder |
+| `pinch` | two-finger pinch | ctrl+wheel / trackpad pinch | zoom a map / scene |
+| `swipe` | flick | wheel / two-finger | next/prev, dismiss, scroll |
+| `pointerMove` *(opt-in)* | finger track | hover | drawing, aiming — `continuous-input` |
+
+Rules that make it kiosk-grade:
+
+- **Hit-targets, not pixels.** A Lumen declares interactive scene elements
+  with a **minimum 44×44 pt hit area** (Apple HIG), independent of the drawn
+  glyph size. The runtime enforces the minimum and does hit-testing against
+  stable element ids → the existing `TargetRef`/beam model works by touch.
+- **Gesture arbitration is the host's job**, reusing `CONCEPT.md`'s long-press
+  arbitration (move > 6 px before 400 ms ⇒ drag, else context-invoke). A Lumen
+  never re-implements gesture disambiguation.
+- **No hover dependency.** Hover is dropped as a *required* affordance (not
+  touch-capable); any hover effect is pure decoration with a tap/long-press
+  equivalent. This matches `CONCEPT.md`'s interaction model.
+- **Touch-tuned density.** `style: "spacious"` and larger Lume hit-areas are
+  the kiosk default; the agent is told (UI Skill) to compose touch-first when
+  the canvas is flagged as a kiosk/tablet surface.
+- **On-screen input.** Text entry uses the platform soft-keyboard via the
+  `input` primitive; a kiosk with no keyboard still works. No raw key events
+  are *required* — declared keys (`ArrowLeft`, `Space`) are an *enhancement*
+  for hardware-keyboard hosts, and every key-driven action has a touch
+  equivalent (on-screen control) when the host reports no keyboard at
+  handshake.
+
+The handshake already carries client capabilities; it is extended to report
+**input modalities** (`touch` / `mouse` / `keyboard` / `pen`) so Tier 2
+composes the right affordances — a kiosk Lumen ships on-screen controls, a
+desktop Lumen may add keyboard shortcuts on top.
 
 ### Thin-client / kiosk capability ladder
 
@@ -371,6 +436,7 @@ in the Lumen, effect-classified, and brokered by Tier 2. Default deny.
 | `tiles(provider, z/x/y)` | `internal` | Tier 2/3 fetches from a **provider-allowlisted** endpoint, returns sprite `DataRef`s | OpenStreetMap / Mapbox map tiles |
 | `fetch(declaredEndpoint)` | `internal` / `external-effect` | Tier 3 tool call against an **allowlisted, agent-approved** endpoint only | a live feed into a visualisation |
 | `clipboard(text)` | `external-effect` | confirmation-modal gate | "copy result" |
+| `generateAsset(spec)` | `internal` / `external-effect` | Tier 2 → **omadia-core LLM connectors** (Tier 3); returns a `DataRef` | generate an image / sound / TTS voice line for the scene |
 | `share(lumen)` / `savePreset(lumen)` | `external-effect` | §7 | share Tetris with a colleague; save as a gallery preset |
 
 Mechanics: a capability call from the running Lumen is *not* a direct call. It
@@ -386,6 +452,69 @@ workflow stays interactive while a write-back resolves.
 This is the precise inversion of Live Artifacts: the network is *not* banned,
 it is **named, allowlisted, agent-brokered, user-confirmed, and audited in
 Trace**.
+
+### 6.1 Assets — transport, content-addressed caching, never-stale
+
+Images, sounds, video, voice lines and any other binary an asset-bearing
+Lumen references all travel as **`DataRef`s** — the canonical mechanism from
+`CONCEPT.md` §"DataRef lifecycle". The key property the user asked for —
+**no stale-cache problem** — falls out of `DataRef` being **content-addressed**:
+
+> `id = "<kind>-<sha256(content)[:16]>"` — `kind ∈ {pixel, audio, video, …}`.
+> **Same bytes → same id. Different bytes → different id. Always.**
+
+This is **cache-busting by construction**, the structural fix for the
+"annoying browser still shows the old image because it didn't notice it
+changed" behaviour: the id *is* the content hash, so a changed asset is a
+**different id** and there is no way to address new content with an old
+reference. The client cache is keyed by that hash, so a cache hit is a
+*provable* byte-identity, never a heuristic on a URL + `Cache-Control` guess.
+
+**Transport path (host → UI client):**
+
+1. **Origin.** A Tier-3 tool or an omadia-core LLM connector (see §6.2)
+   produces the binary and returns a `DataRef {id, signedToken, expiresAt}` —
+   the binary itself stays server-side until fetched.
+2. **Announce.** Tier 2 emits `surface_data_ref_created {DataRef, schema,
+   sizeHint}` on the surface stream; the Lumen's `view` references the asset
+   by `dataRef` on a `sprite`/`image`/`media` node.
+3. **Fetch.** The client fetches the bytes **once** from the channel endpoint
+   using the **HMAC-signed token** (scope = tenant ‖ user ‖ canvasSession ‖
+   body ‖ expiry; re-validated server-side — `CONCEPT.md` §"Security Surface").
+4. **Cache.** The client stores the bytes in a local content-addressed store
+   keyed by `id`. Every later reference to the same `id` is an instant local
+   hit — across turns, across Lumens, across canvases. Dedup is automatic
+   (identical assets share one entry).
+5. **Invalidate.** Two triggers, both explicit: `expiresAt` reached, or a
+   `surface_data_ref_invalidated {id, reason}` from Tier 2 when a durable op
+   replaces the buffer. There is no time-based "maybe it's stale" guesswork.
+6. **GC.** The client drops a local buffer once no live primitive references
+   its `id` **and** its expiry has passed.
+
+Large client-authored buffers (a `canvas-region` the user painted) are
+content-hashed **locally** and only uploaded if a Tier-3 op needs them — the
+same content-addressing in the other direction.
+
+### 6.2 Generated material comes from omadia-core, not from the Lumen
+
+Generative assets — images, sounds, music, **synthesised voice** — are
+produced by the **LLM connectors wired into the omadia host (omadia-core)**,
+**never** by the Lumen or the Tier-1 client. The UI side only *supports* them:
+it **requests** via the `generateAsset` capability and **renders** the
+returned `DataRef`. The division of labour:
+
+| Layer | Role in asset generation |
+|---|---|
+| **Lumen / Tier 1** | declares the need (`generateAsset(spec)`), renders the resulting `sprite`/`media`, runs declarative motion (Ken-Burns, etc.) on it. Generates **nothing**. |
+| **Tier 2** | validates the capability grant, shapes the request, brokers it to the right connector, caches the returned `DataRef`, patches it into the scene. |
+| **Tier 3 / omadia-core connectors** | the actual image/audio/voice model. Owns the generation, the model choice, the cost, the rate limits. Returns a content-addressed `DataRef`. |
+
+This keeps the security model intact (no model keys or generation logic on the
+client), keeps the protocol model-agnostic (swap connectors without touching
+the Lumen), and means generated material flows through the **exact same
+content-addressed, never-stale cache** as any other asset (§6.1). A
+regenerated image is simply a **new `id`** — the scene updates, the old bytes
+GC out, nothing stale lingers.
 
 ---
 
