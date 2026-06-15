@@ -17,6 +17,22 @@
 > only** — no implementation, no PR
 > plan. It extends, and stays inside, the architecture in `CONCEPT.md`.
 
+Version 0.6 — **Codex-review fixes** (adversarial review of the 0.5 branch).
+**Capability authority**: the agent owns capability *requests*, never *grants*
+— a grant is Tier-2 policy + user consent, an agent patch can ask but not
+self-grant (`lumens-spec.md` §0.5). **Additivity made fail-closed**: 1.1 content
+is *negotiation-gated* (a 1.0 client is never sent it, and unknown types are
+hard-rejected, not silently ignored — `lumens-spec.md` §0/§12). **Bounded
+wakeups**: `timer` is capped like `tick` via a combined per-Lumen wakeup budget
+(`lumens-spec.md` §0.2/§4). **Broker egress bounds**: per-capability rate/quota,
+max-in-flight, idempotency and backpressure, plus state/`DataRef`-derived
+`fetch`/`writeData` classified `external-effect` (§13.8; `lumens-spec.md`
+§6/§11). **Shared assets**: travel by content `id`; Tier 2 re-mints `DataRef`
+tokens for the recipient, inaccessible assets render inert (§7). **Cross-element
+reads**: ambient-by-default selection replaced by a declared **`expose`**
+read-only interface (ambient-*by-declaration*) — un-exposed state stays private,
+imported Lumens observe no ambient neighbour state (§9.1). **LX versioning**:
+LX ships as `LX/1.1`, declared at the handshake (§13.2).
 Version 0.5 — expands §9 with §9.1 "Composition & cross-element interaction":
 a Lumen is just a node in the same primitive tree (composes in
 container/pane/grid/tabs; a Lumen's `view` can hold primitives and vice
@@ -555,6 +571,12 @@ high score without touching *mine*. Real-time multiplayer (two people in one
 game) is a v2 topic but is *unblocked* by determinism — deterministic ops
 are exactly what lockstep/CRDT need.
 
+Asset references travel as content-addressed `DataRef` **ids** (or an asset
+manifest), **never** the author's HMAC-scoped tokens (§6.1, scoped to the
+author's `tenant ‖ user ‖ canvasSession`); on import Tier 2 **re-mints** each
+token scoped to the recipient, and an asset the recipient may not access renders
+**inert** rather than reusing a borrowed token.
+
 **Save as a preset.** A Lumen can be named, optionally **parameterised**
 (declare which parts of `state` are preset inputs), and stored in a preset
 store (`memoryStore@1` namespace, e.g. `lumen-presets/<tenant>/<scope>`). A
@@ -732,7 +754,7 @@ runs at 60 fps:
 
 | Mechanism | How it wires | Direction | Tier |
 |---|---|---|---|
-| **Shared selection / view-state** | a `table` and a Lumen both reference the same `DataRef` + **stable IDs**; selection lives in `viewState.selection` keyed by those IDs (`CONCEPT.md` Authority Model) | UI ⇄ Lumen | **1 (Class A)** — no server |
+| **Shared selection / view-state** | an element **publishes** a lightweight read-only interface (`expose`, e.g. `selection`); a neighbour referencing the same `DataRef` + **stable IDs** reads the *published* field by name — no explicit wire, and un-exposed state stays private (`CONCEPT.md` Authority Model) | UI ⇄ Lumen | **1 (Class A)** — no server |
 | **Declarative ports & wires** | a node declares typed **inputs** and **outputs**; the agent declares **wires** (`from` → `to`) by stable id. The host routes values at Tier 1 | UI ⇄ Lumen, Lumen ⇄ Lumen | **1 (Class A)** |
 | **Lumen capability → patch** | a Lumen output bound to `writeData`/`generateAsset`/etc. patches another container via Tier 2 | Lumen → UI (semantic) | 2 / 3 |
 | **Beam / agent** | user beams across both ("compare these rows with the map"); agent reasons over the wired set | either, semantic | 2 |
@@ -752,20 +774,26 @@ Concrete:
 - **List ⇄ defrag-viz Lumen.** Hover/select a file in a `list` → its blocks
   light up in the scene; click a block cluster → the list scrolls to that file.
 
-**The boundary that keeps it safe.** Cross-element wiring is **declared data**
-(validated by the whitelist parser), and a node can only read what is **wired
-to it** — it cannot reach arbitrary other elements' internals. This is
-least-privilege by construction: the same port/wire boundary that makes a
-Lumen safe to share makes cross-element interaction auditable and
-shared-canvas-safe (wires resolve by stable id, deterministically, so they
-replay and multicast unchanged). The **authority split is unchanged**: the
-agent owns *which elements and wires exist* (structure); the client owns *the
-values currently flowing through them* (view-state).
+**The boundary that keeps it safe.** Cross-element interaction is **declared
+data** (validated by the whitelist parser), and a node can only read what is
+**wired or published to it** — an explicit `wire`, or a neighbour's declared
+**`expose`** interface (a lightweight, read-only set of view-state the neighbour
+*chose* to offer, bound by shared id). It cannot reach arbitrary other elements'
+internals, and **un-exposed state stays private** — so an imported or untrusted
+Lumen observes no ambient neighbour state and itself leaks nothing it did not
+publish. This is least-privilege by construction, *ambient-by-declaration* not
+ambient-by-default: the same boundary that makes a Lumen safe to share makes
+cross-element interaction auditable and shared-canvas-safe (wires and `expose`
+resolve by stable id, deterministically, so they replay and multicast
+unchanged). The **authority split is unchanged**: the agent owns *which
+elements, wires and published interfaces exist* (structure); the client owns
+*the values currently flowing through them* (view-state).
 
-> **SDK delta:** declarative **`ports`** (typed inputs/outputs) on primitives
-> and Lumens, and **`wires`** (a `[{from: TargetRef+port, to: TargetRef+port}]`
-> list) at the container/canvas level — additive tree content, Tier-1-resolved,
-> whitelist-validated. No new transport.
+> **SDK delta:** declarative **`ports`** (typed inputs/outputs) and **`expose`**
+> (a published read-only view-state interface, bindable by shared id without a
+> wire) on primitives and Lumens, and **`wires`** (a `[{from: TargetRef+port,
+> to: TargetRef+port}]` list) at the container/canvas level — additive tree
+> content, Tier-1-resolved, whitelist-validated. No new transport.
 
 ---
 
@@ -793,7 +821,7 @@ authority split, and security surface. No wire-grammar rewrite.
 |---|---|
 | **Primitives** | add `scene` (editor-class) — protocol minor bump (`1.x`); draw-list is whitelisted shape data |
 | **Tree content** | add the `behavior`/`lumen` section (state/transitions/view/events/capabilities) — validated by an **extended whitelist parser** (schema + LX-AST validator) |
-| **Composition / interaction** (§9.1) | declarative **`ports`** (typed inputs/outputs) on primitives & Lumens + **`wires`** (`from`→`to` by `TargetRef`) at container/canvas level; Tier-1-resolved by stable id, whitelist-validated; reuses shared `viewState.selection`. No new transport |
+| **Composition / interaction** (§9.1) | declarative **`ports`** (typed inputs/outputs) + **`expose`** (published read-only interface) on primitives & Lumens + **`wires`** (`from`→`to` by `TargetRef`) at container/canvas level; Tier-1-resolved by stable id, whitelist-validated; shared `viewState.selection` read only via a published `expose` field (ambient-by-declaration). No new transport |
 | **Tier-1 client** | new **Lumen runtime**: deterministic LX evaluator, gas + frame ceiling, scene rasteriser, event dispatch, seeded `random`/clock. All Class-A; the frame loop never touches the server |
 | **Tier-2 orchestrator** | composes/patches Lumens; **brokers capability calls**; grants/scopes capability manifests; persists Lumen state & presets; manages share/ownership |
 | **Lifecycle / reuse** (§8) | **resolve-then-generate**: library lookup before any build (same shape as the existing pre-Tier-3 data-cache check); preset **instantiate** (no LLM) / **fork+patch** (fast model) / **cold-author** (strong model); content-addressed, versioned, parameterised presets; behaviour-idiom library in the UI Skill |
@@ -835,12 +863,14 @@ dangerous one, open the useful one.**
 ## 13. Open questions for the spike (flagged, not answered)
 
 1. **Gas & frame-budget numbers.** Initial caps for LX gas/frame, state size,
-   scene draw-list length, tick rate — measured against the four reference
-   Lumens (an arcade game, workflow, defrag-viz, map). Spike-tunable, like the
-   `viewState` budget in `CONCEPT.md`.
+   scene draw-list length, tick rate, the `timer` minimum period and the
+   **combined `tick`+`timer` wakeup budget** per Lumen — measured against the
+   four reference Lumens (an arcade game, workflow, defrag-viz, map).
+   Spike-tunable, like the `viewState` budget in `CONCEPT.md`.
 2. **LX surface area.** Exactly which standard-library functions ship in
-   `LX/1.0`. Bias small; grow by minor bump. Risk: too small blocks real
-   Lumens; too large grows the audit surface.
+   `LX/1.1` (LX is versioned with the protocol — the boot handshake declares
+   `lxVersion: "1.1"`, `lumens-spec.md` §13). Bias small; grow by minor bump.
+   Risk: too small blocks real Lumens; too large grows the audit surface.
 3. **Scene performance ceiling.** Draw-list size at which Tier-1 raster drops
    below 60 fps; whether WebGL is required for v1 or canvas-2d suffices for
    the reference set.
@@ -858,6 +888,13 @@ dangerous one, open the useful one.**
 7. **Preset trust & distribution.** Signing, capability-manifest review UX,
    and whether a shared community gallery needs a moderation/attestation
    layer (likely v2+).
+8. **Capability-broker egress bounds.** The exact anti-DoS / anti-cost contract
+   for the Tier-2 broker — per-capability rate/quota, max-in-flight, idempotency
+   keys and backpressure — so a `tick`/`timer`-driven `generateAsset`/`fetch`/
+   `writeData` cannot push load or spend onto Tier 2/3, plus the rule that
+   state/`DataRef`-derived outbound requests are `external-effect` unless
+   pre-approved (`lumens-spec.md` §6, §11). Spike-tunable, measured against the
+   reference Lumens.
 
 ---
 

@@ -10,11 +10,28 @@
 > (the canvas architecture).
 
 **Status:** `draft 1.1`. Additive, **minor** bump over
-`omadia-canvas-protocol/1.0` — old clients ignore unknown primitive types,
-tree sections, events and capabilities (`protocol/1.0.md` §0). Nothing here
-breaks the 1.0 wire grammar. The machine-validatable truth will live in
-`schema/` (Lumen, LX-AST, scene, ports/wires, capability manifest) and is a
-spike deliverable; where prose and schema disagree, the **schema wins**.
+`omadia-canvas-protocol/1.0`, and **negotiation-gated**: all 1.1 content (the
+`scene` primitive, the `behavior`/`lumen` tree section, ports/wires, the
+`surface_capability_*` events) is emitted **only to clients that negotiated
+support at the boot handshake** (§13). A 1.0-only client never negotiates it, so
+Tier 2 never sends it; and if such content ever reached a 1.0 renderer it would
+be **hard-rejected** by the whitelist parser (`protocol/1.0.md` §2), never
+silently mis-rendered — additivity is enforced **fail-closed by negotiation, not
+by clients silently ignoring unknown primitive types**. (Only additive *fields
+on already-known types* ride 1.0's "ignore unknown fields" forward-compat,
+`protocol/1.0.md` §0; unknown *types / tree sections* are gated, not ignored.)
+Nothing here breaks the 1.0 wire grammar. The machine-validatable truth will
+live in `schema/` (Lumen, LX-AST, scene, ports/wires, capability manifest) and
+is a spike deliverable; where prose and schema disagree, the **schema wins**.
+
+> **Rev 2 (Codex review).** Clarifications within `draft 1.1` (no protocol-minor
+> change): additivity is negotiation-gated / fail-closed (§0, §12); the agent
+> owns capability *requests*, never *grants* (§0.5); `timer` is bounded like
+> `tick` via a combined wakeup budget (§0.2, §4); capability-broker egress
+> bounds + state/`DataRef`-derived `fetch`/`writeData` classification (§6, §11);
+> shared/preset assets travel by content `id` with recipient-scoped token
+> re-mint (§9); ambient cross-element reads replaced by a declared `expose`
+> interface (§7, §11).
 
 A Lumen is the Omadia answer to "an interactive artifact": **declarative data,
 not code**, run by a small deterministic interpreter on Tier 1, generated and
@@ -38,8 +55,9 @@ stable IDs as the lingua franca, one JSON value per frame) plus:
    ports and capabilities: any unknown node/type → hard reject (`surface_error`).
 2. **Bounded & total.** Every transition / view evaluation runs under a gas
    budget and a wall-clock ceiling; iteration is bounded (no open `while`, no
-   general recursion); state is size-capped. A Lumen can never hang the host —
-   exceeding budget halts it with `surface_error`.
+   general recursion); state is size-capped; the **wakeup rate** (`tick` +
+   `timer` combined) is itself capped and count-limited per Lumen (§4). A Lumen
+   can never hang the host — exceeding any budget halts it with `surface_error`.
 3. **Deterministic.** All non-determinism is host-seeded (`random`, `now`,
    tick). `(state, event) → state` is identical on every machine — the basis
    for replay, undo, safe sharing and v2 multi-user.
@@ -47,9 +65,14 @@ stable IDs as the lingua franca, one JSON value per frame) plus:
    except through declared, granted, effect-classified capabilities brokered by
    Tier 2 (`CONCEPT.md` §"Security Surface" effect classes).
 5. **Authority split unchanged.** The agent owns *structure* (which Lumens,
-   elements, wires, capability grants exist). The client owns *view-state* (the
-   values flowing through them, current selection, scroll). Stable IDs bind the
-   two (`CONCEPT.md` §"Authority Model").
+   elements, wires, published `expose` interfaces, and capability **requests**
+   exist). The client owns *view-state* (the values flowing through them,
+   current selection, scroll).
+   Capability **grants** are *not* agent-owned: a request is granted only by
+   Tier-2 policy plus user consent where the effect class requires it (§6) — an
+   agent-authored patch can *ask* for a capability, never *self-grant* one
+   (no `fetch` / `writeData` / `share` escalation via a patch). Stable IDs bind
+   the two (`CONCEPT.md` §"Authority Model").
 6. **Lume is the material.** Lumens render in Lume — light-as-material, **not**
    glassmorphism (`visual-spec.md` §1.3). §10.
 
@@ -70,7 +93,8 @@ type Lumen = {
   events:       EventBinding[];        // §4 — declared inputs -> transitions
   cadence?:     CadenceSpec;           // §5 — default "reactive"
   capabilities?: CapabilityRequest[];  // §6 — default-deny doors out
-  ports?:       PortSpec[];            // §7 — typed inputs/outputs for wiring
+  ports?:       PortSpec[];            // §7 — typed inputs/outputs for explicit wiring
+  expose?:      ExposeSpec[];          // §7 — published read-only view-state (the ambient-readable interface)
   preset?:      PresetRef;             // §8 — provenance if instantiated/forked
 };
 ```
@@ -78,8 +102,8 @@ type Lumen = {
 A Lumen is valid iff: its `state` conforms to §1.1, every `LXNode` in
 `transitions`/`view` passes the §2 AST whitelist + static bounds check, every
 `EventBinding` names a declared transition and a §4 event, every
-`CapabilityRequest` names a §6 catalog capability, and every `PortSpec` is
-§7-typed. Any failure → the Lumen is rejected wholesale with `surface_error`
+`CapabilityRequest` names a §6 catalog capability, and every `PortSpec` /
+`ExposeSpec` is §7-typed. Any failure → the Lumen is rejected wholesale with `surface_error`
 (scope = the Lumen `id`); it never partially renders.
 
 ### 1.1 State schema
@@ -240,6 +264,16 @@ Rules (normative):
 - **`longPress` is reserved for context-invoke** (action panel + Beam) per
   `CONCEPT.md`; a Lumen may *also* bind it but the host's context-invoke wins
   unless the Lumen declares `captureLongPress: true` on the target.
+- **Bounded wakeups (timers are capped like ticks).** `tick` is rate-capped
+  (`rate` ≤ 60 Hz, §5). `timer` is bounded the *same* way: `everyMs` has an
+  enforced **minimum period**, the number of `tick` + `timer` bindings per
+  Lumen is **count-capped**, and their **combined wakeup rate shares one
+  per-Lumen budget**. A schedule that exceeds the budget is **rejected at
+  validation** (`surface_error`), never accepted-then-throttled. Caps are
+  spike-tunable initial defaults, like gas (§2.4); they keep the §0.2
+  "cannot hang / cannot DoS the host" guarantee true for `timer`, not only for
+  `tick` (a swarm of 1 ms timers each individually under gas is still rejected
+  in aggregate).
 
 The handshake (§13) reports **input modalities** (`touch`/`mouse`/`keyboard`/
 `pen`) so Tier 2 composes the right affordances.
@@ -309,6 +343,18 @@ call is in flight (async-by-default). Imported/shared Lumens surface their
 **capability manifest for consent before first run**; capability tokens are
 HMAC-scoped like `dataRef`.
 
+**Broker bounds (anti-DoS / anti-cost).** Because a capability call can be
+emitted from a `tick`/`timer`, Tier 2 bounds **egress** the way Tier 1 bounds
+compute (§0.2): per-capability **rate + quota**, a **max-in-flight** ceiling,
+**idempotent de-duplication** of identical in-flight calls, and **backpressure**
+when a broker saturates — so a ticking Lumen cannot move the DoS or cost problem
+onto Tier 2/3. Caps are spike-tunable initial defaults (§14). Egress that
+carries data **derived from Lumen state or a `DataRef`** (an outbound `fetch`, a
+`writeData`) is treated as `external-effect` — per-call confirmation — *unless*
+the endpoint **and** request shape were pre-approved at grant time; a bare
+`internal` `fetch` may not smuggle state-derived data past the confirmation gate.
+The exact quota/idempotency/backpressure contract is a spike deliverable (§14).
+
 ### 6.1 Asset transport & content-addressed caching (never-stale)
 
 All binaries (images, audio, video, tiles, voice) travel as **`DataRef`s**
@@ -346,22 +392,32 @@ A Lumen is a node in the same primitive tree; elements interact bidirectionally,
 deterministically, on Tier 1 (`interactivity-concept.md` §9.1).
 
 ```ts
-type PortSpec = { name: string, dir: 'in'|'out', type: PortType };   // on primitives & Lumens
-type Wire     = { from: { ref: TargetRef, port: string }, to: { ref: TargetRef, port: string } };  // at container/canvas level
+type PortSpec   = { name: string, dir: 'in'|'out', type: PortType };  // on primitives & Lumens — explicit, wired
+type ExposeSpec = { name: string, type: PortType };                   // published read-only view-state, bindable by shared id WITHOUT a wire
+type Wire       = { from: { ref: TargetRef, port: string }, to: { ref: TargetRef, port: string } };  // at container/canvas level
 ```
 
-- **Shared selection / view-state.** A `table` and a Lumen referencing the same
-  `DataRef` + stable IDs share `viewState.selection` (keyed by id) — selecting in
-  one highlights in the other. Tier-1, no turn.
+- **Shared selection / view-state — via a published interface, not ambient
+  reach.** An element declares a **lightweight published interface**: a small,
+  named, read-only set of view-state it *offers* to neighbours (`expose`, e.g.
+  `selection`, `viewport`). A neighbour referencing the same `DataRef` + stable
+  IDs may then read a **published** field by name — selecting in a `table` that
+  exposes `selection` highlights the bound markers in a Lumen, with **no explicit
+  wire and no turn** (Tier-1). The producer decides what is readable;
+  **un-exposed state stays private**, so an imported or untrusted element can
+  neither observe a neighbour's internals nor expose more than it declared. This
+  is *ambient-by-declaration*, not ambient-by-default.
 - **Wires** route a node's typed `out` port to another's `in` port by stable id;
   the host resolves and propagates at Tier 1 (Class A). Examples: table
   selection → map highlight; slider → sim `state` input; a game's `game-over` →
   `status` text + `writeData`.
-- **Least-privilege.** A node reads **only** what is wired to it — it cannot
-  reach arbitrary other elements' internals. Wires are declared data,
-  whitelist-validated, resolve by stable id ⇒ deterministic, replayable,
-  shared-canvas-safe. Authority split unchanged (agent owns which wires exist;
-  client owns the values flowing).
+- **Least-privilege.** A node reads **only** what is **wired or published** to it
+  (an explicit `wire`, or a neighbour's declared `expose` interface bound by
+  shared id) — it cannot reach arbitrary other elements' internals. Wires and
+  `expose` declarations are declared data, whitelist-validated, resolve by stable
+  id ⇒ deterministic, replayable, shared-canvas-safe. Authority split unchanged
+  (the agent owns which wires and published interfaces exist; the client owns the
+  values flowing).
 
 ---
 
@@ -400,6 +456,15 @@ manifest for **consent before first run**. Determinism ⇒ every member runs the
 identical Lumen; per-user capability grants ⇒ a shared game saves *your* score,
 not *mine*. Real-time multiplayer is v2 but *unblocked* by determinism.
 
+**Assets travel by content `id`, not by token.** A shared or preset Lumen
+carries its asset references as content-addressed `DataRef` **ids** (or an asset
+manifest) only — *never* the author's `signedToken`s, which are HMAC-scoped to
+the author's `tenant ‖ user ‖ canvasSession` (§6.1) and would either fail for
+the recipient or, if made reusable, break the isolation model. On
+import/instantiate the recipient's Tier 2 **re-authorises and re-mints** each
+`DataRef` token scoped to the *recipient*; an asset the recipient may not access
+renders **inert**, never via a borrowed token.
+
 ---
 
 ## 10. Visual treatment (Lume)
@@ -421,11 +486,11 @@ is the transient 800 ms condensation (`visual-spec.md` §3.5). See
 | Risk | Mitigation |
 |---|---|
 | Arbitrary code in the renderer | None runs — LX is a validated AST walked by a shipped interpreter; CSP `default-src 'self'`, no `unsafe-eval` |
-| Runaway / DoS | Gas + frame ceiling + bounded iteration + state cap → halt with `surface_error`, never the canvas |
-| Data exfiltration | Default-deny capabilities; Lumen reads only own state + wired-in ports; all egress brokered, allowlisted, confirmed, Trace-audited |
+| Runaway / DoS | Gas + frame ceiling + bounded iteration + state cap + **capped wakeup budget** (`tick` + `timer`, §4) → halt/reject with `surface_error`, never the canvas; capability **egress** is broker-bounded (rate/quota/max-in-flight/idempotent/backpressure, §6) so a tick-driven call cannot DoS Tier 2/3 |
+| Data exfiltration | Default-deny capabilities; Lumen reads only own state + **wired/`expose`-published** ports; all egress brokered, allowlisted, confirmed, Trace-audited; **state/`DataRef`-derived** `fetch`/`writeData` classified `external-effect` (confirmed) unless pre-approved at grant (§6) |
 | Stale / poisoned assets | Content-addressed `DataRef` (id = content hash); HMAC-scoped fetch; explicit invalidation |
 | Untrusted shared/imported Lumen | Re-validated on import; capability manifest consent before first run; HMAC scoping; fork lineage |
-| Cross-element overreach | Port/wire least-privilege; declared, whitelist-validated, stable-id-resolved |
+| Cross-element overreach | Port/wire **+ published-interface** least-privilege — a node reads only what is **wired or `expose`-published** to it; un-exposed state is unreadable (an imported Lumen sees no ambient neighbour state); declared, whitelist-validated, stable-id-resolved |
 | Non-reversible effects | `external-effect` class → confirmation-modal gate before the real call |
 
 ---
@@ -435,8 +500,9 @@ is the transient 800 ms condensation (`visual-spec.md` §3.5). See
 - **Tree content:** `behavior`/`lumen` section (§1) and the `scene` primitive
   (§3) — validated by the extended whitelist parser (schema + LX-AST). Carried
   in existing `surface_snapshot` / `surface_patch`.
-- **Ports & wires:** `ports` on primitives/Lumens, `wires` at container/canvas
-  level (§7) — additive tree content, Tier-1-resolved.
+- **Ports & wires:** `ports` and `expose` (published read-only interface) on
+  primitives/Lumens, `wires` at container/canvas level (§7) — additive tree
+  content, Tier-1-resolved.
 - **Cadence & animation:** `cadence` (§5) and `animate` descriptors — additive
   trait content.
 - **Events:** `surface_capability_request` (client→Tier 2) and
@@ -449,7 +515,10 @@ is the transient 800 ms condensation (`visual-spec.md` §3.5). See
   `localOperations`.
 
 Classic channels and 1.0-only clients see none of this — all additive, behind
-the `canvas` capability, unknown types ignored (`protocol/1.0.md` §0).
+the `canvas` capability and **gated by boot negotiation** (§13): a client that
+does not negotiate `scene` / LX / capability support is never sent 1.1 content,
+and unknown *types / tree sections* are hard-rejected (not silently ignored) by
+the 1.0 whitelist (`protocol/1.0.md` §2).
 
 ---
 
@@ -477,10 +546,12 @@ accordingly and idioms degrade gracefully — the same principle as
 
 ## 14. Conformance & open questions
 
-Conformance is the schema set in `schema/` (Lumen, LX-AST, scene, ports/wires,
-capability manifest) + accept/reject fixtures, plus four reference Lumens
-(an arcade game, interactive workflow, defrag-viz, map) traced end-to-end like
-`walkthroughs.md`. Open tuning items (gas/frame/state caps, LX std-lib surface,
-scene perf ceiling, capability-consent granularity, determinism-vs-real-time,
-LLM reliability emitting LX, preset trust/distribution) are enumerated in
+Conformance is the schema set in `schema/` (Lumen, LX-AST, scene,
+ports/wires/`expose`, capability manifest) + accept/reject fixtures, plus four
+reference Lumens (an arcade game, interactive workflow, defrag-viz, map) traced
+end-to-end like `walkthroughs.md`. Open tuning items (gas/frame/state caps,
+wakeup-budget caps for `tick`+`timer`, the capability-broker egress contract —
+rate/quota/max-in-flight/idempotency/backpressure, LX std-lib surface, scene
+perf ceiling, capability-consent granularity, determinism-vs-real-time, LLM
+reliability emitting LX, preset trust/distribution) are enumerated in
 `interactivity-concept.md` §13 — research items, not unspecified holes.
