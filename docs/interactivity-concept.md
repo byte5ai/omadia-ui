@@ -9,9 +9,12 @@
 > re-aimed: more capable where Live Artifacts is uselessly limited, and
 > *structurally* safer than "arbitrary code in a sandbox".
 >
-> Companion to `CONCEPT.md` (the *what* of the canvas), `visual-spec.md`
-> (Lume), `docs/protocol/1.0.md` (the wire format) and `design-rationale.md`
-> (the *why*). This document is **concept only** — no implementation, no PR
+> This is the **rationale** (the *why*, narrative); its **normative
+> definition** (the *what* — types, grammar, contracts) is the companion
+> [`lumens-spec.md`](lumens-spec.md). Further companions: `CONCEPT.md` (the
+> canvas), `visual-spec.md` §4.13 (Lume rendering of Lumens),
+> `docs/protocol/1.0.md` (the base wire format). This document is **concept
+> only** — no implementation, no PR
 > plan. It extends, and stays inside, the architecture in `CONCEPT.md`.
 
 Version 0.5 — expands §9 with §9.1 "Composition & cross-element interaction":

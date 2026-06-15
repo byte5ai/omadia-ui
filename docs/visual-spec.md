@@ -5,6 +5,14 @@
 > Geist (structural) · Source Serif 4 (prose) · Geist Mono (data/code).
 > Codex-review-ready in the CONCEPT.md cadence.
 
+Version 0.5 — **Lumens & `scene` visual treatment (§4.13).** Pins how the
+Live-Interactivity extension renders in Lume: `scene` is editor-class
+(`radius.0`); draw-list colours are tokens only (always on-theme); presentation
+motion is the declarative Lume effect vocabulary (§3) on the GPU, not pixel
+math and **not glass** (the §1.3 NOT-list holds for Lumens); cadence is
+per-region. Companion to `../docs/interactivity-concept.md` (concept) and
+`../docs/lumens-spec.md` (definition).
+
 Version 0.4 — **Surface-nesting ladder & chrome budget.** Closes the two
 spec gaps that produced doubled chrome in the first shipped canvases: the
 spec never said which surface a nested container gets (§2.13 — the ladder:
@@ -1262,6 +1270,46 @@ Tier-1 boundary where the agent's chrome ends and the user's raw work begins.
 - Path stroke: 2px `accent` (active) or 1px `text.primary` (inactive).
 - Anchor: 8×8 `bg.surface.raised` square with 1px `accent` border.
 - Selected anchor: 8×8 `accent` solid + 4px `accent.glow` halo (small donut).
+
+---
+
+## 4.13 Lumens & `scene` — visual treatment
+
+The Live-Interactivity extension (`../docs/interactivity-concept.md` rationale,
+`../docs/lumens-spec.md` definition) adds a 25th primitive, **`scene`** — a
+declarative immediate-mode draw surface for games, custom visualisations and
+maps — and **Lumens** (self-contained interactive units). Both render in Lume;
+this section pins how.
+
+**`scene` is editor-class — `radius.0`, sharp edges.** Like `canvas-region`
+and `timeline` (§2.9), a `scene` is where Lume material stops; the hard edge is
+the Tier-1 boundary marker. Its `camera` pan/zoom reuses the canvas-region
+affordances.
+
+**Draw-list colours are tokens only.** Every `scene` shape fills/strokes from
+the design tokens + active palette (`accent`, `accent.glow*`, surface/text/
+semantic tokens) — never free-form colour. A game board, a defrag grid or a map
+marker layer is therefore always on-theme: it looks like Omadia, not like a
+foreign website. `scene` `text` nodes use the three type registers (§2.7).
+
+**Motion = the Lume effect vocabulary, declarative.** Presentation motion on a
+Lumen (fade, glow-pulse, count-up, camera ease, Ken-Burns on a `sprite`,
+parallax, light-mote particles) is a **declarative animation the host runs on
+the GPU** — it composes the §3 primitives (two-stop glow §3.2, donut §3.3,
+surface gradient §3.1, condensation §3.5) and the §2.11 motion tokens. It is
+**not** per-frame pixel math, and it is emphatically **not glass** — the §1.3
+"NOT" list holds for Lumens too (no refraction, no blur-as-chrome,
+glassmorphism stays out). The only blur is the transient condensation (§3.5).
+
+**Cadence is per-region (§ render-cadence in the concept).** `static` and
+`reactive` regions cost ~0 % CPU at rest; only a `{tick}` region animates — a
+kiosk Lumen is mostly static beautiful surface with a few lit, moving accents.
+A reference mockup lives at
+[`./mockups/kiosk-lumen-aura.html`](./mockups/kiosk-lumen-aura.html).
+
+**Touch-first.** Lumen hit-targets honour the 44 pt minimum; the material's
+soft glow/halo affordances replace hover (which is dropped as a requirement) —
+see `../docs/lumens-spec.md` §4.
 
 ---
 

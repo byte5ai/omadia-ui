@@ -721,6 +721,7 @@ The system uses a small, disciplined set of light-domain names because Lume is t
 | **Trace** | the command history / audit log of a canvas — a "trace of light" through what the user asked and the agent answered | introduced v0.12 |
 | **Flare** | reserved — for agent-initiated attention signals (e.g. notifications, "needs your input") | reserved, may activate if and when we introduce notification concepts |
 | **Spark** | reserved — for a discrete generative-initiation event distinguishable from a beam | reserved, may activate if a use case clearly differs from Beam |
+| **Lumen** | a self-contained, declarative, deterministic interactive unit — UI condensed into a portable, shareable quantum of light (the Live-Interactivity extension) | **proposed**, pending vocabulary sign-off — see [`docs/interactivity-concept.md`](docs/interactivity-concept.md) + [`docs/lumens-spec.md`](docs/lumens-spec.md) |
 
 Anything else from the light domain (Photon, Shadow, Beacon, Cast, Lens, Prism, Reflection, Ray, Shine, Glimmer, …) does **not** enter the vocabulary unless it earns its slot by labelling something that has no good name yet. The default answer to "should we call this X?" is no.
 
@@ -1197,6 +1198,39 @@ A planned future capability: multiple users collaborating on the same canvas, co
 - Have `surface_local_action` with `effect: 'durable'` skip the Tier-2-revision-then-patch step. Even in v1, `durable` ops produce a revisioned patch — this is what makes them shared-canvas-safe by construction.
 
 This section becomes the input for the v2 design phase. It is not a v1 deliverable.
+
+---
+
+## Extension — Live Interactivity (Lumens)
+
+A planned **additive** extension brings rich, agent-generated, **Tier-1-fast**
+interactivity to the canvas — games (Tetris), interactive data workflows,
+unusual visualisations (defrag-style), live maps — the Omadia answer to
+sandbox-style "live artifacts", deliberately re-aimed. Its thesis: most of what
+arbitrary-code sandboxes block is blocked by missing **capabilities**, not
+missing **compute** — so it **constrains computation** (a declarative, bounded,
+deterministic, interpreted behaviour model — no arbitrary code, the whitelist
+parser extends to it) and **opens capabilities** (real data, write-back,
+allowlisted network, generated assets) **mediated** through the existing Tier-2/3
+orchestration and effect classification.
+
+The unit is a **Lumen**: `state + transitions + view + events + capabilities`,
+plus a new `scene` primitive (a declarative draw surface), declarative
+ports/wires for cross-element interaction, per-region render cadence, and a
+preset library so the agent **authors once and reuses constantly** (not rebuilt
+per turn). It is **forward-compatible** — Lumens ride the same `surface_*`
+grammar, the same DataRef/HMAC scoping, the same authority split, the same
+shared-canvas hooks; the deltas are additive (a `behavior` tree section, the
+`scene` primitive → `omadia-canvas-protocol/1.1`, one optional
+`surface_capability_*` event family).
+
+- **Rationale / concept:** [`docs/interactivity-concept.md`](docs/interactivity-concept.md)
+- **Normative definition / spec:** [`docs/lumens-spec.md`](docs/lumens-spec.md)
+- **Lume visual treatment:** [`docs/visual-spec.md`](docs/visual-spec.md) §4.13
+- **Reference mockup:** [`docs/mockups/kiosk-lumen-aura.html`](docs/mockups/kiosk-lumen-aura.html)
+
+Not a v1 deliverable of this base concept; tracked as its own implementation
+workstream.
 
 ---
 
