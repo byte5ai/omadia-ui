@@ -2295,3 +2295,136 @@ textarea.lume-input:disabled {
 .lume-instance-active .lume-instance-dot {
   background: var(--lume-accent);
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Fluid Board (Miro idiom) — replaces the Sidebar + Desktops + split-tree
+   tiling. One infinite, pannable, zoomable surface; each former canvas is a
+   free-floating "app" frame placed in board space. Pan/zoom/drag/resize are
+   pure Tier-1 view-state (CONCEPT Authority Model) — never a server turn.
+   ───────────────────────────────────────────────────────────────────────── */
+.lume-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.lume-board {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-color: var(--lume-bg-btm);
+  /* faint dot grid — the Miro "infinite paper" cue */
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+  cursor: grab;
+  touch-action: none;
+}
+.lume-board:active {
+  cursor: grabbing;
+}
+.lume-board-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.lume-app-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, var(--lume-surface-top), var(--lume-surface-btm));
+  border: 1px solid var(--lume-border-btm);
+  border-radius: var(--lume-radius-lg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+.lume-app-frame-focused {
+  border-color: var(--lume-accent);
+  box-shadow:
+    0 0 0 1px var(--lume-accent),
+    0 0 22px var(--lume-accent-glow),
+    0 12px 34px rgba(0, 0, 0, 0.5);
+}
+.lume-app-frame-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--lume-space-2);
+  padding: var(--lume-space-2) var(--lume-space-3);
+  background: linear-gradient(180deg, var(--lume-raised-top), var(--lume-raised-btm));
+  border-bottom: 1px solid var(--lume-border-subtle-btm);
+  cursor: move;
+  user-select: none;
+}
+.lume-app-frame-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--lume-text-secondary);
+}
+.lume-app-frame-busy .lume-app-frame-title {
+  color: var(--lume-accent-hover);
+}
+.lume-app-frame-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--lume-space-1);
+}
+.lume-app-frame-actions button {
+  background: transparent;
+  border: 0;
+  color: var(--lume-text-tertiary);
+  cursor: pointer;
+  border-radius: var(--lume-radius-sm);
+  padding: 2px 6px;
+}
+.lume-app-frame-actions button:hover {
+  color: var(--lume-text);
+  background: var(--lume-accent-subtle);
+}
+.lume-app-frame-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.lume-app-frame-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, var(--lume-border-top) 50%);
+}
+/* floating new-app affordance (also: double-click empty board) */
+.lume-board-add {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--lume-radius-pill);
+  border: 1px solid var(--lume-accent);
+  background: linear-gradient(180deg, var(--lume-accent-fill-top), var(--lume-accent-fill-btm));
+  color: var(--lume-text-inverse);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 6px 18px var(--lume-accent-glow);
+}
+.lume-board-add:hover {
+  filter: brightness(1.08);
+}
+/* relocated instance switcher — floating bottom-left chip */
+.lume-board-instances {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 5;
+}
