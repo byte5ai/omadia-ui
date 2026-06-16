@@ -66,6 +66,18 @@ is a spike deliverable; where prose and schema disagree, the **schema wins**.
 > free-colour content is the author's responsibility (44 pt hit-targets and
 > reduced-motion still apply; those are interaction-safety, not colour).
 
+> **Rev 3.3 (acceptance-gate trace).** Hand-authoring the **full** reference
+> Lumens (an arcade game + a transactional ordering flow) in real LX-AST —
+> [`protocol/lumen-walkthroughs.md`](protocol/lumen-walkthroughs.md) — surfaced
+> two load-bearing gaps the earlier *fragment* passes could not, because they only
+> appear when logic is **reused across sites** and when an effect must fire from
+> **pure** code: (G1) no author-defined helper → add `defs` + `{apply}`,
+> non-recursive pure functions (§2.8); (G2) no way for a pure transition to invoke
+> a capability → add **effect bindings** (§6.4), the output dual of `events`. Plus
+> clarifications the trace forced: `StateLeaf` defined to include nested
+> `list`/`record` (§1.1), transition result is a **delta-merge** with `{set:{}}`
+> the no-op (§2.5), and multi-field `{set:{a,b,…}}` (§2.2).
+
 A Lumen is the Omadia answer to "an interactive artifact": **declarative data,
 not code**, run by a small deterministic interpreter on Tier 1, generated and
 brokered agentically on Tiers 2/3, safe to share and to save as a preset
@@ -122,13 +134,15 @@ type Lumen = {
   id: string;                          // stable; patches/wires/beam target it
   state:        StateSchema;           // §1.1 — typed, bounded, serialisable (mutable memory)
   const?:       ConstSchema;           // §1.2 — typed, bounded, immutable author-time tables (not serialised)
-  transitions:  Record<TransitionName, LXNode>;   // §2 — pure (state,event)->state
+  defs?:        Record<DefName, LXDef>;// §2.8 — named, parameterised, non-recursive pure helpers
+  transitions:  Record<TransitionName, LXNode>;   // §2 — pure (state,event)->state, delta-merge result
   view:         LXNode;                // §2,§3 — pure state -> primitive/scene tree
   events:       EventBinding[];        // §4 — declared inputs -> transitions
   cadence?:     CadenceSpec;           // §5 — default "reactive"
   colorMode?:   'theme'|'brand'|'free';// §3.1 — default 'theme'; opens colour for THIS Lumen's content only
   palette?:     PaletteSpec;           // §3.1 — declared brand colours (used with colorMode 'brand')
   capabilities?: CapabilityRequest[];  // §6 — default-deny doors out
+  effects?:     EffectBinding[];       // §6.4 — declared capability triggers (the output dual of `events`)
   ports?:       PortSpec[];            // §7 — typed inputs/outputs for explicit wiring
   expose?:      ExposeSpec[];          // §7 — published read-only view-state (the ambient-readable interface)
   invariants?:  LXNode[];              // §2.7 — boolean assertions checked after every transition
@@ -137,14 +151,17 @@ type Lumen = {
 ```
 
 A Lumen is valid iff: its `state`/`const` conform to §1.1/§1.2, every `LXNode` in
-`transitions`/`view`/`invariants` passes the §2 AST whitelist + static bounds
-check (every `{call}` target in §2.3, every `{kernel}` target in §2.6, every
-`{const}`/`{state}` path resolving against the declared schema), every
-`EventBinding` names a declared transition and a §4 event, every
-`CapabilityRequest` names a §6 catalog capability, every `invariants` entry is a
-boolean `LXNode`, and every `PortSpec` / `ExposeSpec` is §7-typed. Any failure →
-the Lumen is rejected wholesale with `surface_error` (scope = the Lumen `id`); it
-never partially renders.
+`transitions`/`view`/`invariants`/`defs` passes the §2 AST whitelist + static
+bounds check (every `{call}` target in §2.3, every `{kernel}` target in §2.6,
+every `{apply}` target a §2.8 `def` with matching arity, every
+`{const}`/`{state}` path resolving against the declared schema), the `defs` call
+graph is **acyclic** (§2.8), every `EventBinding` names a declared transition and
+a §4 event, every `EffectBinding` names a declared transition (or carries a valid
+`when` predicate) and a §6 catalog capability (§6.4), every `CapabilityRequest`
+names a §6 catalog capability, every `invariants` entry is a boolean `LXNode`, and
+every `PortSpec` / `ExposeSpec` is §7-typed. Any failure → the Lumen is rejected
+wholesale with `surface_error` (scope = the Lumen `id`); it never partially
+renders.
 
 ### 1.1 State schema
 
@@ -164,6 +181,14 @@ type StateSchema = {
     | { type: 'dataRef', init?: DataRef };   // §6.1 read-only projection handle
 };
 ```
+
+A **`StateLeaf`** (the `of` of a `list`/`grid`, and the `fields` values of a
+`record`) is **any** of the leaf shapes above — **including a nested `list`,
+`record` or `grid`**. Nesting is therefore first-class: a board is a
+`list<list<int>>`, a shape table a `list<list<list<record>>>`. Nesting depth and
+every `maxLen`/`w`/`h` are bounded, so total size stays statically capped.
+`ConstSchema` (§1.2) uses the identical leaf grammar with `value` in place of
+`init`.
 
 Total serialised `state` size is capped (initial default **256 KB**,
 spike-tunable). `state` persists in canvas-state (`CONCEPT.md` §"State Model");
@@ -226,7 +251,8 @@ no prototypes, no functions-as-values beyond the named std-lib.
 | `if` | `{if:c, then:a, else:b}` | total conditional (both branches required) |
 | `match` | `{match:expr, cases:[{when,then}], else}` | total switch |
 | record/list ctor | `{record:{…}}` `{list:[…]}` | construction |
-| `set` | `{set:{path: expr}}` | **functional** update at a *static* path → returns a new state (no mutation) |
+| `set` | `{set:{path: expr, …}}` | **functional** update of one **or many** static paths (a `path→expr` map) → new state with those paths replaced; `{set:{}}` is the **no-op** (return state unchanged); no mutation |
+| `apply` | `{apply:name, args:[…]}` | call a §2.8 author-defined `def` (named, non-recursive pure helper) |
 | `setAt` | `{setAt: coll, index:[xExpr] \| [xExpr,yExpr], to: expr}` | **functional** write at a computed index → new collection; 1-D indexes a `list`, 2-D `[x,y]` a `grid` **or** a `list<list>` (as `coll[y][x]`); out-of-bounds is a **no-op** (total) |
 | `at` | `{at: coll, index:[xExpr] \| [xExpr,yExpr], default: expr}` | random-access **read** at a computed index → element or, on out-of-bounds, `default` (total); 1-D for `list`, 2-D `[x,y]` for `grid` **or** `list<list>` (`coll[y][x]`); also the form for `{state, at:[…]}` with **expression** indices |
 | `map` | `{map: listExpr, as:"x", idx?:"i", body: expr}` | element-wise; binds item `x` (and optional index `i`) per item → new list |
@@ -277,10 +303,17 @@ kernels** of §2.6.
 ### 2.5 Validation
 
 A Lumen's LX is accepted iff every node is in §2.2, every `call` target is in
-§2.3, every `kernel` target is in §2.6, every `state`/`event` path resolves
-against the declared schema, and a static pass proves iteration bounds and a gas
-ceiling. `view` MUST return a valid primitive/scene tree (§3); `transitions` MUST
-return a value conforming to `state`. Anything else → reject.
+§2.3, every `kernel` target is in §2.6, every `apply` target is a §2.8 `def`,
+every `state`/`const`/`event` path resolves against the declared schema, and a
+static pass proves iteration bounds and a gas ceiling. `view` MUST return a valid
+primitive/scene tree (§3); `transitions` MUST return a value conforming to
+`state`. Anything else → reject.
+
+**Transition result = delta-merge.** A transition's value is the **current
+`state` with its `set`/`setAt` paths applied** — unmentioned fields are carried
+over unchanged. A transition does *not* reconstruct the whole record; `{set:{}}`
+returns the state untouched (a no-op transition). This keeps transitions small
+(touch only what changes) and patches local.
 
 ### 2.6 Native kernels — bounded algorithms the host owns
 
@@ -343,6 +376,37 @@ Invariants do not *prove* correctness, but they convert a meaningful class of
 generation bugs — the off-by-one the validator **cannot** catch because the
 Lumen is syntactically valid — from **silent-wrong** into a caught, loud failure
 the agent repairs by patch. They pair with the golden-trace authoring gate (§14).
+
+### 2.8 Author-defined helpers (`defs` / `apply`)
+
+`let` binds a *value*; a transition cannot call another transition. So without a
+helper facility, any logic reused across sites — a collision test called from
+gravity / move / rotate, a `menuRow` lookup called per line item — must be
+**inlined at every site**, multiplying bloat *and* the chance of an inconsistent
+edit (a patch must touch every copy). `defs` removes that:
+
+```ts
+type LXDef = { params: string[], body: LXNode };   // a named, parameterised pure expression
+// call:  { apply: name, args: [expr, …] }          // binds params positionally, evaluates body
+```
+
+- **Pure & first-order.** A `def` body reads its **params** (via `{var}`) and
+  **`const`** (truly immutable), and may `call` std-lib, `kernel`, or **other
+  defs** via `apply`. It does **not** read `state`/`event` — those flow in as
+  args, so a def is referentially transparent and can be applied to an *in-flight
+  computed value* (e.g. a game-over check against a not-yet-committed board), not
+  only to current state.
+- **Non-recursive — statically bounded.** `defs` form a **DAG**: a def may apply
+  only defs that do not (transitively) apply it. No self- or mutual recursion.
+  The whole call graph is therefore fully inlinable, so the §2.4 gas bound stays a
+  *static* property — `apply` is sugar over inlining, not a new unbounded power.
+- **Validated.** Every `apply` target must exist with a matching arity; the DAG
+  must be acyclic; each `body` passes the §2 whitelist. Any failure → reject.
+
+`defs` are **agent-owned structure** (like `transitions`), patched by stable name.
+They are also the natural shape the idiom library (§8) ships — a vetted
+`collides` or `scaleAxis` def is reused, not re-emitted. This is purely additive:
+no `defs` ⇒ identical behaviour to a Lumen that inlines everything.
 
 ---
 
@@ -625,6 +689,45 @@ it fluid without weakening the gate:
 A **transactional ordering Lumen** is therefore the right fifth conformance
 artifact (§14): it exercises the capability axis a game never does.
 
+### 6.4 Effect bindings — how a pure transition invokes a capability
+
+§6 defines the capability **catalog**, the **broker**, and the **wire** event
+(`surface_capability_request`, §12); it did **not** define the **authoring
+trigger** — how declarative, *pure* `(state,event)→state` logic causes an effect
+to fire. It cannot do so from inside a transition (that would make transitions
+impure and break determinism/replay). Instead, the Lumen declares **effect
+bindings** — the *output* dual of `events` (§4): `events` bind an input to a
+transition; `effects` bind a transition (or a state predicate) to a brokered
+capability call.
+
+```ts
+type EffectBinding = {
+  on:        TransitionName | { when: LXNode };  // fire after this transition runs, or when this state predicate flips true
+  call:      CapabilityName;                     // a declared §6 capability
+  args:      LXNode;                             // pure LX over (post-transition) state → the request payload
+  onResult?: TransitionName;                     // the brokered result re-enters here as an event
+  onError?:  TransitionName;                     // failure / denial path (optimistic rollback)
+};
+```
+
+Flow (the §6.3 ordering example): `placeOrder` is a **pure** transition that only
+flips `stage` to `placing` (optimistic). An `effects` entry `{on:"placeOrder",
+call:"writeData", args:<lineItems over state>, onResult:"orderPlaced",
+onError:"orderFailed"}` makes the **runtime** — not the transition — emit the
+brokered `external-effect` call (one consent gate), keep the deterministic loop
+running while it is in flight (§6 async-by-default), and **re-enter the result as
+an ordinary event** feeding `onResult`/`onError`. Determinism holds: the result is
+an external input, recorded and re-fed on replay exactly like a capability result
+today (§13.5).
+
+This realises the `interactivity-concept.md` §9.1 "Lumen output → capability"
+intent with a concrete primitive, and respects the authority split: the agent
+declares *which* effects exist (structure); the **grant** is still Tier-2 policy +
+consent (§0.5) — an effect binding can *request* a capability, never self-grant
+it. Effect bindings are subject to the same egress bounds as any capability call
+(§6 broker bounds): an effect bound to a `tick`-driven transition is rate/quota/
+max-in-flight capped like any other.
+
 ---
 
 ## 7. Ports & wires — cross-element interaction
@@ -742,6 +845,8 @@ governs the host regardless of a Lumen's palette choice.
 | Arbitrary code in the renderer | None runs — LX is a validated AST walked by a shipped interpreter; CSP `default-src 'self'`, no `unsafe-eval` |
 | Runaway / DoS | Gas + frame ceiling + bounded iteration + state cap + **capped wakeup budget** (`tick` + `timer`, §4) → halt/reject with `surface_error`, never the canvas; capability **egress** is broker-bounded (rate/quota/max-in-flight/idempotent/backpressure, §6) so a tick-driven call cannot DoS Tier 2/3 |
 | Iterative compute (sort/pathfind/layout) | **Native kernels** (§2.6), not agent-authored loops: audited host code under a per-call **kernel-gas** ceiling, total on degenerate input, deterministic, no IO — the agent calls but never writes one, so "no arbitrary code" and "cannot hang" both hold |
+| Author helpers (`defs`) hiding unbounded compute | `defs` are **non-recursive** (a validated DAG, §2.8) and read only params + `const` — fully inlinable, so the static gas bound holds; no new power over inlined LX |
+| Effects firing from a hot loop | `effects` (§6.4) route through the **same §6 broker**: default-deny grant, consent gate, and egress bounds (rate/quota/max-in-flight) — an effect bound to a `tick` transition cannot self-grant or out-pace the broker |
 | Corrupt generated state (silent-wrong) | **Declared invariants** (§2.7) checked post-transition → rollback + `surface_error`; **golden-trace** author-time gate (§14) runs example traces before first render |
 | Data exfiltration | Default-deny capabilities; Lumen reads only own state + **wired/`expose`-published** ports; all egress brokered, allowlisted, confirmed, Trace-audited; **state/`DataRef`-derived** `fetch`/`writeData` classified `external-effect` (confirmed) unless pre-approved at grant (§6) |
 | Stale / poisoned assets | Content-addressed `DataRef` (id = content hash); HMAC-scoped fetch; explicit invalidation |
@@ -763,6 +868,11 @@ governs the host regardless of a Lumen's palette choice.
   validated.
 - **Constants:** the immutable `const` section + `{const}` read node (§1.2) —
   agent-owned, bounded, not serialised; the unit the idiom/preset library ships.
+- **Helpers:** the `defs` section + `{apply}` node (§2.8) — named, parameterised,
+  non-recursive pure functions (a DAG, fully inlinable; no new compute power).
+- **Effects:** the `effects` binding list (§6.4) — the declarative trigger by
+  which a *pure* transition causes a brokered capability call; result re-enters as
+  an event. Reuses the §6 broker, bounds and consent; no new transport.
 - **Ports & wires:** `ports` and `expose` (published read-only interface) on
   primitives/Lumens, `wires` at container/canvas level (§7) — additive tree
   content, Tier-1-resolved.
@@ -815,19 +925,22 @@ accordingly and idioms degrade gracefully — the same principle as
 ## 14. Conformance & open questions
 
 Conformance is the schema set in `schema/` (Lumen, LX-AST **incl. the
-`map`/`filter`/`fold` binder nodes, `at`/`setAt`, and the §2.6 kernel
-signatures**, scene, ports/wires/`expose`, invariants, capability manifest) +
-accept/reject fixtures, plus **five** reference Lumens — an arcade game,
-interactive workflow, **a transactional ordering flow (§6.3)**, defrag-viz, map —
-each authored **by hand in real LX-AST** and traced end-to-end like
-`walkthroughs.md`.
+`map`/`filter`/`fold` binder nodes, `{var}`, `at`/`setAt`, `defs`/`{apply}`, and
+the §2.6 kernel signatures**, scene, ports/wires/`expose`, invariants, `effects`,
+capability manifest) + accept/reject fixtures, plus **five** reference Lumens — an
+arcade game, interactive workflow, **a transactional ordering flow (§6.3)**,
+defrag-viz, map — each authored **by hand in real LX-AST** and traced end-to-end
+like `walkthroughs.md`.
 
 **Hand-authoring the reference set is the acceptance gate *before* implementation
 budget is committed.** It is the cheapest test that the binder forms, the kernel
 cut, the invariant/golden-trace loop and the transaction patterns actually hold
-against a non-trivial artifact — not only in prose. (Tracing a board-game-class
-Lumen on paper is exactly what surfaced the Rev-3 gaps; doing the full set
-converts "argued watertight" into "tested watertight".)
+against a non-trivial artifact — not only in prose. **Two of the five are now
+traced** in [`protocol/lumen-walkthroughs.md`](protocol/lumen-walkthroughs.md)
+(the arcade game and the ordering flow); doing so converted "argued watertight"
+into "tested watertight" and surfaced the Rev-3.3 gaps (`defs` §2.8, effect
+bindings §6.4) that *only* appear in full artifacts, not fragments. The remaining
+three (workflow, defrag-viz, map) are still to be traced before L0–L9.
 
 **Golden-trace authoring gate.** Because behaviour is deterministic, cold
 authoring SHOULD emit, alongside the Lumen, a few example `(input events →

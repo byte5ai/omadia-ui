@@ -17,6 +17,17 @@
 > only** — no implementation, no PR
 > plan. It extends, and stays inside, the architecture in `CONCEPT.md`.
 
+Version 0.9 — **acceptance-gate trace.** Hand-authoring the **full** arcade +
+ordering reference Lumens in real LX-AST (`docs/protocol/lumen-walkthroughs.md`)
+surfaced two load-bearing gaps invisible to fragment-level review — they only
+appear when logic is **reused across sites** and when an effect fires from **pure**
+code: **`defs`/`apply`** (named, non-recursive pure helpers; `lumens-spec.md`
+§2.8) and **effect bindings** (the declarative trigger by which a pure transition
+invokes a capability — the output dual of `events`, realising the §9.1 "Lumen
+output → capability" intent; `lumens-spec.md` §6.4). Plus clarifications:
+`StateLeaf` includes nested `list`/`record`, transition result is a delta-merge,
+multi-field `set`. Confirms the §13 discipline — *trace before you build*; both
+gaps would otherwise have been found mid-implementation.
 Version 0.8 — **colour authority.** A Lumen's *own content* is **not**
 palette-locked: the agent picks `colorMode: 'theme'|'brand'|'free'` (+ a declared
 `palette`) from the **request + embedding context** (`lumens-spec.md` §3.1).
