@@ -37,7 +37,20 @@ for (const name of [
   // omadia-canvas-protocol/1.1 — Lumens (Live Interactivity), additive.
   'lx-ast', 'scene', 'ports-wires', 'capability-manifest', 'lumen',
 ]) {
-  ajv.addSchema(load(name));
+  const schema = load(name) as { $defs?: { primitive?: { oneOf: { $ref: string }[] } } };
+  // omadia-canvas-protocol/1.1: extend the canvas-tree `primitive` oneOf with
+  // `scene` and `lumen` IN PLACE (keeping the 1.0 $id). Additive — every 1.0
+  // tree still validates. Crucially, doing it under the SAME id means BOTH
+  // `validateTree` AND `validateSurfaceEvent` (whose surface_snapshot refs
+  // `tree` → 1.0 canvas-tree) accept a Lumen-bearing tree; a separate 1.1 id
+  // would only fix validateTree and the envelope path would still reject it.
+  if (name === 'canvas-tree' && schema.$defs?.primitive) {
+    schema.$defs.primitive.oneOf.push(
+      { $ref: 'https://omadia.ai/protocol/1.1/scene.schema.json' },
+      { $ref: 'https://omadia.ai/protocol/1.1/lumen.schema.json' },
+    );
+  }
+  ajv.addSchema(schema);
 }
 
 let code = standaloneCode(ajv, {
