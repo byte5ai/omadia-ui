@@ -17,6 +17,16 @@
 > only** — no implementation, no PR
 > plan. It extends, and stays inside, the architecture in `CONCEPT.md`.
 
+Version 0.11 — **Codex soundness pass.** An independent adversarial review
+(`docs/protocol/reviews/codex-rev3.4.md`) tested *soundness* where the internal
+passes tested *expressibility*, and found a real layer: totality (÷0/overflow/
+`NaN`), the static-bound hole (un-`max`'d numerics feeding `range`/`pad`),
+determinism (record-key order, effect-replay ordering, `const`-in-replay), plus
+self-contradictions and two security findings (free-colour chrome spoofing, the
+taint claim). All addressed in `lumens-spec.md` rev 3.5 (§2.9 totality/bounds/
+determinism, §6.4 effect determinism, §13.5 replay, §1.1 `assetRef`, §3.1 anti-
+spoofing, §6 taint walk). Lesson reinforced: independent adversarial review finds
+a *different axis* than self-review — worth the cost before implementation budget.
 Version 0.10 — **reference set complete.** Tracing the last three reference
 Lumens (workflow / defrag / map) in real LX-AST added only **interaction-surface**
 items, no core-model gaps — the expected convergence: per-event payload schema
@@ -287,10 +297,11 @@ Turing-complete in the dangerous direction.
 - **Values.** numbers, booleans, strings, lists, records, and typed `state`
   references. No closures over host objects, no `this`, no prototypes.
 - **Operators & built-ins.** arithmetic, comparison, boolean logic,
-  `if`/`match`, record/list construction, and a fixed standard library
-  (`map`, `filter`, `fold`, `range`, `min`, `max`, `len`, string ops, a small
-  math set). The standard library is a **whitelist** — same discipline as the
-  primitive vocabulary.
+  `if`/`match`, record/list construction, dedicated **iteration binder nodes**
+  (`map`/`filter`/`fold` — *not* higher-order std-lib functions, so no
+  first-class functions are exposed; `lumens-spec.md` §2.2), and a first-order
+  std-lib (`range`, `min`, `max`, `len`, `lookup`, string ops, a small math set).
+  Both are **whitelists** — same discipline as the primitive vocabulary.
 - **Bounded iteration only.** `map`/`fold`/`range` over collections whose size
   is bounded by `state` (itself size-capped). No `while`, no general
   recursion. This is what makes the gas bound a *static* guarantee rather than
