@@ -41,6 +41,13 @@ Omadia UI is the next layer — a desktop application where the agent
 - 🗂️ **A real workspace.** Multiple live canvases with their own server
   sessions, tiling split panes, named desktops, a canvas library — all synced
   through the omadia registry and restored on restart.
+- 🎮 **Live, safe interactivity (Lumens).** A planned additive extension lets
+  the agent generate self-contained interactive units — a game, an interactive
+  workflow, an unusual visualisation, a live map — as **declarative,
+  deterministic data** run by a bounded Tier-1 interpreter (no arbitrary code),
+  with capabilities mediated through Tiers 2/3. Shareable, presettable. See
+  [`docs/interactivity-concept.md`](docs/interactivity-concept.md) +
+  [`docs/lumens-spec.md`](docs/lumens-spec.md).
 
 ## ⚡ Quickstart
 
@@ -82,7 +89,9 @@ refactor).
 | File | Purpose |
 |---|---|
 | [`CONCEPT.md`](CONCEPT.md) | Architecture, primitives, protocol, security, identity, SDK extension plan |
-| [`docs/visual-spec.md`](docs/visual-spec.md) | Lume material system — tokens, rules, composition idioms (v0.4) |
+| [`docs/interactivity-concept.md`](docs/interactivity-concept.md) | **Live Interactivity (Lumens)** — concept/rationale: Tier-1-fast, agent-generated, safe interactivity (games, workflows, maps) |
+| [`docs/lumens-spec.md`](docs/lumens-spec.md) | **Lumens** — normative definition: LX, `scene`, events/touch, capabilities, ports/wires, presets (`omadia-canvas-protocol/1.1` draft) |
+| [`docs/visual-spec.md`](docs/visual-spec.md) | Lume material system — tokens, rules, composition idioms (v0.5) |
 | [`docs/protocol/1.0.md`](docs/protocol/1.0.md) | Protocol specification + machine-validatable JSON Schemas |
 | [`docs/walkthroughs.md`](docs/walkthroughs.md) | Use-case walkthroughs — multi-source comparison + editor micro-task |
 | [`docs/tech-stack.md`](docs/tech-stack.md) | Tech-stack decision for the host app (Electron), with reasoning |

@@ -699,6 +699,33 @@ tied to the phase that exposes each one.
 
 ---
 
+## 10. Lumens (Live Interactivity) extension — implementation outline
+
+A separable, **additive** workstream on top of the v1 baseline above (it
+depends on the surface event family, the validator, and the orchestrator
+already landing). Concept: [`interactivity-concept.md`](interactivity-concept.md);
+normative definition: [`lumens-spec.md`](lumens-spec.md). Tracked for the
+maintainer as a GitHub issue. Suggested phasing, smallest mergeable units first:
+
+| Phase | Deliverable | Where |
+|---|---|---|
+| **L0 — schemas** | JSON Schemas for the Lumen `behavior` section, the LX-AST node set, `scene`, `ports`/`wires`, the capability manifest; accept/reject fixtures | `docs/protocol/schema/` (this repo) → `omadia-canvas-protocol/1.1` |
+| **L1 — LX interpreter (Tier 1)** | deterministic AST evaluator with gas + frame ceiling, bounded iteration, seeded `random`/`now`; the extended whitelist validator | host app `app/src/renderer/` |
+| **L2 — `scene` primitive** | draw-list rasteriser (canvas2d first, WebGL behind it), token-only styling, buffer-native hit-testing → `TargetRef` | host app renderer |
+| **L3 — cadence & animation** | per-region `static`/`reactive`/`{tick}` dirty-tracking + rAF scheduling; declarative `animate` layer on the Lume effect vocabulary; reduced-motion | host app renderer |
+| **L4 — events & touch** | `tap`/`longPress`/`drag`/`pinch`/`swipe`/`key`/`tick`; 44 pt hit-targets; host gesture arbitration; input-modality handshake fields | host app + channel |
+| **L5 — capabilities broker (Tier 2)** | `persist`/`loadData`/`writeData`/`tiles`/`fetch`/`generateAsset`/`clipboard`; effect-classified brokering + confirmation gate; `surface_capability_*` events; asset transport + content-addressed cache | `omadia-ui-orchestrator` + `omadia-ui-channel` + `byte5ai/omadia` core connectors for `generateAsset` |
+| **L6 — ports & wires** | typed ports on primitives/Lumens, Tier-1 wire resolution, shared `viewState.selection` cross-element | host app + orchestrator |
+| **L7 — lifecycle & presets** | author-once/patch; `lumen-presets/**` + `lumen-state/**` stores; resolve-then-generate lookup; fork+patch; behaviour-idiom library in the UI Skill | `omadia-ui-orchestrator` |
+| **L8 — sharing** | `canvasOwnership` group extension + channel fan-out + import consent (rides the v2 shared-canvas hooks) | channel + orchestrator |
+| **L9 — reference Lumens** | an arcade game · interactive workflow · defrag-viz · map, traced end-to-end like `walkthroughs.md`; conformance fixtures | this repo |
+
+**Riskiest items** (mirror `interactivity-concept.md` §13): LLM reliability
+emitting valid LX (likely a strong-model authoring job, fast-model patching);
+gas/scene-perf calibration on the four reference Lumens; capability-consent UX.
+
+---
+
 ## Appendix — corrected critical-file map (omadia core @ `83ef79b`)
 
 The concept's "Critical files" section with line numbers refreshed against live
