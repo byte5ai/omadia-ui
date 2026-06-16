@@ -1,0 +1,45 @@
+{
+  "type": "lumen",
+  "id": "arcade-bounce",
+  "state": {
+    "x": { "type": "number", "min": 0, "max": 300, "init": 20 },
+    "vx": { "type": "number", "init": 6 },
+    "bounces": { "type": "int", "min": 0, "init": 0 }
+  },
+  "transitions": {
+    "step": {
+      "let": { "nx": { "+": [{ "state": "x" }, { "state": "vx" }] } },
+      "in": {
+        "let": { "hitWall": { "or": [{ "<=": [{ "var": "nx" }, { "lit": 0 }] }, { ">=": [{ "var": "nx" }, { "lit": 300 }] }] } },
+        "in": {
+          "set": {
+            "x": { "call": "clamp", "args": [{ "var": "nx" }, { "lit": 0 }, { "lit": 300 }] },
+            "vx": { "if": { "var": "hitWall" }, "then": { "-": [{ "lit": 0 }, { "state": "vx" }] }, "else": { "state": "vx" } },
+            "bounces": { "if": { "var": "hitWall" }, "then": { "+": [{ "state": "bounces" }, { "lit": 1 }] }, "else": { "state": "bounces" } }
+          }
+        }
+      }
+    },
+    "reverse": { "set": { "vx": { "-": [{ "lit": 0 }, { "state": "vx" }] } } }
+  },
+  "view": {
+    "record": {
+      "type": { "lit": "scene" },
+      "width": { "lit": 320 },
+      "height": { "lit": 120 },
+      "draw": {
+        "list": [
+          { "record": { "kind": { "lit": "rect" }, "x": { "lit": 0 }, "y": { "lit": 0 }, "w": { "lit": 320 }, "h": { "lit": 120 }, "fill": { "lit": "surface-sunken" } } },
+          { "record": { "kind": { "lit": "circle" }, "cx": { "state": "x" }, "cy": { "lit": 60 }, "r": { "lit": 10 }, "fill": { "lit": "accent" }, "id": { "lit": "ball" } } },
+          { "record": { "kind": { "lit": "text" }, "x": { "lit": 8 }, "y": { "lit": 16 }, "text": { "call": "concat", "args": [{ "lit": "bounces " }, { "call": "fmt", "args": [{ "state": "bounces" }] }] }, "register": { "lit": "mono" }, "fill": { "lit": "text" } } }
+        ]
+      }
+    }
+  },
+  "events": [
+    { "on": "tick", "rate": 60, "run": "step" },
+    { "on": "tap", "run": "reverse" },
+    { "on": "key", "key": "Space", "run": "reverse" }
+  ],
+  "cadence": { "tick": 60 }
+}

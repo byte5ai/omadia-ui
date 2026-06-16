@@ -150,24 +150,37 @@ no prototypes, no functions-as-values beyond the named std-lib.
 | `lit` | `{lit: value}` | literal |
 | `state` | `{state: path}` | read a `state` slice (dotted path; `grid` via `{state, at:[x,y]}`) |
 | `event` | `{event: field}` | read a field of the triggering event |
-| `var` / `let` | `{let:{name:expr}, in:expr}` | bind a local; lexically scoped, immutable |
+| `let` | `{let:{name:expr}, in:expr}` | bind a local; lexically scoped, immutable |
+| `var` | `{var: name}` | read a `let` binding or an iteration binding (`it`/`idx`/`acc`, §2.3); unbound ⇒ reject |
 | arithmetic | `{"+":[a,b]}` `-` `*` `/` `mod` | numeric |
 | comparison | `{">":[a,b]}` `>=` `<` `<=` `==` `!=` | boolean |
 | logic | `{and:[…]}` `or` `not` | boolean |
 | `if` | `{if:c, then:a, else:b}` | total conditional (both branches required) |
 | `match` | `{match:expr, cases:[{when,then}], else}` | total switch |
 | record/list ctor | `{record:{…}}` `{list:[…]}` | construction |
+| `get` | `{get:expr, key:expr}` | project a field of a record (string key) or element of a list (int index) — the read-side complement of `state` paths, so `map` bodies can read fields of `it` |
 | `set` | `{set:{path: expr}}` | **functional** update → returns a new state (no mutation) |
 | std-lib call | `{call:name, args:[…]}` | from the §2.3 whitelist only |
 
 ### 2.3 Standard library (whitelist, bounded)
 
-`map` `filter` `fold` `range` `len` `min` `max` `clamp` `abs` `floor` `round`
-`concat` `slice` `contains` `indexOf` `keys` `values` string ops (`upper`
-`lower` `pad` `fmt`) and a small math set. **`map`/`filter`/`fold`/`range`
-iterate only over collections bounded by `state`** (which is size-capped) — this
-is what makes the gas bound a *static* property. **No `while`, no general
-recursion.** `random()` and `now()` read host-seeded context values (§0.3).
+`map` `filter` `fold` `range` `len` `min` `max` `clamp` `abs` `floor` `ceil`
+`round` `sqrt` `sign` `pow` `concat` `slice` `contains` `indexOf` `keys`
+`values` string ops (`upper` `lower` `pad` `fmt`) and a small math set.
+**`map`/`filter`/`fold`/`range` iterate only over collections bounded by
+`state`** (which is size-capped) — this is what makes the gas bound a *static*
+property. **No `while`, no general recursion.** `random()` and `now()` read
+host-seeded context values (§0.3).
+
+**Iteration bindings (no lambdas).** LX has no functions-as-values, so the
+higher-order forms take an **expression body** read through reserved `var`
+bindings, not a closure: `{call:"map", args:[coll, body]}` evaluates `body` per
+element with `{var:"it"}` = the element and `{var:"idx"}` = its index;
+`{call:"filter", args:[coll, pred]}` keeps elements where `pred` (read with the
+same `it`/`idx`) is true; `{call:"fold", args:[coll, init, body]}` threads
+`{var:"acc"}` (seeded from `init`) alongside `it`/`idx`. `{call:"range",
+args:[n]}` yields `0..n-1` (bounded). These bindings are lexically scoped to the
+body and immutable — the same discipline as `let`.
 
 ### 2.4 Gas & determinism contract
 

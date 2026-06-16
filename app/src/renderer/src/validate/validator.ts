@@ -5,6 +5,9 @@
 import {
   validateSurfaceEvent as surfaceValidate,
   validateTree as treeValidate,
+  validateLumen as lumenValidate,
+  validateScene as sceneValidate,
+  validateLxNode as lxNodeValidate,
   type StandaloneValidate,
 } from './validators.generated.mjs';
 
@@ -29,4 +32,18 @@ export function validateTree(tree: unknown): ValidationResult {
 
 export function validateSurfaceEvent(event: unknown): ValidationResult {
   return run(surfaceValidate, event);
+}
+
+// ── omadia-canvas-protocol/1.1 — Lumens (Live Interactivity) ──
+/** Structural whitelist parser for a full Lumen (state/transitions/view/…). */
+export function validateLumen(lumen: unknown): ValidationResult {
+  return run(lumenValidate, lumen);
+}
+/** Structural whitelist parser for a `scene` primitive (draw-list). */
+export function validateScene(scene: unknown): ValidationResult {
+  return run(sceneValidate, scene);
+}
+/** Structural whitelist parser for a single LX AST node. */
+export function validateLxNode(node: unknown): ValidationResult {
+  return run(lxNodeValidate, node);
 }

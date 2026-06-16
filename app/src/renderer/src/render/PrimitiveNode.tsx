@@ -3,6 +3,8 @@ import { ChoiceNode, InputNode, ToggleNode } from './controlNodes.js';
 import { ChartNode, TreePrimitiveNode } from './dataNodes.js';
 import { CanvasRegionNode, MediaNode, TimelineNode, VectorPathNode } from './editorNodes.js';
 import { CanvasFormContext, createCanvasFormStore, useCanvasForm } from './formContext.js';
+import { SceneNode } from './SceneNode.js';
+import { LumenNode } from './lumen/LumenNode.js';
 
 /** A validated primitive-tree node. The Ajv whitelist runs BEFORE render;
  *  this component trusts the shape but still fails soft on the unexpected. */
@@ -447,6 +449,14 @@ function renderNode(node: PrimitiveJson, ctx: Omit<Props, 'node' | 'root'>, root
 
     case 'divider':
       return <hr className="lume-divider" />;
+
+    // omadia-canvas-protocol/1.1 — the `scene` primitive (Lumens, §3).
+    case 'scene':
+      return <SceneNode node={node} onAction={onAction} />;
+
+    // omadia-canvas-protocol/1.1 — the `lumen` primitive (Live Interactivity, §1).
+    case 'lumen':
+      return <LumenNode node={node} onAction={onAction} />;
 
     default:
       // Unreachable for validated trees — defensive, never throws mid-render.

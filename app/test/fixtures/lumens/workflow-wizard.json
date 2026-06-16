@@ -1,0 +1,34 @@
+{
+  "type": "lumen",
+  "id": "workflow-wizard",
+  "state": {
+    "step": { "type": "int", "min": 0, "max": 2, "init": 0 },
+    "done": { "type": "bool", "init": false }
+  },
+  "transitions": {
+    "next": { "set": { "step": { "call": "clamp", "args": [{ "+": [{ "state": "step" }, { "lit": 1 }] }, { "lit": 0 }, { "lit": 2 }] } } },
+    "prev": { "set": { "step": { "call": "clamp", "args": [{ "-": [{ "state": "step" }, { "lit": 1 }] }, { "lit": 0 }, { "lit": 2 }] } } },
+    "finish": { "set": { "done": { "lit": true } } }
+  },
+  "view": {
+    "record": {
+      "type": { "lit": "container" },
+      "layout": { "lit": "stack" },
+      "children": {
+        "list": [
+          { "record": { "type": { "lit": "heading" }, "level": { "lit": 2 }, "content": { "call": "concat", "args": [{ "lit": "Step " }, { "call": "fmt", "args": [{ "+": [{ "state": "step" }, { "lit": 1 }] }] }, { "lit": " of 3" }] } } },
+          { "record": { "type": { "lit": "status" }, "text": { "if": { "state": "done" }, "then": { "lit": "Complete" }, "else": { "lit": "In progress" } } } },
+          { "record": { "type": { "lit": "button" }, "id": { "lit": "prev" }, "label": { "lit": "Back" } } },
+          { "record": { "type": { "lit": "button" }, "id": { "lit": "next" }, "label": { "lit": "Next" } } },
+          { "record": { "type": { "lit": "button" }, "id": { "lit": "finish" }, "label": { "lit": "Finish" } } }
+        ]
+      }
+    }
+  },
+  "events": [
+    { "on": "tap", "target": { "kind": "element", "elementId": "next" }, "run": "next" },
+    { "on": "tap", "target": { "kind": "element", "elementId": "prev" }, "run": "prev" },
+    { "on": "tap", "target": { "kind": "element", "elementId": "finish" }, "run": "finish" }
+  ],
+  "cadence": "reactive"
+}

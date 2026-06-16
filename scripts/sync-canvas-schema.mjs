@@ -60,6 +60,12 @@ const SCHEMAS = [
   'handshake',
   'sentinels',
   'surface-events',
+  // omadia-canvas-protocol/1.1 — Lumens (Live Interactivity), additive.
+  'lx-ast',
+  'scene',
+  'ports-wires',
+  'capability-manifest',
+  'lumen',
 ];
 
 if (!existsSync(schemaSrc)) {

@@ -1,0 +1,61 @@
+{
+  "type": "lumen",
+  "id": "map-explore",
+  "state": {
+    "zoom": { "type": "int", "min": 1, "max": 5, "init": 2 },
+    "sel": { "type": "string", "maxLength": 32, "init": "" },
+    "markers": {
+      "type": "list",
+      "of": { "type": "record", "fields": { "id": { "type": "string", "maxLength": 8, "init": "" }, "x": { "type": "number", "init": 0 }, "y": { "type": "number", "init": 0 } }, "init": {} },
+      "maxLen": 32,
+      "init": [
+        { "id": "a", "x": 40, "y": 40 },
+        { "id": "b", "x": 120, "y": 80 },
+        { "id": "c", "x": 200, "y": 50 }
+      ]
+    }
+  },
+  "transitions": {
+    "select": { "set": { "sel": { "event": "id" } } },
+    "zoomIn": { "set": { "zoom": { "call": "clamp", "args": [{ "+": [{ "state": "zoom" }, { "lit": 1 }] }, { "lit": 1 }, { "lit": 5 }] } } },
+    "zoomOut": { "set": { "zoom": { "call": "clamp", "args": [{ "-": [{ "state": "zoom" }, { "lit": 1 }] }, { "lit": 1 }, { "lit": 5 }] } } }
+  },
+  "view": {
+    "record": {
+      "type": { "lit": "scene" },
+      "width": { "lit": 256 },
+      "height": { "lit": 128 },
+      "draw": {
+        "call": "concat",
+        "args": [
+          { "list": [{ "record": { "kind": { "lit": "rect" }, "x": { "lit": 0 }, "y": { "lit": 0 }, "w": { "lit": 256 }, "h": { "lit": 128 }, "fill": { "lit": "surface-sunken" } } }] },
+          {
+            "call": "map",
+            "args": [
+              { "state": "markers" },
+              {
+                "record": {
+                  "kind": { "lit": "circle" },
+                  "cx": { "get": { "var": "it" }, "key": { "lit": "x" } },
+                  "cy": { "get": { "var": "it" }, "key": { "lit": "y" } },
+                  "r": { "+": [{ "lit": 6 }, { "state": "zoom" }] },
+                  "fill": { "if": { "==": [{ "get": { "var": "it" }, "key": { "lit": "id" } }, { "state": "sel" }] }, "then": { "lit": "success" }, "else": { "lit": "accent" } },
+                  "id": { "get": { "var": "it" }, "key": { "lit": "id" } }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "events": [
+    { "on": "tap", "run": "select" },
+    { "on": "key", "key": "+", "run": "zoomIn" },
+    { "on": "key", "key": "-", "run": "zoomOut" }
+  ],
+  "cadence": "reactive",
+  "capabilities": [
+    { "cap": "tiles", "effect": "internal", "scope": { "provider": "osm" } }
+  ]
+}

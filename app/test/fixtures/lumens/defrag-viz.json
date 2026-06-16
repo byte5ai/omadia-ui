@@ -1,0 +1,40 @@
+{
+  "type": "lumen",
+  "id": "defrag-viz",
+  "state": {
+    "frame": { "type": "int", "min": 0, "init": 0 }
+  },
+  "transitions": {
+    "step": { "set": { "frame": { "+": [{ "state": "frame" }, { "lit": 1 }] } } }
+  },
+  "view": {
+    "record": {
+      "type": { "lit": "scene" },
+      "width": { "lit": 256 },
+      "height": { "lit": 64 },
+      "draw": {
+        "call": "map",
+        "args": [
+          { "call": "range", "args": [{ "lit": 8 }] },
+          {
+            "record": {
+              "kind": { "lit": "rect" },
+              "x": { "call": "max", "args": [{ "*": [{ "var": "idx" }, { "lit": 30 }] }, { "-": [{ "lit": 220 }, { "*": [{ "state": "frame" }, { "lit": 5 }] }] }] },
+              "y": { "lit": 20 },
+              "w": { "lit": 24 },
+              "h": { "lit": 24 },
+              "r": { "lit": 4 },
+              "fill": { "if": { "==": [{ "mod": [{ "var": "idx" }, { "lit": 2 }] }, { "lit": 0 }] }, "then": { "lit": "accent" }, "else": { "lit": "accent.glow" } },
+              "id": { "call": "concat", "args": [{ "lit": "b" }, { "call": "fmt", "args": [{ "var": "idx" }] }] }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "events": [
+    { "on": "tick", "rate": 30, "run": "step" },
+    { "on": "tap", "run": "step" }
+  ],
+  "cadence": { "tick": 30 }
+}
