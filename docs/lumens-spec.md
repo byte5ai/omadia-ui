@@ -54,15 +54,17 @@ is a spike deliverable; where prose and schema disagree, the **schema wins**.
 > spatial `[x,y]` convention (§2.2); and ergonomics for the hot render path — the
 > optional `idx` binder and `flatten` (§2.2/§2.3).
 
-> **Rev 3.2 (colour authority).** A Lumen's **own content** may opt out of the
-> Lume palette via `colorMode: 'brand'|'free'` + a declared `palette` (§3.1) — so
-> a user's kiosk / branded-ordering / product surface can use *any* colour, not
-> only Lume tokens. Scoped to the Lumen's subtree: **Omadia chrome always stays
-> Lume** (v1 identity boundary, no host white-label). In `brand`/`free` the
-> normaliser no longer clips colour and enforces **no** contrast floor —
-> accessibility of free-colour content is the author's responsibility (44 pt
-> hit-targets and reduced-motion still apply; those are interaction-safety, not
-> colour).
+> **Rev 3.2 (colour authority).** A Lumen's **own content** is **not**
+> palette-locked: the agent picks `colorMode: 'theme'|'brand'|'free'` (+ a
+> declared `palette`) from the **request + embedding context** (§3.1). `theme` is
+> the *no-direction default* — justified only by the assumption that the Lumen
+> embeds in an existing Lume UI, an assumption that is **not universal**; a
+> kiosk / branded / product surface gets `brand`/`free` **directly**, no opt-out
+> to fight. Scoped to the Lumen's subtree: **Omadia chrome always stays Lume** (v1
+> identity boundary, no host white-label). In `brand`/`free` the normaliser no
+> longer clips colour and enforces **no** contrast floor — accessibility of
+> free-colour content is the author's responsibility (44 pt hit-targets and
+> reduced-motion still apply; those are interaction-safety, not colour).
 
 A Lumen is the Omadia answer to "an interactive artifact": **declarative data,
 not code**, run by a small deterministic interpreter on Tier 1, generated and
@@ -391,8 +393,9 @@ editable pixel buffer.
 
 ### 3.1 Colour authority (theme · brand · free)
 
-Colour inside a Lumen is a **declared, scoped** property — default-safe,
-opt-out-explicit, like every other Lumen power. Two fields on the Lumen:
+Colour inside a Lumen is a **declared, scoped** property the agent chooses from
+the **request and the embedding context** — not a fixed preference for Lume. Two
+fields on the Lumen:
 
 ```ts
 colorMode?: 'theme' | 'brand' | 'free';                 // default 'theme'
@@ -401,10 +404,21 @@ palette?:   { [name: string]: ColorToken | sRGBHex };   // bounded, declared bra
 
 | `colorMode` | Colours | Re-tint | For |
 |---|---|---|---|
-| `theme` *(default)* | Lume tokens only | yes (palette switch re-tints) | agent-generated, on-theme Lumens — the safe default |
+| `theme` *(no-direction default)* | Lume tokens only | yes (palette switch re-tints) | a Lumen meant to sit **inside an existing Lume UI** — the default *only* when no colour direction is given |
 | `brand` | a **declared** bounded `palette`, referenced by name | as a unit | kiosk / branded ordering / product surfaces |
 | `free` | arbitrary sRGB/hex per node | no | photographic gradients, many-colour games, generative art |
 
+- **`theme` is the no-direction default, not a value judgement.** Absent any
+  colour direction, the agent assumes the Lumen will be **embedded in an existing
+  Lume-designed UI** and uses `theme` so it sits in seamlessly. **That assumption
+  is not universal.** A standalone kiosk, a branded ordering surface, a product
+  presentation or a game with its own art are **first-class** cases where the
+  agent reads the intent and chooses `brand`/`free` **directly** — the user must
+  never have to *fight* an opt-out. `colorMode` is **derived from the request +
+  embedding context** (the UI Skill carries the heuristic: explicit brand/colour
+  ask, or a standalone/full-bleed surface → `brand`/`free`; "add this to my
+  dashboard", no colour ask → `theme`). `theme` wins only when nothing points
+  elsewhere; it is not "safer" or "more correct" than `brand`/`free`.
 - **Scope = the Lumen's own subtree.** `brand`/`free` colour governs the Lumen's
   `scene` draw-list **and** the themeable surfaces of the primitives its `view`
   emits. It does **not** touch anything outside the Lumen: **Omadia chrome
@@ -706,16 +720,18 @@ text uses the three Lume type registers (`visual-spec.md` §2.7). The only blur
 is the transient 800 ms condensation (`visual-spec.md` §3.5). See
 `visual-spec.md` §"Lumens & scene in Lume".
 
-This is the **default and the host's own material**: Omadia chrome — header,
-action panel, Beam, canvas frame — and every element outside a Lumen always
-render in Lume, never white-labelled (v1 identity boundary). A Lumen's **own
-content** may opt out of the Lume *palette* via `colorMode: 'brand'|'free'` + a
-declared `palette` (§3.1) — for kiosk, branded-ordering and product surfaces a
-customer needs *their* colours, not the active accent. The two are independent:
-brand colour may still ride the Lume *material* (glow, surface-luminosity) for a
-premium look, or render flat to match a brand exactly. The no-glassmorphism rule
-is about the *material technique* (no refraction, no blur-as-chrome) and governs
-the host regardless of a Lumen's palette choice.
+Lume is the **host's own material** and the **no-direction default for a Lumen's
+content**: Omadia chrome — header, action panel, Beam, canvas frame — and every
+element outside a Lumen always render in Lume, never white-labelled (v1 identity
+boundary). A Lumen's content uses `theme` *only* because the agent's default
+assumption is that it embeds in an existing Lume UI; where the use case differs —
+a kiosk, branded-ordering or product surface that needs the *customer's* colours,
+not the accent — the agent chooses `colorMode: 'brand'|'free'` + a declared
+`palette` directly (§3.1), no opt-out to fight. Palette and material are
+independent: brand colour may ride the Lume *material* (glow, surface-luminosity)
+for a premium look, or render flat to match a brand exactly. The no-glassmorphism
+rule is about the *material technique* (no refraction, no blur-as-chrome) and
+governs the host regardless of a Lumen's palette choice.
 
 ---
 

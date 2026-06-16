@@ -1286,14 +1286,14 @@ and `timeline` (§2.9), a `scene` is where Lume material stops; the hard edge is
 the Tier-1 boundary marker. Its `camera` pan/zoom reuses the canvas-region
 affordances.
 
-**Draw-list colours are tokens by default, author-openable for the Lumen's own
-content.** By default every `scene` shape fills/strokes from the design tokens +
-active palette (`accent`, `accent.glow*`, surface/text/semantic tokens), so a
-game board, defrag grid or map-marker layer is on-theme — it looks like Omadia,
-not a foreign website. A Lumen MAY declare `colorMode: 'brand'|'free'` + a
-`palette` (`../docs/lumens-spec.md` §3.1) to use **any** colour — for a user's
-kiosk, branded-ordering or product surface that needs *their* brand, not the
-accent. This scopes to the **Lumen's own subtree only**: **Omadia chrome (header,
+**Draw-list colours are tokens by default, chosen from intent for the Lumen's own
+content.** The *no-direction default* is Lume tokens (`accent`, `accent.glow*`,
+surface/text/semantic), justified by the assumption that the Lumen embeds in an
+existing Lume UI — so a game board, defrag grid or map-marker layer sits in
+on-theme. That assumption is **not universal**: where a user's kiosk,
+branded-ordering or product surface needs *their* brand, the agent picks
+`colorMode: 'brand'|'free'` + a `palette` (`../docs/lumens-spec.md` §3.1)
+**directly** to use **any** colour — `theme` is the fallback, not a preference. This scopes to the **Lumen's own subtree only**: **Omadia chrome (header,
 action panel, Beam, canvas frame) always stays Lume** — no host white-label in
 v1. Brand colour may still ride the Lume material (glow/luminosity) or render
 flat; in `brand`/`free` the normaliser does not clip and enforces no contrast

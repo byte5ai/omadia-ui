@@ -17,12 +17,14 @@
 > only** — no implementation, no PR
 > plan. It extends, and stays inside, the architecture in `CONCEPT.md`.
 
-Version 0.8 — **colour authority.** A Lumen's *own content* may opt out of the
-Lume palette via `colorMode: 'brand'|'free'` + a declared `palette`
-(`lumens-spec.md` §3.1) — so a user-built kiosk / branded-ordering / product
-surface can use **any** colour, not only Lume tokens. Scoped to the Lumen's
-subtree: **Omadia chrome always stays Lume** (v1 identity boundary, no host
-white-label). In brand/free the normaliser stops clipping and enforces no
+Version 0.8 — **colour authority.** A Lumen's *own content* is **not**
+palette-locked: the agent picks `colorMode: 'theme'|'brand'|'free'` (+ a declared
+`palette`) from the **request + embedding context** (`lumens-spec.md` §3.1).
+`theme` is only the *no-direction default* — justified by assuming the Lumen
+embeds in an existing Lume UI, which is **not universal**; a user-built kiosk /
+branded-ordering / product surface gets `brand`/`free` directly, using **any**
+colour. Scoped to the Lumen's subtree: **Omadia chrome always stays Lume** (v1
+identity boundary, no host white-label). In brand/free the normaliser stops clipping and enforces no
 contrast floor — accessibility of free-colour content is the author's
 responsibility (44 pt hit-targets + reduced-motion still apply; interaction-
 safety, not colour). Brand colour may still ride the Lume material (glow) or
@@ -315,13 +317,15 @@ vocabulary:
 | `text` | scores, labels (rendered in Lume type registers) |
 | `group` / `transform` | layers, camera pan/zoom (reuses canvas-region zoom/pan affordances) |
 
-Properties default to **theme tokens + Lume palette** (so an agent-generated
-Lumen is on-theme — a game looks like Omadia, not a foreign website) plus
-geometry. A Lumen MAY opt its **own content** out to a brand/free palette
-(`lumens-spec.md` §3.1) — a user's kiosk or product surface needs *their*
-colours; Omadia chrome always stays Lume (the host stays recognisable). The
-draw-list is **data**, validated by the whitelist parser — there is no canvas
-`2d`/`webgl` script handed to the agent. Tier 1
+Properties carry geometry plus a colour the agent chooses from intent. The
+**no-direction default** is theme tokens + Lume palette — justified by the
+assumption the Lumen embeds in an existing Lume UI (so a game looks like Omadia,
+not a foreign website). That assumption is **not universal**: a user's kiosk or
+product surface needs *their* colours, and the agent then picks a brand/free
+palette for the Lumen's **own content** directly (`lumens-spec.md` §3.1) — Omadia
+chrome always stays Lume (the host stays recognisable). The draw-list is
+**data**, validated by the whitelist parser — there is no canvas `2d`/`webgl`
+script handed to the agent. Tier 1
 rasterises the draw-list to canvas/WebGL natively at 60 fps from local state;
 this is pure **Class A** interaction — *zero* server contact for the frame
 loop (`CONCEPT.md` §"Latency paths").
