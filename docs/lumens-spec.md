@@ -45,6 +45,15 @@ is a spike deliverable; where prose and schema disagree, the **schema wins**.
 > patterns** (§6.3) so kiosk/ordering flows fit without a confirmation modal per
 > tap, plus a fifth (transactional) reference Lumen.
 
+> **Rev 3.1 (hand-author test).** Hand-writing the arcade tick + an ordering flow
+> in real LX-AST validated rev 3 and surfaced follow-ups, now closed: the `{var}`
+> read node (§2.2 — binders were unreadable without it, so iteration was not
+> actually expressible); an immutable **`const`** section + `{const}` node (§1.2)
+> as the structural fix for static-table explosion (and the unit the idiom
+> library ships); 2-D `at`/`setAt` over `list<list>`, not only `grid`, with a
+> spatial `[x,y]` convention (§2.2); and ergonomics for the hot render path — the
+> optional `idx` binder and `flatten` (§2.2/§2.3).
+
 A Lumen is the Omadia answer to "an interactive artifact": **declarative data,
 not code**, run by a small deterministic interpreter on Tier 1, generated and
 brokered agentically on Tiers 2/3, safe to share and to save as a preset
@@ -99,7 +108,8 @@ inside an ordinary `surface_snapshot` / `surface_patch` — **no new transport**
 ```ts
 type Lumen = {
   id: string;                          // stable; patches/wires/beam target it
-  state:        StateSchema;           // §1.1 — typed, bounded, serialisable
+  state:        StateSchema;           // §1.1 — typed, bounded, serialisable (mutable memory)
+  const?:       ConstSchema;           // §1.2 — typed, bounded, immutable author-time tables (not serialised)
   transitions:  Record<TransitionName, LXNode>;   // §2 — pure (state,event)->state
   view:         LXNode;                // §2,§3 — pure state -> primitive/scene tree
   events:       EventBinding[];        // §4 — declared inputs -> transitions
@@ -112,9 +122,10 @@ type Lumen = {
 };
 ```
 
-A Lumen is valid iff: its `state` conforms to §1.1, every `LXNode` in
+A Lumen is valid iff: its `state`/`const` conform to §1.1/§1.2, every `LXNode` in
 `transitions`/`view`/`invariants` passes the §2 AST whitelist + static bounds
-check (every `{call}` target in §2.3, every `{kernel}` target in §2.6), every
+check (every `{call}` target in §2.3, every `{kernel}` target in §2.6, every
+`{const}`/`{state}` path resolving against the declared schema), every
 `EventBinding` names a declared transition and a §4 event, every
 `CapabilityRequest` names a §6 catalog capability, every `invariants` entry is a
 boolean `LXNode`, and every `PortSpec` / `ExposeSpec` is §7-typed. Any failure →
@@ -142,7 +153,34 @@ type StateSchema = {
 
 Total serialised `state` size is capped (initial default **256 KB**,
 spike-tunable). `state` persists in canvas-state (`CONCEPT.md` §"State Model");
-it is the *only* memory a Lumen has.
+it is the *only* mutable memory a Lumen has.
+
+### 1.2 Constants — immutable author-time data
+
+`const` is a typed, bounded, **immutable** record of author-time data — lookup
+tables, shape sets, maze layouts, colour maps, any constant a transition reads
+every frame. It uses the same typed-leaf grammar as `state` (§1.1, minus the
+mandatory `init`/with a required `value`) but differs in three ways that make it
+the structural fix for **table explosion** (the friction of inlining a tetromino
+shape set as a giant `match`/`lit` tree in every transition):
+
+1. **Agent-owned structure, not view-state.** It travels with the Lumen spec
+   (itself content-addressed), is whitelist-validated like `state`, and is the
+   unit the preset/idiom library (§8) ships — an idiom fragment carries its table
+   **once**, declared, not re-inlined.
+2. **Read-only.** No transition writes it; there is **no `setAt` into `const`**.
+   Read it via `{const: path}` (§2.2), computed-indexable with `at`, exactly like
+   `{state: path}`.
+3. **Not serialised.** It does **not** count against the 256 KB `state` cap, does
+   not persist per-turn, and does not appear in undo/replay — it is part of the
+   program, not the memory. A patch to a transition no longer drags a re-inlined
+   table.
+
+`const` is bounded like `state` (size-capped, spike-tunable), so the static gas
+bound covers `map`/`fold` over `const` collections too. For genuinely **large**
+blobs (a tile atlas, a big level) prefer a **`DataRef`** (§6.1 — content-
+addressed, fetched once, async) over an inline `const`; `const` is for the small,
+hot, synchronously-read tables a transition needs inside the frame loop.
 
 ---
 
@@ -164,6 +202,7 @@ no prototypes, no functions-as-values beyond the named std-lib.
 |---|---|---|
 | `lit` | `{lit: value}` | literal |
 | `state` | `{state: path}` | read a `state` slice (dotted path; `grid` via `{state, at:[x,y]}`) |
+| `const` | `{const: path}` | read an immutable `const` slice (§1.2); computed-indexable via `at`, exactly like `state` |
 | `event` | `{event: field}` | read a field of the triggering event |
 | `let` | `{let:{name:expr}, in:expr}` | bind a local (readable via `{var}`); lexically scoped, immutable; nest for multiple bindings |
 | `var` | `{var:name}` · `{var:name, path:"f.g"}` | **read** a bound local — a `let` name or a `map`/`filter`/`fold` binder (`as`/`acc`); optional dotted sub-path into a record/list. The *only* way to read a binder; without it no `let`/iteration body can reference what it binds |
@@ -174,28 +213,39 @@ no prototypes, no functions-as-values beyond the named std-lib.
 | `match` | `{match:expr, cases:[{when,then}], else}` | total switch |
 | record/list ctor | `{record:{…}}` `{list:[…]}` | construction |
 | `set` | `{set:{path: expr}}` | **functional** update at a *static* path → returns a new state (no mutation) |
-| `setAt` | `{setAt: coll, index:[xExpr] \| [xExpr,yExpr], to: expr}` | **functional** write at a *computed* list/grid index → new collection; out-of-bounds is a **no-op** (total) |
-| `at` | `{at: coll, index:[xExpr] \| [xExpr,yExpr], default: expr}` | random-access **read** at a computed index → element or, on out-of-bounds, `default` (total); also the form for `{state, at:[…]}` with **expression** indices |
-| `map` | `{map: listExpr, as:"x", body: expr}` | element-wise; binds `x` (lexical, immutable) per item → new list |
-| `filter` | `{filter: listExpr, as:"x", body: predExpr}` | keep items where `body` is true → new list |
-| `fold` | `{fold: listExpr, as:"x", acc:"a", init: expr, body: expr}` | left fold; binds accumulator `a` + item `x` → final `a` |
+| `setAt` | `{setAt: coll, index:[xExpr] \| [xExpr,yExpr], to: expr}` | **functional** write at a computed index → new collection; 1-D indexes a `list`, 2-D `[x,y]` a `grid` **or** a `list<list>` (as `coll[y][x]`); out-of-bounds is a **no-op** (total) |
+| `at` | `{at: coll, index:[xExpr] \| [xExpr,yExpr], default: expr}` | random-access **read** at a computed index → element or, on out-of-bounds, `default` (total); 1-D for `list`, 2-D `[x,y]` for `grid` **or** `list<list>` (`coll[y][x]`); also the form for `{state, at:[…]}` with **expression** indices |
+| `map` | `{map: listExpr, as:"x", idx?:"i", body: expr}` | element-wise; binds item `x` (and optional index `i`) per item → new list |
+| `filter` | `{filter: listExpr, as:"x", idx?:"i", body: predExpr}` | keep items where `body` is true → new list |
+| `fold` | `{fold: listExpr, as:"x", idx?:"i", acc:"a", init: expr, body: expr}` | left fold; binds accumulator `a`, item `x` (and optional index `i`) → final `a` |
 | std-lib call | `{call:name, args:[…]}` | first-order helper from the §2.3 whitelist |
 | native kernel | `{kernel:name, args:[…]}` | bounded, host-implemented algorithm from the §2.6 whitelist |
 
-`map`/`filter`/`fold` are the **only** iteration; their binders (`as`/`acc`) are
-syntactic lexical scopes, **not** first-class function values (no closures, §2.1).
-They iterate only over state-bounded collections, so the gas bound stays static
-(§2.4). `at`/`setAt` make `grid`/`list` random-access **total** by requiring an
-out-of-bounds answer — the load-bearing forms for any board/cell mutation.
+`map`/`filter`/`fold` are the **only** iteration; their binders (`as`/`acc`/the
+optional `idx`) are syntactic lexical scopes read via `{var}`, **not** first-class
+function values (no closures, §2.1). They iterate only over `state`- or
+`const`-bounded collections, so the gas bound stays static (§2.4). The optional
+`idx` binder gives position-dependent iteration (rendering a board, indexed maps)
+without the `map(range,…) + at` detour.
+
+`at`/`setAt` make random-access **total** by requiring an out-of-bounds answer —
+the load-bearing forms for any board/cell mutation. **2-D `[x,y]` is spatial — `x`
+horizontal, `y` vertical — for both `grid` and `list<list>` (the latter resolving
+to `coll[y][x]`), so an author thinks in coordinates regardless of backing.** Pick
+**`grid`** for fixed dimensions (Pacman maze, defrag cells: clean random R/W);
+pick **`list<list>`** when rows are added/removed (Tetris line-clear: clean
+`filter`/`concat`) — both now index identically by `[x,y]`.
 
 ### 2.3 Standard library (whitelist, bounded, first-order)
 
 Scalar/collection helpers callable as `{call:name,…}`: `range` `len` `min`
-`max` `clamp` `abs` `floor` `round` `mod` `concat` `slice` `contains` `indexOf`
-`keys` `values`, string ops (`upper` `lower` `pad` `fmt` `split` `join`) and a
-small math set. Iteration is **not** here — it is the dedicated
-`map`/`filter`/`fold` binder nodes (§2.2), bounded by state size, so the gas
-bound stays a *static* property. **No `while`, no general recursion, no
+`max` `clamp` `abs` `floor` `round` `mod` `concat` `flatten` `slice` `contains`
+`indexOf` `keys` `values`, string ops (`upper` `lower` `pad` `fmt` `split`
+`join`) and a small math set. `flatten` (one level) turns nested iteration into a
+flat `list` — e.g. a board's per-row node lists into one `scene` draw-list —
+without a `fold`/`concat` accumulator. Iteration is **not** here — it is the
+dedicated `map`/`filter`/`fold` binder nodes (§2.2), bounded by `state`/`const`
+size, so the gas bound stays a *static* property. **No `while`, no general recursion, no
 first-class functions.** `random()` and `now()` read host-seeded context values
 (§0.3). Genuinely iterative algorithms (sort, group/aggregate, pathfind,
 layout, …) are **not** open-coded in LX — they are the bounded **native
@@ -625,9 +675,13 @@ is the transient 800 ms condensation (`visual-spec.md` §3.5). See
 - **Tree content:** `behavior`/`lumen` section (§1) and the `scene` primitive
   (§3) — validated by the extended whitelist parser (schema + LX-AST). Carried
   in existing `surface_snapshot` / `surface_patch`.
-- **LX-AST:** `map`/`filter`/`fold` binder nodes + `at`/`setAt` computed
-  indexing (§2.2), the **native-kernel** whitelist (§2.6), and optional
-  `invariants` (§2.7) — additive AST/tree content, statically validated.
+- **LX-AST:** `map`/`filter`/`fold` binder nodes (with optional `idx`) + the
+  `{var}` read node + `at`/`setAt` computed indexing (1-D and 2-D over `grid`
+  **and** `list<list>`) + `flatten` (§2.2/§2.3), the **native-kernel** whitelist
+  (§2.6), and optional `invariants` (§2.7) — additive AST content, statically
+  validated.
+- **Constants:** the immutable `const` section + `{const}` read node (§1.2) —
+  agent-owned, bounded, not serialised; the unit the idiom/preset library ships.
 - **Ports & wires:** `ports` and `expose` (published read-only interface) on
   primitives/Lumens, `wires` at container/canvas level (§7) — additive tree
   content, Tier-1-resolved.
