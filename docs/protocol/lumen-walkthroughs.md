@@ -42,7 +42,7 @@ y)` as indices into a `const` shape table.
   "pRot":  { "type":"int","min":0,"max":3,"init":0 },
   "pX":    { "type":"int","min":-2,"max":11,"init":4 },
   "pY":    { "type":"int","min":-2,"max":21,"init":0 },
-  "score": { "type":"int","min":0,"init":0 },
+  "score": { "type":"int","min":0,"max":9999999,"init":0 },   // rev 3.5 §2.9: a numeric needs max if it can feed a size op
   "frame": { "type":"int","min":0,"init":0 },
   "over":  { "type":"bool","init":false }
 }
@@ -238,7 +238,11 @@ game is accent-tinted; the 7-distinct-colours limitation noted earlier stands fo
 "colorMode": "brand",
 "palette": { "primary":"#DA291C", "ink":"#FFFFFF", "surface":"#1A1A1A", "pop":"#FFC72C" },
 "state": {
-  "menu":  { "type":"dataRef" },                          // filled by loadData (read-only projection)
+  "menu":  { "type":"dataRef", "projection":{ "type":"list","maxLen":200,
+               "of":{"type":"record","fields":{
+                       "sku":{"type":"string","maxLength":32},
+                       "name":{"type":"string","maxLength":80},
+                       "price":{"type":"int","min":0,"max":100000} } } } },   // loadData projection (rev 3.5: projection required)
   "cart":  { "type":"list","maxLen":50,
              "of":{ "type":"record","fields":{
                       "sku":{"type":"string","maxLength":32},
@@ -499,7 +503,7 @@ camera pan/zoom, marker hit-testing, `persist`.
   "view":   { "type":"record","fields":{ "cx":{"type":"number"},"cy":{"type":"number"},"z":{"type":"int","min":1,"max":19} },
               "init":{"cx":0,"cy":0,"z":4} },
   "tiles":  { "type":"list","maxLen":64, "of":{"type":"record","fields":{
-                "x":{"type":"int"},"y":{"type":"int"},"img":{"type":"dataRef"} } }, "init":[] },
+                "x":{"type":"int"},"y":{"type":"int"},"img":{"type":"assetRef","kind":"tile"} } }, "init":[] },  // rev 3.5: assetRef, not dataRef
   "places": { "type":"dataRef", "projection":{ "type":"list","of":{"type":"record","fields":{
                 "id":{"type":"string","maxLength":32},"lat":{"type":"number"},"lon":{"type":"number"} } } } },
   "sel":    { "type":"string","maxLength":32,"init":"" }
@@ -567,3 +571,20 @@ unchanged and unprovable on paper: **can an LLM emit valid LX reliably** — to 
 measured on a built L1 interpreter, with `defs`/invariants/golden-trace as the
 net. An independent adversarial pass (Codex, as for rev 2) is the recommended
 next check before implementation budget.
+
+## Addendum — the independent Codex pass (rev 3.5)
+
+That recommended pass was run ([`reviews/codex-rev3.4.md`](reviews/codex-rev3.4.md))
+and it earned its keep: where this trace tested **expressibility**, Codex tested
+**soundness** and found a real layer the internal passes missed — totality (÷0,
+overflow, `NaN`), the static-bound hole (`range`/`pad` on un-`max`'d numerics —
+this doc's `score` among them, now fixed), determinism (record-key order, effect
+replay ordering, `const`-in-replay), plus self-contradictions (`defs` reading
+`state`; effect `args` reading `{event}`; `menu` missing its `projection`;
+`dataRef` overloaded with asset handles) and two security findings (free-colour
+chrome spoofing; the taint claim). All are addressed in **rev 3.5** of
+`lumens-spec.md` (§2.9 totality/bounds/determinism, §6.4 effect determinism,
+§13.5 replay, §1.1 `assetRef` split, §3.1 anti-spoofing, §6 taint walk). The
+examples in this doc are updated to the rev-3.5 grammar. The standing risk is
+unchanged: **LLM emit-valid-LX reliability**, measurable only on a built L1
+interpreter.

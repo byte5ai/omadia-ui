@@ -88,6 +88,26 @@ is a spike deliverable; where prose and schema disagree, the **schema wins**.
 > (§6.4) for hot-path effects like persist-on-pan. All five reference Lumens are
 > now expressible end-to-end ([`protocol/lumen-walkthroughs.md`](protocol/lumen-walkthroughs.md)).
 
+> **Rev 3.5 (Codex soundness pass).** An independent adversarial review
+> ([`protocol/reviews/codex-rev3.4.md`](protocol/reviews/codex-rev3.4.md)) tested
+> *soundness* where the internal passes tested *expressibility*, and found a real
+> layer they missed. Addressed: **§2.9** (new) — **totality** (÷0 / overflow /
+> `NaN` → defined result or halt), **provable bounds** (numerics feeding
+> `range`/`pad`/size-ops MUST declare `max`), **determinism** (canonical
+> record-key order; `{random}`/`{now}` as seeded nodes); **§6.4** effect
+> determinism (deterministic `effectId`, declaration-order firing, `on`-XOR,
+> logical-time debounce); **§13.5** (new) replay/recording incl. `const`-hash in
+> every frame; **§2.6** a normative kernel determinism contract (per-kernel
+> *numbers* stay an L0 deliverable, the *contract* does not). Contradictions
+> fixed: `defs` may read `state` (§2.8); effect `args` may read `{event}` (§6.4);
+> `assetRef` split from `dataRef` (§1.1); `captureLongPress` in the schema (§4);
+> `StateDelta` transition root + non-overlapping multi-`set` (§2.5). Security:
+> free-colour **chrome/consent spoofing** closed (§3.1 host-only trust surface);
+> the **taint** rule made a static walk (§6). Plus refinements (PortType §7,
+> hit-test order §4.1, dirty-track semantics §5, capability wire schema §12,
+> `brokeredCapabilitySupport` §13). *Several are default decisions, flagged for
+> veto.*
+
 A Lumen is the Omadia answer to "an interactive artifact": **declarative data,
 not code**, run by a small deterministic interpreter on Tier 1, generated and
 brokered agentically on Tiers 2/3, safe to share and to save as a preset
@@ -188,7 +208,8 @@ type StateSchema = {
     | { type: 'list', of: StateLeaf, maxLen: number, init: unknown[] }
     | { type: 'record', fields: StateSchema, init: object }
     | { type: 'grid', w: number, h: number, of: StateLeaf, init?: unknown }  // bounded 2D — boards, defrag cells
-    | { type: 'dataRef', projection: StateLeaf, init?: unknown };   // §6.1; loadData fills the declared projection
+    | { type: 'dataRef',  projection: StateLeaf, init?: unknown }   // §6.1 — loadData fills the declared STRUCTURED projection
+    | { type: 'assetRef', kind: 'pixel'|'audio'|'video'|'tile', init?: null };  // §6.1 — an opaque content-addressed BINARY handle (sprite/tile/media)
 };
 ```
 
@@ -200,14 +221,24 @@ first-class: a board is a `list<list<int>>`, a shape table a
 so total size stays statically capped. `ConstSchema` (§1.2) uses the identical
 leaf grammar with `value` in place of `init`.
 
-A **`dataRef` leaf** declares the **read-only `projection`** shape that
-`loadData` (§6) fills with a size-capped projection of the underlying `DataRef`.
-LX reads it **as an ordinary value of that shape** — `{state: ref}` yields the
-projected `list`/`record` directly (the runtime resolves the handle; LX sees the
-data); before `loadData` resolves it reads as the declared `init`/empty. A
-`dataRef` projection is **read-only** — no `set`/`setAt` may target it; local
-edits live in a separate `state` field merged in the `view` (the §6.3 optimistic
-overlay idiom).
+**Two distinct ref leaves — do not conflate them.** A **`dataRef` leaf** is a
+**structured** read-only `projection` that `loadData` (§6) fills (a `list`/
+`record` of data — menu rows, places); LX reads it **as an ordinary value of that
+shape** — `{state: ref}` yields the `list`/`record` directly (the runtime
+resolves the handle; LX sees the data). An **`assetRef` leaf** is an **opaque
+binary handle** — the content-addressed `DataRef` of §6.1 (a sprite, tile,
+audio); LX never reads its *bytes*, only passes the handle to a `scene` `sprite`/
+`media` node (§3) or a capability. The `scene` `sprite.dataRef` field (§3) and
+generated-asset results are `assetRef`s, **not** `dataRef` projections.
+
+**Both are read-only, and have a defined lifecycle.** No `set`/`setAt` may target
+a `dataRef`/`assetRef`; local edits live in a separate `state` field merged in
+the `view` (the §6.3 optimistic-overlay idiom). A projection's **size counts
+against the capability's own projection cap, not the 256 KB mutable-`state` cap**;
+it does **not** persist in undo/replay state (it is re-fetched, content-addressed,
+§6.1). Before `loadData`/`generateAsset` resolves, the leaf reads as its declared
+`init` (an empty `projection` value, or `null` for an `assetRef`); resolution and
+invalidation arrive as `surface_patch`/`surface_data_ref_*` (§6.1).
 
 Total serialised `state` size is capped (initial default **256 KB**,
 spike-tunable). `state` persists in canvas-state (`CONCEPT.md` §"State Model");
@@ -263,7 +294,7 @@ no prototypes, no functions-as-values beyond the named std-lib.
 | `const` | `{const: path}` | read an immutable `const` slice (§1.2); computed-indexable via `at`, exactly like `state` |
 | `event` | `{event: field}` | read a field of the triggering event |
 | `let` | `{let:{name:expr}, in:expr}` | bind a local (readable via `{var}`); lexically scoped, immutable; nest for multiple bindings |
-| `var` | `{var:name}` · `{var:name, path:"f.g"}` | **read** a bound local — a `let` name or a `map`/`filter`/`fold` binder (`as`/`acc`); optional dotted sub-path into a record/list. The *only* way to read a binder; without it no `let`/iteration body can reference what it binds |
+| `var` | `{var:name}` · `{var:name, path:"f.g"}` | **read** a bound local — a `let` name or a `map`/`filter`/`fold` binder (`as`/`acc`); optional dotted sub-path into **record fields only** (list/grid elements use `at`). The *only* way to read a binder; without it no `let`/iteration body can reference what it binds |
 | arithmetic | `{"+":[a,b]}` `-` `*` `/` `mod` | numeric |
 | comparison | `{">":[a,b]}` `>=` `<` `<=` `==` `!=` | boolean |
 | logic | `{and:[…]}` `or` `not` | boolean |
@@ -332,11 +363,16 @@ static pass proves iteration bounds and a gas ceiling. `view` MUST return a vali
 primitive/scene tree (§3); `transitions` MUST return a value conforming to
 `state`. Anything else → reject.
 
-**Transition result = delta-merge.** A transition's value is the **current
-`state` with its `set`/`setAt` paths applied** — unmentioned fields are carried
-over unchanged. A transition does *not* reconstruct the whole record; `{set:{}}`
-returns the state untouched (a no-op transition). This keeps transitions small
-(touch only what changes) and patches local.
+**Transition result = a `StateDelta`.** A transition's root node MUST resolve to a
+**`StateDelta`** — a `set`/`setAt`, or an `if`/`match`/`let` whose branches each
+resolve to one (a transition never returns a bare value or a full reconstructed
+record; the root type is `StateDelta`, not `any`). The delta is **merged onto the
+current `state`**: unmentioned fields carry over unchanged; `{set:{}}` is the
+no-op. In a **multi-field** `{set:{a:…, b:…}}`, paths MUST be **non-overlapping
+and unique** — overlapping (`a` and `a.b`) or duplicate paths are **rejected at
+validation**, removing all order-dependence — and **every RHS expression
+evaluates against the *pre-transition* state** (a `set` never observes a sibling
+field's new value). This keeps transitions small and patches local.
 
 ### 2.6 Native kernels — bounded algorithms the host owns
 
@@ -388,6 +424,20 @@ it is **audited native code with a hard internal ceiling**, not agent-authored
 control flow — so "cannot hang / cannot DoS" (§0.2) and determinism (§0.3) hold
 for kernels exactly as for the interpreter.
 
+**Kernel determinism contract (normative now; per-kernel algorithms + numeric
+defaults are an L0 schema deliverable).** Every kernel MUST be **byte-identical
+across machines** for identical inputs. That requires, normatively: a **seed**
+from the host context for any randomised kernel (`layoutGraph`'s `force` mode);
+**total tie-breaks** (`sortBy` is stable on the original index; `pathfind` visits
+neighbours in a fixed canonical order; `groupBy` emits buckets in canonical
+record-key order, §2.9); and the **§2.9 numeric domain** (no `NaN`/`Infinity`,
+defined rounding — banker's rounding on ties). A kernel `keyExpr`/predicate
+callback is an LX expression evaluated in a **fresh scope binding only the
+element (and optional index)** — it may `call` std-lib, `apply` defs and read
+`const`, **not** `state`/`event`; its per-element cost is budgeted
+`elements × eval` against kernel-gas. What stays deferred to the schema spike is
+*which* algorithm and *which* numbers — **not** whether determinism holds.
+
 ### 2.7 Declared invariants (silent-wrong → loud-error)
 
 A Lumen MAY declare `invariants` — boolean LX expressions over `state` that MUST
@@ -430,6 +480,69 @@ type LXDef = { params: string[], body: LXNode };   // a named, parameterised pur
 They are also the natural shape the idiom library (§8) ships — a vetted
 `collides` or `scaleAxis` def is reused, not re-emitted. This is purely additive:
 no `defs` ⇒ identical behaviour to a Lumen that inlines everything.
+
+§2.8 amends the §2.1 "no `state`/`event`" reading rule for defs: a `def` body
+**MAY** read `{state}`/`{const}` (both immutable during a single evaluation, so
+purity w.r.t. `(state, args)` holds), and **MAY NOT** read `{event}` (events flow
+in as args). Passing a value as a **param** is required only to apply a def to a
+*non-state, in-flight computed* value (e.g. a game-over check against a not-yet-
+committed board). **Cycle detection is syntactic:** the call graph is the set of
+`{apply}` targets reachable by a plain AST walk over **every** node of every
+`body` (both `if`/`match` branches, regardless of feasibility); a cycle, an
+unknown target, or an arity mismatch → reject. `params`, `defs`, std-lib and
+kernel names occupy **reserved, non-overlapping namespaces**.
+
+### 2.9 Totality, bounds & determinism (normative)
+
+The §0 guarantees ("total", "bounded", "deterministic") are only real if every
+operation is closed under them. This section pins the cases the node catalog left
+implicit. *(Initial **default decisions**, spike-tunable where noted; flagged for
+review.)*
+
+**Totality — every operation has a defined result on every input.**
+
+| Partial case | Normative result |
+|---|---|
+| `/` or `mod` by zero | **halt** the Lumen with `surface_error` (deterministic, loud — never `NaN`/silent) |
+| arithmetic overflow / `NaN` / `±Infinity` produced by `*`,`pow`,`/`,… | **halt** with `surface_error` (numbers live in a defined finite domain, below) |
+| `at`/`setAt` out-of-bounds | the declared `default` (read) / no-op (write) — already total (§2.2) |
+| string index / `slice` out of range | clamped to `[0,len]`; empty where degenerate (never throws) |
+| `match` with no matching case and no `else` | **reject at validation** (`else` mandatory unless cases are statically exhaustive) |
+| `lookup` / kernel on empty or degenerate input | the declared `default` / identity result (§2.6) — never undefined |
+
+The **numeric domain** is IEEE-754 `float64` with `NaN`/`Infinity` **forbidden as
+results** (their production halts). `int` operations stay exact within ±2^53; a
+result outside halts. (Fixed-point is a spike option if cross-platform float
+drift proves real; the *contract* — no `NaN`/`Infinity`, halt on overflow — is
+normative now.)
+
+**Bounds — the static gas ceiling must be provable, not hoped.**
+
+- A **size-producing** op (`range`, `pad`, list/grid construction, a kernel that
+  emits a collection) takes its count/size from a **statically-bounded** integer:
+  a literal, or an `int` `state`/`const`/param leaf whose schema declares a finite
+  `max`. **Numbers that feed a size-producing op MUST declare a `max`** — the
+  validator **rejects** a `range({state:"score"})` where `score` has no `max`.
+  (So the §A.0 `score` leaf gains `"max"`.) This is what makes the gas bound a
+  *static* property rather than a runtime hope.
+- Each op also carries a **per-op output cap** (schema-defined, spike-tunable);
+  exceeding it at runtime halts with `surface_error` (a second, dynamic guard
+  under the static one).
+
+**Determinism — identical `(state, const, event, seed)` ⇒ byte-identical result
+on every machine.**
+
+- **Iteration order is defined:** `list`/`grid` in index order; **`record` keys in
+  canonical order = lexicographic by UTF-8 bytes.** `keys`/`values`/`groupBy` and
+  any record iteration follow this order, so object-key ordering is **never**
+  engine-observable.
+- **`random()` / `now()` are nodes, not free calls** (closing their absence from
+  §2.2): `{random}` draws from a **per-Lumen seeded PRNG** advanced once per
+  evaluation in node-visit order; `{now}` reads a host timestamp that is
+  **constant within one transition/view evaluation** (per-event granularity). The
+  seed and the `now` value are part of the recorded `(…, seed)` tuple → replay
+  re-feeds them (§13.5).
+- Kernels carry their own determinism contract (§2.6).
 
 ---
 
@@ -528,6 +641,17 @@ palette?:   { [name: string]: ColorToken | sRGBHex };   // bounded, declared bra
   validated data (no code); `free` node colours are plain sRGB values in the
   draw-list. Colour freedom touches the *look* only — determinism, gas and
   default-deny capabilities are unchanged.
+- **Anti-spoofing boundary (normative).** Because `free`/`brand` content can draw
+  *anything*, a Lumen could paint a fake Omadia chrome or a fake consent/auth
+  dialog (phishing). Two guards make that inert: **(1)** all **consent,
+  authorization and external-effect prompts are host chrome** rendered **outside**
+  the Lumen's drawable subtree, in Lume, carrying an **unforgeable host
+  attribution** — a Lumen can never draw into, overlay, or fabricate them, and a
+  Lumen-drawn lookalike has no effect (only the real host prompt can grant);
+  **(2)** the host reserves the consent/auth visual patterns and marks a
+  `brand`/`free` Lumen's region with a persistent **content-boundary
+  attribution** so a user can always tell host UI from Lumen-drawn UI. Colour is
+  opened; the **trust surface is not**.
 
 ---
 
@@ -544,6 +668,7 @@ type EventBinding = {
   key?: string,              // for 'key' — declared keys only (e.g. 'ArrowLeft','Space')
   rate?: number,             // for 'tick' — declared, capped (≤60) — see §5
   everyMs?: number,          // for 'timer'
+  captureLongPress?: boolean,// for 'longPress' — take priority over the host context-invoke on this target (§4 rules)
   run: TransitionName,       // the transition to evaluate
 };
 ```
@@ -601,6 +726,15 @@ needs **no** per-node listener — one binding plus the payload's `hitId`/
 `dropTarget`. All fields are host-supplied and deterministic for a given recorded
 input (replay-safe, §13.5).
 
+**Hit-test determinism (normative).** "Topmost" = **last in draw order**
+(`scene.draw[]` / tree order); on a tie (overlapping equal-depth nodes, inflated
+44 pt areas overlapping), the **higher draw-index wins**, then the smaller node
+`id` lexicographically — a total order, never ambiguous. A `drag` **captures** the
+element resolved at `phase:"start"`: `item` stays fixed for the whole gesture,
+`dropTarget` is re-resolved each `move`/`end`. Capture ends at `phase:"end"`. A
+binding with no eligible target resolves `hitId`/`item` to `""` (the Lumen as a
+whole) — total, never null.
+
 ---
 
 ## 5. Cadence & motion
@@ -621,7 +755,13 @@ type CadenceSpec = 'static' | 'reactive' | { tick: number /* Hz, ≤60 */ };
 The runtime **dirty-tracks** changed `state` slices and re-evaluates only
 dependent `view` branches (retained-mode + memoisation); `requestAnimationFrame`
 is scheduled only while a ticking/animating region is live. **At rest a Lumen
-costs ~0 % CPU** (kiosk-critical).
+costs ~0 % CPU** (kiosk-critical). Dependency tracking is an **optimisation, not a
+semantic**: dependencies are derived by **static extraction of the `{state}`/
+`{const}`/`{port}` paths each `view` sub-tree reads**, and a sub-tree whose
+dependency set cannot be statically narrowed **falls back to re-evaluation on any
+change**. A correct implementation MAY always re-evaluate the whole `view`; the
+*result* is identical (determinism, §2.9) — dirty-tracking only changes *cost*,
+never *output*.
 
 **Declarative animation ≠ LX tick.** *Presentation motion* (fade, glow-pulse,
 count-up, camera ease, Ken-Burns, parallax) is a **declarative animation** the
@@ -672,10 +812,16 @@ compute (§0.2): per-capability **rate + quota**, a **max-in-flight** ceiling,
 **idempotent de-duplication** of identical in-flight calls, and **backpressure**
 when a broker saturates — so a ticking Lumen cannot move the DoS or cost problem
 onto Tier 2/3. Caps are spike-tunable initial defaults (§14). Egress that
-carries data **derived from Lumen state or a `DataRef`** (an outbound `fetch`, a
-`writeData`) is treated as `external-effect` — per-call confirmation — *unless*
-the endpoint **and** request shape were pre-approved at grant time; a bare
-`internal` `fetch` may not smuggle state-derived data past the confirmation gate.
+carries data **derived from Lumen state or a `DataRef`** is treated as
+`external-effect` — per-call confirmation — *unless* the endpoint **and** request
+shape were pre-approved at grant time. **The taint rule is static and
+mechanically decidable:** a capability `args` expression is **tainted** iff its
+AST contains a `{state}`, a `{const}`-of-a-`dataRef`/`assetRef`, an `{event}`, or
+an `{apply}`/`{kernel}` that (transitively) reads one; the validator computes this
+by the same tree-walk as §2.5. A **tainted** arg to `fetch`/`writeData` ⇒
+`external-effect` (confirm per call) **unless** the grant carries an explicit
+**request-shape schema** the args conform to *and* a pre-approved endpoint. A bare
+`internal` `fetch` may not smuggle tainted data past the gate.
 The exact quota/idempotency/backpressure contract is a spike deliverable (§14).
 
 ### 6.1 Asset transport & content-addressed caching (never-stale)
@@ -749,13 +895,13 @@ capability call.
 
 ```ts
 type EffectBinding = {
-  on:          TransitionName | { when: LXNode };  // fire after this transition runs, or when this state predicate flips true
+  on:          TransitionName | { when: LXNode };  // EXACTLY ONE: after this transition runs, XOR when this predicate flips false→true
   call:        CapabilityName;                     // a declared §6 capability
-  args:        LXNode;                             // pure LX over (post-transition) state → the request payload
+  args:        LXNode;                             // pure LX over POST-transition state + the TRIGGERING event ({event:…}) → request payload
   onResult?:   TransitionName;                     // the brokered result re-enters here as an event
   onError?:    TransitionName;                     // failure / denial path (optimistic rollback)
-  debounceMs?: number;                             // coalesce rapid fires (e.g. persist-on-pan) — fire on settle
-  coalesceKey?: LXNode;                            // collapse in-flight calls sharing this key to the latest
+  debounceMs?: number;                             // coalesce rapid fires over LOGICAL time (§13.5), not wall-clock
+  coalesceKey?: LXNode;                            // collapse superseded in-flight calls sharing this key to the latest
 };
 ```
 
@@ -780,6 +926,24 @@ transition (e.g. `persist` on a 60 fps `pan`) declares `debounceMs` to fire on
 settle and/or a `coalesceKey` to collapse superseded in-flight calls — the clean
 authoring form on top of the broker's hard egress cap.
 
+**Determinism & ordering (normative).** Effects must replay identically:
+
+- **Deterministic instance id.** Each fire gets `effectId =
+  (transitionEvalSeq, effectIndex, fireCounter)` — the monotonic evaluation
+  sequence, the effect's position in `effects[]`, and a per-binding counter.
+- **Ordering.** When one transition triggers several effects, they fire in
+  **`effects[]` declaration order**. `on:transition` and `on:{when}` are
+  **mutually exclusive** per binding (the type allows exactly one), so a single
+  state change never double-fires the same binding.
+- **Logical-time debounce.** `debounceMs`/`coalesceKey` operate over the recorded
+  **logical event clock** (§13.5), not wall-clock; the emit-vs-suppress decision
+  for each `effectId` is **recorded in the trace**, so replay reproduces exactly
+  which calls fired.
+- **Replay.** A brokered result/error is recorded against its `effectId` and
+  **re-fed in recorded order** on replay (§13.5) — the running Lumen treats it as
+  an external input, never re-issuing the real call. This is what lets a
+  capability-bearing Lumen replay/undo deterministically.
+
 ---
 
 ## 7. Ports & wires — cross-element interaction
@@ -788,6 +952,7 @@ A Lumen is a node in the same primitive tree; elements interact bidirectionally,
 deterministically, on Tier 1 (`interactivity-concept.md` §9.1).
 
 ```ts
+type PortType   = StateLeaf;  // a port/expose value is a typed LX value — the §1.1 leaf grammar (scalar/list/record/grid), bounded
 type PortSpec   = { name: string, dir: 'in'|'out', type: PortType };  // on primitives & Lumens — explicit, wired
 type ExposeSpec = { name: string, type: PortType };                   // published read-only view-state, bindable by shared id WITHOUT a wire
 type Wire       = { from: { ref: TargetRef, port: string }, to: { ref: TargetRef, port: string } };  // at container/canvas level
@@ -814,6 +979,18 @@ type Wire       = { from: { ref: TargetRef, port: string }, to: { ref: TargetRef
   id ⇒ deterministic, replayable, shared-canvas-safe. Authority split unchanged
   (the agent owns which wires and published interfaces exist; the client owns the
   values flowing).
+
+**Read/emit grammar & propagation (normative).** A Lumen reads an `in` port via
+`{port:name}` (a typed value like `{state}`); it **emits** an `out` port by
+including it in a transition's `StateDelta` (`{set:{"@portName": expr}}`, the `@`
+prefix marking a port sink). A neighbour reads a published field via
+`{exposed: <elementId>, field: name}` — and **only** if that `<elementId>`
+declared that `field` in its `expose` and the reader is bound to it by shared id;
+any other read is a validation reject (un-exposed state is unreadable). **Wire
+propagation is single-pass and acyclic per evaluation:** the host topologically
+orders wires by stable id; a cycle is rejected at validation; a port with no
+wire/expose reads its declared `init`. So cross-element values resolve in a
+**defined order**, deterministically, with no feedback loop.
 
 ---
 
@@ -905,6 +1082,10 @@ governs the host regardless of a Lumen's palette choice.
 | Untrusted shared/imported Lumen | Re-validated on import; capability manifest consent before first run; HMAC scoping; fork lineage |
 | Cross-element overreach | Port/wire **+ published-interface** least-privilege — a node reads only what is **wired or `expose`-published** to it; un-exposed state is unreadable (an imported Lumen sees no ambient neighbour state); declared, whitelist-validated, stable-id-resolved |
 | Non-reversible effects | `external-effect` class → confirmation-modal gate before the real call |
+| Partial / non-total op (÷0, overflow, `NaN`) | Defined total result or **halt** with `surface_error` — never silent `NaN`/divergence (§2.9) |
+| Non-determinism / replay divergence | Canonical record-key order, seeded `random`/`now`, ordered effect ids + recorded result re-feed, `const`-hash in every replay frame (§2.9, §6.4, §13.5) |
+| Chrome / consent **spoofing** via `free` colour | Consent/auth/external-effect prompts are **host chrome outside the Lumen subtree** with unforgeable attribution; a Lumen-drawn lookalike is inert (§3.1) |
+| Tainted egress (state/`DataRef`-derived) | **Static taint walk** over capability `args` → tainted ⇒ `external-effect` (confirm) unless grant carries endpoint + request-shape schema (§6) |
 
 ---
 
@@ -922,6 +1103,10 @@ governs the host regardless of a Lumen's palette choice.
   agent-owned, bounded, not serialised; the unit the idiom/preset library ships.
 - **Helpers:** the `defs` section + `{apply}` node (§2.8) — named, parameterised,
   non-recursive pure functions (a DAG, fully inlinable; no new compute power).
+- **Soundness & replay:** §2.9 totality/bounds/determinism rules + `{random}`/
+  `{now}` nodes; the `assetRef` leaf (§1.1, split from `dataRef`); §13.5 replay
+  recording (logical clock, effect-id-tagged results, `const` hash). These pin
+  existing guarantees — no wire change, validator-enforced.
 - **Effects:** the `effects` binding list (§6.4) — the declarative trigger by
   which a *pure* transition causes a brokered capability call; result re-enters as
   an event; `debounceMs`/`coalesceKey` for hot-path effects. Reuses the §6 broker,
@@ -941,7 +1126,11 @@ governs the host regardless of a Lumen's palette choice.
 - **Events:** `surface_capability_request` (client→Tier 2) and
   `surface_capability_result` (Tier 2→client) for §6 brokering; results may also
   arrive as ordinary `surface_patch`. Reuses the effect-classified action path
-  and `surface_action_result`. One optional new event family.
+  and `surface_action_result`. One optional new event family. **Wire schema:**
+  `_request {effectId, cap, argsHash, args}`; `_result {effectId, ok, result?,
+  error?, revisionId}` — correlated **by `effectId`** (§6.4) so results re-feed in
+  recorded order (§13.5); `argsHash` lets Tier 2 dedup idempotent in-flight calls
+  (§6 broker bounds).
 - **Presets:** `lumen-presets/**` + `lumen-state/**` memoryStore namespaces (§8).
 - **Handshake (§13):** client declares LX version, gas limits, scene support,
   granted capability classes, and **input modalities** alongside
@@ -968,7 +1157,7 @@ handshake_select += {
   sceneSupport?: 'none'|'canvas2d'|'webgl',
   kernels?: KernelName[],             // §2.6 native kernels this client implements
   kernelGasLimit?: number,            // client's per-kernel-call gas ceiling
-  capabilityClasses?: CapabilityName[],   // what this client can broker/render
+  brokeredCapabilitySupport?: CapabilityName[],  // what this client can BROKER/RENDER — NOT a grant; grants live in the Lumen manifest + Tier-2 policy (§0.5)
   inputModalities?: ('touch'|'mouse'|'keyboard'|'pen')[],
 }
 ```
@@ -976,6 +1165,28 @@ handshake_select += {
 A client may implement a subset (e.g. `scene` but not `tiles`); Tier 2 routes
 accordingly and idioms degrade gracefully — the same principle as
 `localOperations`.
+
+### 13.5 Replay & recording (normative)
+
+Determinism (§0.3) buys replay/undo only if **every non-deterministic input is
+recorded** and re-fed. A Lumen's replayable trace is a sequence of frames; each
+frame records:
+
+- the **event** (type + §4.1 payload) and the **logical clock** tick it occurred
+  at (a monotonic counter — the basis for `debounceMs`/`coalesceKey`, §6.4, never
+  wall-clock);
+- the host-seeded `(seed, now)` tuple consumed (`{random}`/`{now}`, §2.9);
+- every **capability result/error** that arrived, tagged with its `effectId`
+  (§6.4), in arrival order, plus each effect's recorded emit/suppress decision;
+- a **content hash of the `const` section** in force (`const` is not serialised
+  as state, §1.2 — but transitions depend on it, so a `const` patch changes the
+  hash and a replay across the change uses the matching `const` version; a hash
+  mismatch is a replay error, never a silent divergence).
+
+Replay re-evaluates `(state, const, event, seed, recorded-results)` and MUST
+reproduce byte-identical state at every frame. No real capability call is
+re-issued on replay; recorded results stand in. This is the single mechanism
+behind Trace replay, undo/redo, safe sharing, and v2 lockstep multiplayer.
 
 ---
 
@@ -1011,10 +1222,18 @@ caught-before-render failure. Preset/idiom **assembly** (§8) stays the primary
 path; novel cold authoring is a strong-model job with a real failure rate, and
 this gate plus declared invariants (§2.7) are its safety net.
 
-Open tuning items (gas/frame/state caps, the **kernel-gas schedule and v1.1
-kernel cut**, wakeup-budget caps for `tick`+`timer`, the capability-broker egress
-contract — rate/quota/max-in-flight/idempotency/backpressure, **session-scoped
-consent budgets**, LX std-lib surface, scene perf ceiling, capability-consent
-granularity, determinism-vs-real-time, LLM reliability emitting LX, preset
-trust/distribution) are enumerated in `interactivity-concept.md` §13 — research
-items, not unspecified holes.
+**Reviewed (rev 3.5):** the [Codex adversarial pass](protocol/reviews/codex-rev3.4.md)
+hardened the soundness layer. Note the boundary it forced: a **contract** that is
+safety-critical is now **normative** (totality §2.9, the kernel determinism
+contract §2.6, effect ordering/replay §6.4/§13.5, the egress/consent/taint
+*semantics* §6) — only the **numbers and per-kernel algorithms** behind those
+contracts remain tuning items. "Research item" is no longer a cover for a missing
+*rule*, only for an unset *value*.
+
+Open tuning items — now strictly numbers/algorithms behind a fixed contract:
+gas/frame/state caps, per-op output caps, the **kernel-gas schedule and v1.1
+kernel cut** + per-kernel algorithms, wakeup-budget caps for `tick`+`timer`, the
+capability-broker egress numbers (rate/quota/max-in-flight/idempotency/
+backpressure), **session-scoped consent budgets**, LX std-lib surface, scene perf
+ceiling, capability-consent granularity, LLM reliability emitting LX, preset
+trust/distribution — enumerated in `interactivity-concept.md` §13.
