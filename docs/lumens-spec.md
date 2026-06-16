@@ -165,7 +165,8 @@ no prototypes, no functions-as-values beyond the named std-lib.
 | `lit` | `{lit: value}` | literal |
 | `state` | `{state: path}` | read a `state` slice (dotted path; `grid` via `{state, at:[x,y]}`) |
 | `event` | `{event: field}` | read a field of the triggering event |
-| `var` / `let` | `{let:{name:expr}, in:expr}` | bind a local; lexically scoped, immutable |
+| `let` | `{let:{name:expr}, in:expr}` | bind a local (readable via `{var}`); lexically scoped, immutable; nest for multiple bindings |
+| `var` | `{var:name}` · `{var:name, path:"f.g"}` | **read** a bound local — a `let` name or a `map`/`filter`/`fold` binder (`as`/`acc`); optional dotted sub-path into a record/list. The *only* way to read a binder; without it no `let`/iteration body can reference what it binds |
 | arithmetic | `{"+":[a,b]}` `-` `*` `/` `mod` | numeric |
 | comparison | `{">":[a,b]}` `>=` `<` `<=` `==` `!=` | boolean |
 | logic | `{and:[…]}` `or` `not` | boolean |
