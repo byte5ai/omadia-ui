@@ -17,6 +17,16 @@
 > only** — no implementation, no PR
 > plan. It extends, and stays inside, the architecture in `CONCEPT.md`.
 
+Version 0.8 — **colour authority.** A Lumen's *own content* may opt out of the
+Lume palette via `colorMode: 'brand'|'free'` + a declared `palette`
+(`lumens-spec.md` §3.1) — so a user-built kiosk / branded-ordering / product
+surface can use **any** colour, not only Lume tokens. Scoped to the Lumen's
+subtree: **Omadia chrome always stays Lume** (v1 identity boundary, no host
+white-label). In brand/free the normaliser stops clipping and enforces no
+contrast floor — accessibility of free-colour content is the author's
+responsibility (44 pt hit-targets + reduced-motion still apply; interaction-
+safety, not colour). Brand colour may still ride the Lume material (glow) or
+render flat.
 Version 0.7 — **expressiveness & practice-fit pass** (stress-tested by trying to
 hand-write board-game-class Lumens — Tetris/Pacman as thought experiments — in
 actual LX-AST). Closes three normative gaps the prose hid: the
@@ -305,10 +315,13 @@ vocabulary:
 | `text` | scores, labels (rendered in Lume type registers) |
 | `group` / `transform` | layers, camera pan/zoom (reuses canvas-region zoom/pan affordances) |
 
-Properties are restricted to **theme tokens + Lume palette** (so a Lumen is
-always on-theme — a game still looks like Omadia, never like a foreign
-website) plus geometry. The draw-list is **data**, validated by the whitelist
-parser — there is no canvas `2d`/`webgl` script handed to the agent. Tier 1
+Properties default to **theme tokens + Lume palette** (so an agent-generated
+Lumen is on-theme — a game looks like Omadia, not a foreign website) plus
+geometry. A Lumen MAY opt its **own content** out to a brand/free palette
+(`lumens-spec.md` §3.1) — a user's kiosk or product surface needs *their*
+colours; Omadia chrome always stays Lume (the host stays recognisable). The
+draw-list is **data**, validated by the whitelist parser — there is no canvas
+`2d`/`webgl` script handed to the agent. Tier 1
 rasterises the draw-list to canvas/WebGL natively at 60 fps from local state;
 this is pure **Class A** interaction — *zero* server contact for the frame
 loop (`CONCEPT.md` §"Latency paths").

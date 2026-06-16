@@ -1286,11 +1286,19 @@ and `timeline` (§2.9), a `scene` is where Lume material stops; the hard edge is
 the Tier-1 boundary marker. Its `camera` pan/zoom reuses the canvas-region
 affordances.
 
-**Draw-list colours are tokens only.** Every `scene` shape fills/strokes from
-the design tokens + active palette (`accent`, `accent.glow*`, surface/text/
-semantic tokens) — never free-form colour. A game board, a defrag grid or a map
-marker layer is therefore always on-theme: it looks like Omadia, not like a
-foreign website. `scene` `text` nodes use the three type registers (§2.7).
+**Draw-list colours are tokens by default, author-openable for the Lumen's own
+content.** By default every `scene` shape fills/strokes from the design tokens +
+active palette (`accent`, `accent.glow*`, surface/text/semantic tokens), so a
+game board, defrag grid or map-marker layer is on-theme — it looks like Omadia,
+not a foreign website. A Lumen MAY declare `colorMode: 'brand'|'free'` + a
+`palette` (`../docs/lumens-spec.md` §3.1) to use **any** colour — for a user's
+kiosk, branded-ordering or product surface that needs *their* brand, not the
+accent. This scopes to the **Lumen's own subtree only**: **Omadia chrome (header,
+action panel, Beam, canvas frame) always stays Lume** — no host white-label in
+v1. Brand colour may still ride the Lume material (glow/luminosity) or render
+flat; in `brand`/`free` the normaliser does not clip and enforces no contrast
+floor (author owns accessibility). `scene` `text` nodes use the three type
+registers (§2.7).
 
 **Motion = the Lume effect vocabulary, declarative.** Presentation motion on a
 Lumen (fade, glow-pulse, count-up, camera ease, Ken-Burns on a `sprite`,

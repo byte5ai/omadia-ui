@@ -54,6 +54,16 @@ is a spike deliverable; where prose and schema disagree, the **schema wins**.
 > spatial `[x,y]` convention (§2.2); and ergonomics for the hot render path — the
 > optional `idx` binder and `flatten` (§2.2/§2.3).
 
+> **Rev 3.2 (colour authority).** A Lumen's **own content** may opt out of the
+> Lume palette via `colorMode: 'brand'|'free'` + a declared `palette` (§3.1) — so
+> a user's kiosk / branded-ordering / product surface can use *any* colour, not
+> only Lume tokens. Scoped to the Lumen's subtree: **Omadia chrome always stays
+> Lume** (v1 identity boundary, no host white-label). In `brand`/`free` the
+> normaliser no longer clips colour and enforces **no** contrast floor —
+> accessibility of free-colour content is the author's responsibility (44 pt
+> hit-targets and reduced-motion still apply; those are interaction-safety, not
+> colour).
+
 A Lumen is the Omadia answer to "an interactive artifact": **declarative data,
 not code**, run by a small deterministic interpreter on Tier 1, generated and
 brokered agentically on Tiers 2/3, safe to share and to save as a preset
@@ -114,6 +124,8 @@ type Lumen = {
   view:         LXNode;                // §2,§3 — pure state -> primitive/scene tree
   events:       EventBinding[];        // §4 — declared inputs -> transitions
   cadence?:     CadenceSpec;           // §5 — default "reactive"
+  colorMode?:   'theme'|'brand'|'free';// §3.1 — default 'theme'; opens colour for THIS Lumen's content only
+  palette?:     PaletteSpec;           // §3.1 — declared brand colours (used with colorMode 'brand')
   capabilities?: CapabilityRequest[];  // §6 — default-deny doors out
   ports?:       PortSpec[];            // §7 — typed inputs/outputs for explicit wiring
   expose?:      ExposeSpec[];          // §7 — published read-only view-state (the ambient-readable interface)
@@ -358,10 +370,13 @@ type SceneNode =
   | { kind:'group',     transform?, children: SceneNode[], id? };
 ```
 
-- **Colours/styles are theme tokens + the active Lume palette only** (`accent`,
-  `accent.glow*`, surface/text tokens, semantic state tokens). A `scene` is
-  always on-theme — a game still looks like Omadia. Free-form colours are
-  clipped by the Tier-1 normaliser.
+- **Colour is theme-bound by default, author-openable for the Lumen's own
+  content (§3.1).** By default a `scene` draws from Lume tokens (`accent`,
+  `accent.glow*`, surface/text/semantic tokens), is re-tintable, and is always
+  on-theme — a game still looks like Omadia. A Lumen MAY declare `colorMode:
+  'brand'|'free'` + a `palette` (§3.1) for kiosk / branded / product surfaces;
+  this scopes to the **Lumen's own subtree only** (Omadia chrome always stays
+  Lume), and in `brand`/`free` the normaliser does **not** clip colours.
 - **Coordinates are buffer-native**, independent of zoom/pan (`CONCEPT.md`
   `bufferRegion`). Hit-testing maps pointer → buffer coords → the `id` of the
   topmost hit node.
@@ -373,6 +388,45 @@ type SceneNode =
 `scene` coexists with `canvas-region` (the *pixel-editor buffer* for
 brush/blur Class-B ops); `scene` is a *state-driven render target*, not an
 editable pixel buffer.
+
+### 3.1 Colour authority (theme · brand · free)
+
+Colour inside a Lumen is a **declared, scoped** property — default-safe,
+opt-out-explicit, like every other Lumen power. Two fields on the Lumen:
+
+```ts
+colorMode?: 'theme' | 'brand' | 'free';                 // default 'theme'
+palette?:   { [name: string]: ColorToken | sRGBHex };   // bounded, declared brand colours
+```
+
+| `colorMode` | Colours | Re-tint | For |
+|---|---|---|---|
+| `theme` *(default)* | Lume tokens only | yes (palette switch re-tints) | agent-generated, on-theme Lumens — the safe default |
+| `brand` | a **declared** bounded `palette`, referenced by name | as a unit | kiosk / branded ordering / product surfaces |
+| `free` | arbitrary sRGB/hex per node | no | photographic gradients, many-colour games, generative art |
+
+- **Scope = the Lumen's own subtree.** `brand`/`free` colour governs the Lumen's
+  `scene` draw-list **and** the themeable surfaces of the primitives its `view`
+  emits. It does **not** touch anything outside the Lumen: **Omadia chrome
+  (header, action panel, Beam, canvas frame) and sibling canvas elements always
+  render in the active Lume theme.** The host stays recognisably Omadia; the
+  *content* is the author's brand. (No white-label of the host chrome in v1 — a
+  deliberate identity boundary.)
+- **Brand colour can still ride the Lume material.** A declared brand colour may
+  render as an *illuminating* accent (glow / surface-luminosity, §5/§10) for a
+  premium look, **or** as a flat fill to match a brand exactly — author's choice.
+  The Lume **material technique** (no glassmorphism, no blur-as-chrome,
+  `visual-spec.md` §1.3) governs the host chrome regardless; a `flat` brand fill
+  is a colour choice, not a return to glass.
+- **No clipping, no contrast enforcement.** In `brand`/`free` the Tier-1
+  normaliser does **not** clip colours and does **not** enforce a contrast floor
+  — **accessibility of free-colour content (contrast, colour-blind safety) is the
+  author's responsibility.** Interaction-safety guarantees are *not* colour and
+  still hold: 44 pt hit-targets (§4) and reduced-motion (§5) apply regardless.
+- **Still data, still safe.** A `palette` is declared, bounded, whitelist-
+  validated data (no code); `free` node colours are plain sRGB values in the
+  draw-list. Colour freedom touches the *look* only — determinism, gas and
+  default-deny capabilities are unchanged.
 
 ---
 
@@ -652,6 +706,17 @@ text uses the three Lume type registers (`visual-spec.md` §2.7). The only blur
 is the transient 800 ms condensation (`visual-spec.md` §3.5). See
 `visual-spec.md` §"Lumens & scene in Lume".
 
+This is the **default and the host's own material**: Omadia chrome — header,
+action panel, Beam, canvas frame — and every element outside a Lumen always
+render in Lume, never white-labelled (v1 identity boundary). A Lumen's **own
+content** may opt out of the Lume *palette* via `colorMode: 'brand'|'free'` + a
+declared `palette` (§3.1) — for kiosk, branded-ordering and product surfaces a
+customer needs *their* colours, not the active accent. The two are independent:
+brand colour may still ride the Lume *material* (glow, surface-luminosity) for a
+premium look, or render flat to match a brand exactly. The no-glassmorphism rule
+is about the *material technique* (no refraction, no blur-as-chrome) and governs
+the host regardless of a Lumen's palette choice.
+
 ---
 
 ## 11. Security model (summary)
@@ -687,6 +752,9 @@ is the transient 800 ms condensation (`visual-spec.md` §3.5). See
   content, Tier-1-resolved.
 - **Cadence & animation:** `cadence` (§5) and `animate` descriptors — additive
   trait content.
+- **Colour authority:** `colorMode` + `palette` on the Lumen (§3.1) — opens
+  brand/free colour for the Lumen's own content; chrome stays Lume. Additive,
+  declared data; the normaliser stops clipping in `brand`/`free`.
 - **Events:** `surface_capability_request` (client→Tier 2) and
   `surface_capability_result` (Tier 2→client) for §6 brokering; results may also
   arrive as ordinary `surface_patch`. Reuses the effect-classified action path
