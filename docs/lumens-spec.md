@@ -33,6 +33,18 @@ is a spike deliverable; where prose and schema disagree, the **schema wins**.
 > re-mint (§9); ambient cross-element reads replaced by a declared `expose`
 > interface (§7, §11).
 
+> **Rev 3 (expressiveness & practice-fit).** Closes three normative gaps the
+> prose hid when LX is actually hand-written for a board-game-class Lumen: the
+> `map`/`filter`/`fold` **binder node forms** and computed-index `at`/`setAt`
+> (§2.2) — without them no iteration or board mutation is expressible. Adds
+> **native kernels** (§2.6) — bounded, host-owned algorithms (sort, group,
+> aggregate, scale, layout, pathfind, …) that pure first-order LX cannot
+> express, exposed as pure calls (the *capability pattern applied to compute*).
+> Adds **declared invariants** (§2.7, silent-wrong → loud-error) and a
+> **golden-trace authoring gate** (§14). Adds **transactional / high-frequency
+> patterns** (§6.3) so kiosk/ordering flows fit without a confirmation modal per
+> tap, plus a fifth (transactional) reference Lumen.
+
 A Lumen is the Omadia answer to "an interactive artifact": **declarative data,
 not code**, run by a small deterministic interpreter on Tier 1, generated and
 brokered agentically on Tiers 2/3, safe to share and to save as a preset
@@ -95,16 +107,19 @@ type Lumen = {
   capabilities?: CapabilityRequest[];  // §6 — default-deny doors out
   ports?:       PortSpec[];            // §7 — typed inputs/outputs for explicit wiring
   expose?:      ExposeSpec[];          // §7 — published read-only view-state (the ambient-readable interface)
+  invariants?:  LXNode[];              // §2.7 — boolean assertions checked after every transition
   preset?:      PresetRef;             // §8 — provenance if instantiated/forked
 };
 ```
 
 A Lumen is valid iff: its `state` conforms to §1.1, every `LXNode` in
-`transitions`/`view` passes the §2 AST whitelist + static bounds check, every
+`transitions`/`view`/`invariants` passes the §2 AST whitelist + static bounds
+check (every `{call}` target in §2.3, every `{kernel}` target in §2.6), every
 `EventBinding` names a declared transition and a §4 event, every
-`CapabilityRequest` names a §6 catalog capability, and every `PortSpec` /
-`ExposeSpec` is §7-typed. Any failure → the Lumen is rejected wholesale with `surface_error`
-(scope = the Lumen `id`); it never partially renders.
+`CapabilityRequest` names a §6 catalog capability, every `invariants` entry is a
+boolean `LXNode`, and every `PortSpec` / `ExposeSpec` is §7-typed. Any failure →
+the Lumen is rejected wholesale with `surface_error` (scope = the Lumen `id`); it
+never partially renders.
 
 ### 1.1 State schema
 
@@ -157,17 +172,33 @@ no prototypes, no functions-as-values beyond the named std-lib.
 | `if` | `{if:c, then:a, else:b}` | total conditional (both branches required) |
 | `match` | `{match:expr, cases:[{when,then}], else}` | total switch |
 | record/list ctor | `{record:{…}}` `{list:[…]}` | construction |
-| `set` | `{set:{path: expr}}` | **functional** update → returns a new state (no mutation) |
-| std-lib call | `{call:name, args:[…]}` | from the §2.3 whitelist only |
+| `set` | `{set:{path: expr}}` | **functional** update at a *static* path → returns a new state (no mutation) |
+| `setAt` | `{setAt: coll, index:[xExpr] \| [xExpr,yExpr], to: expr}` | **functional** write at a *computed* list/grid index → new collection; out-of-bounds is a **no-op** (total) |
+| `at` | `{at: coll, index:[xExpr] \| [xExpr,yExpr], default: expr}` | random-access **read** at a computed index → element or, on out-of-bounds, `default` (total); also the form for `{state, at:[…]}` with **expression** indices |
+| `map` | `{map: listExpr, as:"x", body: expr}` | element-wise; binds `x` (lexical, immutable) per item → new list |
+| `filter` | `{filter: listExpr, as:"x", body: predExpr}` | keep items where `body` is true → new list |
+| `fold` | `{fold: listExpr, as:"x", acc:"a", init: expr, body: expr}` | left fold; binds accumulator `a` + item `x` → final `a` |
+| std-lib call | `{call:name, args:[…]}` | first-order helper from the §2.3 whitelist |
+| native kernel | `{kernel:name, args:[…]}` | bounded, host-implemented algorithm from the §2.6 whitelist |
 
-### 2.3 Standard library (whitelist, bounded)
+`map`/`filter`/`fold` are the **only** iteration; their binders (`as`/`acc`) are
+syntactic lexical scopes, **not** first-class function values (no closures, §2.1).
+They iterate only over state-bounded collections, so the gas bound stays static
+(§2.4). `at`/`setAt` make `grid`/`list` random-access **total** by requiring an
+out-of-bounds answer — the load-bearing forms for any board/cell mutation.
 
-`map` `filter` `fold` `range` `len` `min` `max` `clamp` `abs` `floor` `round`
-`concat` `slice` `contains` `indexOf` `keys` `values` string ops (`upper`
-`lower` `pad` `fmt`) and a small math set. **`map`/`filter`/`fold`/`range`
-iterate only over collections bounded by `state`** (which is size-capped) — this
-is what makes the gas bound a *static* property. **No `while`, no general
-recursion.** `random()` and `now()` read host-seeded context values (§0.3).
+### 2.3 Standard library (whitelist, bounded, first-order)
+
+Scalar/collection helpers callable as `{call:name,…}`: `range` `len` `min`
+`max` `clamp` `abs` `floor` `round` `mod` `concat` `slice` `contains` `indexOf`
+`keys` `values`, string ops (`upper` `lower` `pad` `fmt` `split` `join`) and a
+small math set. Iteration is **not** here — it is the dedicated
+`map`/`filter`/`fold` binder nodes (§2.2), bounded by state size, so the gas
+bound stays a *static* property. **No `while`, no general recursion, no
+first-class functions.** `random()` and `now()` read host-seeded context values
+(§0.3). Genuinely iterative algorithms (sort, group/aggregate, pathfind,
+layout, …) are **not** open-coded in LX — they are the bounded **native
+kernels** of §2.6.
 
 ### 2.4 Gas & determinism contract
 
@@ -181,10 +212,72 @@ recursion.** `random()` and `now()` read host-seeded context values (§0.3).
 ### 2.5 Validation
 
 A Lumen's LX is accepted iff every node is in §2.2, every `call` target is in
-§2.3, every `state`/`event` path resolves against the declared schema, and a
-static pass proves iteration bounds and a gas ceiling. `view` MUST return a
-valid primitive/scene tree (§3); `transitions` MUST return a value conforming to
-`state`. Anything else → reject.
+§2.3, every `kernel` target is in §2.6, every `state`/`event` path resolves
+against the declared schema, and a static pass proves iteration bounds and a gas
+ceiling. `view` MUST return a valid primitive/scene tree (§3); `transitions` MUST
+return a value conforming to `state`. Anything else → reject.
+
+### 2.6 Native kernels — bounded algorithms the host owns
+
+Pure LX is first-order and non-recursive: it expresses **state machines and
+local/greedy logic** but **not** genuinely iterative algorithms (pathfinding,
+connected-components, graph layout, sort, grouped aggregation). Rather than
+re-open the Turing-complete hole this whole model exists to avoid, those
+algorithms are **native kernels** — fixed, audited, host-implemented functions
+exposed to LX as pure calls `{kernel:name, args:[…]}`. This is the **capability
+pattern applied to compute**: the agent never *writes* a kernel, only *calls* one
+from the whitelist, exactly as it draws a primitive from the render whitelist.
+The compute dial stays "constrained" (§12); only the *vocabulary of bounded
+primitives* widens — additively, by minor bump, like a new primitive.
+
+Every kernel is **(1) deterministic** (seeded, no IO, no capability — a kernel is
+*not* a door out; that is what §6 capabilities are); **(2) internally bounded** —
+it runs its loop in native code under a per-call **kernel-gas** ceiling
+proportional to its (state-capped) input; and **(3) total** — a degenerate input
+or an exceeded ceiling returns a declared empty/identity result, or halts the
+Lumen with `surface_error` on a hard breach, but never hangs. Kernels are
+versioned and negotiated with LX (§13); a client implementing a subset advertises
+it, and a Lumen needing an unsupported kernel degrades or is rejected — same
+discipline as `localOperations`.
+
+Initial blessed set (bias small — grow by **minor** bump, §13), ordered by
+business value:
+
+| Kernel | Signature (sketch) | For |
+|---|---|---|
+| `sortBy` | `(list, keyExpr, dir) → list` (stable) | tables, leaderboards, any ordering |
+| `groupBy` | `(list, keyExpr) → record<key,list>` | pivots, segmentation |
+| `aggregate` | `(list, {op, field}) → number` — `sum∣avg∣count∣min∣max∣median∣pNN` | KPIs, rollups |
+| `scaleValue` / `ticks` | `(domain, range, kind, v) → number` / `(domain, n) → list` (`linear∣log∣ordinal∣time`) | every chart axis |
+| `timeBucket` | `(timestamps, unit) → record` (`day∣week∣month∣…`) | time series, calendars, gantt |
+| `layoutGraph` | `(nodes, edges, kind) → positions` (`dag∣hierarchical∣force`) | org / dependency / flow charts, mind maps |
+| `treemap` / `packRects` | `(weights, w, h) → rects` | dashboards, treemaps, defrag layout |
+| `geo` | `pointInPolygon · bbox · segIntersect` | maps, scene hit-geometry |
+| `floodFill` | `(grid, seed) → labelled grid / region` | selection regions, clustering, defrag |
+| `pathfind` | `(grid∣graph, start, goal, opts) → path` (`bfs∣dijkstra∣astar`) | routing, wayfinding, maze games |
+
+`keyExpr`/predicates handed to a kernel are **LX expression ASTs** evaluated per
+element under the same gas discipline (a kernel taking an expression budgets
+`elements × eval` against kernel-gas). Per-kernel signatures, the kernel-gas
+schedule, and the exact v1.1 cut line are a **schema/spike deliverable** (§14);
+the list above is the *intent*, biased to the cases real business artifacts hit
+(the last two are the game-ward outliers — lower priority, since we are not
+building a game engine). The boundary stays clean: a kernel may iterate because
+it is **audited native code with a hard internal ceiling**, not agent-authored
+control flow — so "cannot hang / cannot DoS" (§0.2) and determinism (§0.3) hold
+for kernels exactly as for the interpreter.
+
+### 2.7 Declared invariants (silent-wrong → loud-error)
+
+A Lumen MAY declare `invariants` — boolean LX expressions over `state` that MUST
+hold **after every transition** (e.g. `score >= 0`, the active piece in bounds,
+`len(cart) <= max`). The runtime evaluates them post-transition (cheap, bounded,
+same gas pool); a violation **rolls back** the offending transition and raises
+`surface_error` (scope = Lumen `id`) rather than letting corrupt state render.
+Invariants do not *prove* correctness, but they convert a meaningful class of
+generation bugs — the off-by-one the validator **cannot** catch because the
+Lumen is syntactically valid — from **silent-wrong** into a caught, loud failure
+the agent repairs by patch. They pair with the golden-trace authoring gate (§14).
 
 ---
 
@@ -384,6 +477,35 @@ client. The UI only *requests* (`generateAsset`) and *renders* the returned
 return a content-addressed `DataRef`. A regenerated asset is simply a new `id` —
 the old bytes GC out, nothing stale lingers.
 
+### 6.3 High-frequency & transactional interaction (kiosk / ordering)
+
+The per-call confirmation gate (§6) is sized for *occasional, agent-driven*
+external effects, **not** *user-driven high-frequency* ones — a kiosk ordering
+flow must not raise a modal on every "add to cart". Three normative patterns keep
+it fluid without weakening the gate:
+
+1. **Local-first, commit-once.** Cart edits, quantities, navigation and form
+   state are **pure `state`** — `reactive`, no capability, **zero modals**; they
+   never touch a door out. Only the *terminal* commit (place order) crosses a
+   single `external-effect` gate. The "20 taps" are local; one tap is brokered.
+2. **Session-scoped consent (batched grant).** For genuine multi-write flows a
+   capability grant MAY be **scoped to a bounded session** — N calls, a time
+   window, or "until a terminal event" — so the user consents **once** to a
+   declared, visible, revocable budget instead of per call. Authority is
+   unchanged (still Tier-2 policy + user consent; the agent still only
+   *requests*, §0.5); consent is merely amortised over the session.
+3. **Optimistic + reconcile (server stays authoritative).** A Lumen is the
+   *interaction surface*, never the system of record. Inventory, pricing,
+   payment and order state are **server-authoritative**: the Lumen shows an
+   **optimistic** local state, Tier 2 brokers the authoritative `writeData`
+   (reusing the Class-D optimistic-mutation contract), and patches back a
+   **confirm or rollback**; determinism makes the rollback exact. Payment and
+   stock consistency live in Tier 3 / the system of record — out of Lumen scope
+   by design.
+
+A **transactional ordering Lumen** is therefore the right fifth conformance
+artifact (§14): it exercises the capability axis a game never does.
+
 ---
 
 ## 7. Ports & wires — cross-element interaction
@@ -487,6 +609,8 @@ is the transient 800 ms condensation (`visual-spec.md` §3.5). See
 |---|---|
 | Arbitrary code in the renderer | None runs — LX is a validated AST walked by a shipped interpreter; CSP `default-src 'self'`, no `unsafe-eval` |
 | Runaway / DoS | Gas + frame ceiling + bounded iteration + state cap + **capped wakeup budget** (`tick` + `timer`, §4) → halt/reject with `surface_error`, never the canvas; capability **egress** is broker-bounded (rate/quota/max-in-flight/idempotent/backpressure, §6) so a tick-driven call cannot DoS Tier 2/3 |
+| Iterative compute (sort/pathfind/layout) | **Native kernels** (§2.6), not agent-authored loops: audited host code under a per-call **kernel-gas** ceiling, total on degenerate input, deterministic, no IO — the agent calls but never writes one, so "no arbitrary code" and "cannot hang" both hold |
+| Corrupt generated state (silent-wrong) | **Declared invariants** (§2.7) checked post-transition → rollback + `surface_error`; **golden-trace** author-time gate (§14) runs example traces before first render |
 | Data exfiltration | Default-deny capabilities; Lumen reads only own state + **wired/`expose`-published** ports; all egress brokered, allowlisted, confirmed, Trace-audited; **state/`DataRef`-derived** `fetch`/`writeData` classified `external-effect` (confirmed) unless pre-approved at grant (§6) |
 | Stale / poisoned assets | Content-addressed `DataRef` (id = content hash); HMAC-scoped fetch; explicit invalidation |
 | Untrusted shared/imported Lumen | Re-validated on import; capability manifest consent before first run; HMAC scoping; fork lineage |
@@ -500,6 +624,9 @@ is the transient 800 ms condensation (`visual-spec.md` §3.5). See
 - **Tree content:** `behavior`/`lumen` section (§1) and the `scene` primitive
   (§3) — validated by the extended whitelist parser (schema + LX-AST). Carried
   in existing `surface_snapshot` / `surface_patch`.
+- **LX-AST:** `map`/`filter`/`fold` binder nodes + `at`/`setAt` computed
+  indexing (§2.2), the **native-kernel** whitelist (§2.6), and optional
+  `invariants` (§2.7) — additive AST/tree content, statically validated.
 - **Ports & wires:** `ports` and `expose` (published read-only interface) on
   primitives/Lumens, `wires` at container/canvas level (§7) — additive tree
   content, Tier-1-resolved.
@@ -533,6 +660,8 @@ handshake_select += {
   lxVersion?: string,                 // e.g. "1.1"
   lxGasLimit?: number,                // client's per-eval gas ceiling
   sceneSupport?: 'none'|'canvas2d'|'webgl',
+  kernels?: KernelName[],             // §2.6 native kernels this client implements
+  kernelGasLimit?: number,            // client's per-kernel-call gas ceiling
   capabilityClasses?: CapabilityName[],   // what this client can broker/render
   inputModalities?: ('touch'|'mouse'|'keyboard'|'pen')[],
 }
@@ -546,12 +675,33 @@ accordingly and idioms degrade gracefully — the same principle as
 
 ## 14. Conformance & open questions
 
-Conformance is the schema set in `schema/` (Lumen, LX-AST, scene,
-ports/wires/`expose`, capability manifest) + accept/reject fixtures, plus four
-reference Lumens (an arcade game, interactive workflow, defrag-viz, map) traced
-end-to-end like `walkthroughs.md`. Open tuning items (gas/frame/state caps,
-wakeup-budget caps for `tick`+`timer`, the capability-broker egress contract —
-rate/quota/max-in-flight/idempotency/backpressure, LX std-lib surface, scene
-perf ceiling, capability-consent granularity, determinism-vs-real-time, LLM
-reliability emitting LX, preset trust/distribution) are enumerated in
-`interactivity-concept.md` §13 — research items, not unspecified holes.
+Conformance is the schema set in `schema/` (Lumen, LX-AST **incl. the
+`map`/`filter`/`fold` binder nodes, `at`/`setAt`, and the §2.6 kernel
+signatures**, scene, ports/wires/`expose`, invariants, capability manifest) +
+accept/reject fixtures, plus **five** reference Lumens — an arcade game,
+interactive workflow, **a transactional ordering flow (§6.3)**, defrag-viz, map —
+each authored **by hand in real LX-AST** and traced end-to-end like
+`walkthroughs.md`.
+
+**Hand-authoring the reference set is the acceptance gate *before* implementation
+budget is committed.** It is the cheapest test that the binder forms, the kernel
+cut, the invariant/golden-trace loop and the transaction patterns actually hold
+against a non-trivial artifact — not only in prose. (Tracing a board-game-class
+Lumen on paper is exactly what surfaced the Rev-3 gaps; doing the full set
+converts "argued watertight" into "tested watertight".)
+
+**Golden-trace authoring gate.** Because behaviour is deterministic, cold
+authoring SHOULD emit, alongside the Lumen, a few example `(input events →
+expected state)` traces; Tier 2 runs them in the interpreter and ships the Lumen
+only if they pass — converting a class of silent-wrong generation into a
+caught-before-render failure. Preset/idiom **assembly** (§8) stays the primary
+path; novel cold authoring is a strong-model job with a real failure rate, and
+this gate plus declared invariants (§2.7) are its safety net.
+
+Open tuning items (gas/frame/state caps, the **kernel-gas schedule and v1.1
+kernel cut**, wakeup-budget caps for `tick`+`timer`, the capability-broker egress
+contract — rate/quota/max-in-flight/idempotency/backpressure, **session-scoped
+consent budgets**, LX std-lib surface, scene perf ceiling, capability-consent
+granularity, determinism-vs-real-time, LLM reliability emitting LX, preset
+trust/distribution) are enumerated in `interactivity-concept.md` §13 — research
+items, not unspecified holes.

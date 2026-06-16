@@ -17,6 +17,22 @@
 > only** — no implementation, no PR
 > plan. It extends, and stays inside, the architecture in `CONCEPT.md`.
 
+Version 0.7 — **expressiveness & practice-fit pass** (stress-tested by trying to
+hand-write board-game-class Lumens — Tetris/Pacman as thought experiments — in
+actual LX-AST). Closes three normative gaps the prose hid: the
+`map`/`filter`/`fold` **binder forms** and computed-index **`at`/`setAt`**
+(`lumens-spec.md` §2.2) — without them no iteration or board mutation is
+expressible. Adds **native kernels** (§2.6): bounded, host-owned algorithms
+(sort, group/aggregate, scale, layout, pathfind, …) that pure first-order LX
+cannot express, exposed as pure calls — the *capability pattern applied to
+compute*, so the no-arbitrary-code guarantee is untouched. Adds **declared
+invariants** (§2.7, silent-wrong → loud-error) and a **golden-trace authoring
+gate** (§14). Adds **transactional / high-frequency patterns** —
+local-first/commit-once, session-scoped consent, optimistic+reconcile (§6.3) —
+so kiosk/ordering flows fit without a modal per tap, plus a fifth (transactional)
+reference Lumen. The takeaway: games stress the *compute* axis; ordering/kiosk
+**transactions** stress the *capability* axis — different problems, so a working
+game does not by itself validate a transactional business artifact.
 Version 0.6 — **Codex-review fixes** (adversarial review of the 0.5 branch).
 **Capability authority**: the agent owns capability *requests*, never *grants*
 — a grant is Tier-2 policy + user consent, an agent patch can ask but not
@@ -895,6 +911,17 @@ dangerous one, open the useful one.**
    state/`DataRef`-derived outbound requests are `external-effect` unless
    pre-approved (`lumens-spec.md` §6, §11). Spike-tunable, measured against the
    reference Lumens.
+9. **Native-kernel cut & budget.** Which bounded algorithms ship in the `LX/1.1`
+   kernel whitelist (`lumens-spec.md` §2.6) — sort / group / aggregate / scale /
+   timeBucket / layout for business work vs. the game-ward `pathfind`/`floodFill`
+   outliers — plus per-kernel signatures and the **kernel-gas** schedule. Bias
+   small; grow by minor bump. Risk mirrors §2 (LX surface): too small blocks real
+   Lumens, too large grows the audit surface.
+10. **Generation-reliability net.** Whether **declared invariants** (§2.7) + the
+    **golden-trace** author-time gate (§14) + preset/idiom assembly as the
+    primary path reduce silent-wrong cold-authoring to an acceptable rate —
+    measured on the five hand-written reference Lumens. The validator catches
+    syntax, never correctness; these are the correctness net.
 
 ---
 
