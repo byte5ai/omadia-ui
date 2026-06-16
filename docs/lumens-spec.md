@@ -78,6 +78,16 @@ is a spike deliverable; where prose and schema disagree, the **schema wins**.
 > `list`/`record` (§1.1), transition result is a **delta-merge** with `{set:{}}`
 > the no-op (§2.5), and multi-field `{set:{a,b,…}}` (§2.2).
 
+> **Rev 3.4 (reference set complete).** Tracing the remaining three reference
+> Lumens (workflow / defrag / map) added only **interaction-surface** items — no
+> core-model gaps, the expected convergence: per-event **payload schema** (§4.1 —
+> `tap.hitId`, `drag.dropTarget`, `pan.dx/dy`, …); the **`dataRef` projection**
+> shape + read rule (§1.1 — `loadData` fills a declared read-only projection,
+> `{state:ref}` yields the value); a **`lookup`** associative-read std-lib (§2.3 —
+> the dict access a `record` lacks); and effect **`debounceMs`/`coalesceKey`**
+> (§6.4) for hot-path effects like persist-on-pan. All five reference Lumens are
+> now expressible end-to-end ([`protocol/lumen-walkthroughs.md`](protocol/lumen-walkthroughs.md)).
+
 A Lumen is the Omadia answer to "an interactive artifact": **declarative data,
 not code**, run by a small deterministic interpreter on Tier 1, generated and
 brokered agentically on Tiers 2/3, safe to share and to save as a preset
@@ -178,17 +188,26 @@ type StateSchema = {
     | { type: 'list', of: StateLeaf, maxLen: number, init: unknown[] }
     | { type: 'record', fields: StateSchema, init: object }
     | { type: 'grid', w: number, h: number, of: StateLeaf, init?: unknown }  // bounded 2D — boards, defrag cells
-    | { type: 'dataRef', init?: DataRef };   // §6.1 read-only projection handle
+    | { type: 'dataRef', projection: StateLeaf, init?: unknown };   // §6.1; loadData fills the declared projection
 };
 ```
 
-A **`StateLeaf`** (the `of` of a `list`/`grid`, and the `fields` values of a
-`record`) is **any** of the leaf shapes above — **including a nested `list`,
-`record` or `grid`**. Nesting is therefore first-class: a board is a
-`list<list<int>>`, a shape table a `list<list<list<record>>>`. Nesting depth and
-every `maxLen`/`w`/`h` are bounded, so total size stays statically capped.
-`ConstSchema` (§1.2) uses the identical leaf grammar with `value` in place of
-`init`.
+A **`StateLeaf`** (the `of` of a `list`/`grid`, the `fields` values of a `record`,
+and the `projection` of a `dataRef`) is **any** of the leaf shapes above —
+**including a nested `list`, `record` or `grid`**. Nesting is therefore
+first-class: a board is a `list<list<int>>`, a shape table a
+`list<list<list<record>>>`. Nesting depth and every `maxLen`/`w`/`h` are bounded,
+so total size stays statically capped. `ConstSchema` (§1.2) uses the identical
+leaf grammar with `value` in place of `init`.
+
+A **`dataRef` leaf** declares the **read-only `projection`** shape that
+`loadData` (§6) fills with a size-capped projection of the underlying `DataRef`.
+LX reads it **as an ordinary value of that shape** — `{state: ref}` yields the
+projected `list`/`record` directly (the runtime resolves the handle; LX sees the
+data); before `loadData` resolves it reads as the declared `init`/empty. A
+`dataRef` projection is **read-only** — no `set`/`setAt` may target it; local
+edits live in a separate `state` field merged in the `view` (the §6.3 optimistic
+overlay idiom).
 
 Total serialised `state` size is capped (initial default **256 KB**,
 spike-tunable). `state` persists in canvas-state (`CONCEPT.md` §"State Model");
@@ -279,11 +298,15 @@ pick **`list<list>`** when rows are added/removed (Tetris line-clear: clean
 ### 2.3 Standard library (whitelist, bounded, first-order)
 
 Scalar/collection helpers callable as `{call:name,…}`: `range` `len` `min`
-`max` `clamp` `abs` `floor` `round` `mod` `concat` `flatten` `slice` `contains`
-`indexOf` `keys` `values`, string ops (`upper` `lower` `pad` `fmt` `split`
-`join`) and a small math set. `flatten` (one level) turns nested iteration into a
-flat `list` — e.g. a board's per-row node lists into one `scene` draw-list —
-without a `fold`/`concat` accumulator. Iteration is **not** here — it is the
+`max` `clamp` `abs` `floor` `round` `mod` `pow` `concat` `flatten` `slice`
+`contains` `indexOf` `lookup` `keys` `values`, string ops (`upper` `lower` `pad`
+`fmt` `split` `join`) and a small math set. `flatten` (one level) turns nested
+iteration into a flat `list` — e.g. a board's per-row node lists into one `scene`
+draw-list — without a `fold`/`concat` accumulator. `lookup(list, keyField, key,
+default)` is **associative read** — find the first record whose `keyField`
+equals `key`, else `default`; it is the dictionary access a `record` lacks (a
+`record` has only static-path read), so `override[id]` / `menu[sku]` is one call,
+not an open-coded `fold`-find. Iteration is **not** here — it is the
 dedicated `map`/`filter`/`fold` binder nodes (§2.2), bounded by `state`/`const`
 size, so the gas bound stays a *static* property. **No `while`, no general recursion, no
 first-class functions.** `random()` and `now()` read host-seeded context values
@@ -554,6 +577,30 @@ Rules (normative):
 The handshake (§13) reports **input modalities** (`touch`/`mouse`/`keyboard`/
 `pen`) so Tier 2 composes the right affordances.
 
+### 4.1 Event payload — the fields `{event:…}` reads
+
+Each event type delivers a **typed payload** to its transition; `{event: field}`
+(§2.2) reads from it. The runtime computes the payload (hit-testing, gesture
+arbitration) before the pure transition runs — the transition stays a pure
+function of `(state, event)`.
+
+| Event | Payload fields |
+|---|---|
+| `tap` / `longPress` | `hitId` (topmost hit scene-node / primitive id, §3), `x`,`y` (buffer-native) |
+| `drag` | `item` (the dragged element id), `dropTarget` (id under the release point, or `""`), `dx`,`dy` (total delta, buffer-native), `phase` (`start`∣`move`∣`end`) |
+| `swipe` | `dir` (`up`∣`down`∣`left`∣`right`), `vx`,`vy` |
+| `pinch` | `scale` (ratio since gesture start), `cx`,`cy` (focus) |
+| `pointerMove` | `x`,`y` |
+| `key` | `key` (the declared key) |
+| `tick` / `timer` | `dtMs` (ms since last fire), `seq` |
+| `wire` | the wired value (`{event:"value"}`) |
+
+`hitId`/`dropTarget` resolve via the same hit-testing as §3 (pointer → buffer
+coords → topmost node `id`), so a `tap` on a marker or a `drag` onto a column
+needs **no** per-node listener — one binding plus the payload's `hitId`/
+`dropTarget`. All fields are host-supplied and deterministic for a given recorded
+input (replay-safe, §13.5).
+
 ---
 
 ## 5. Cadence & motion
@@ -702,11 +749,13 @@ capability call.
 
 ```ts
 type EffectBinding = {
-  on:        TransitionName | { when: LXNode };  // fire after this transition runs, or when this state predicate flips true
-  call:      CapabilityName;                     // a declared §6 capability
-  args:      LXNode;                             // pure LX over (post-transition) state → the request payload
-  onResult?: TransitionName;                     // the brokered result re-enters here as an event
-  onError?:  TransitionName;                     // failure / denial path (optimistic rollback)
+  on:          TransitionName | { when: LXNode };  // fire after this transition runs, or when this state predicate flips true
+  call:        CapabilityName;                     // a declared §6 capability
+  args:        LXNode;                             // pure LX over (post-transition) state → the request payload
+  onResult?:   TransitionName;                     // the brokered result re-enters here as an event
+  onError?:    TransitionName;                     // failure / denial path (optimistic rollback)
+  debounceMs?: number;                             // coalesce rapid fires (e.g. persist-on-pan) — fire on settle
+  coalesceKey?: LXNode;                            // collapse in-flight calls sharing this key to the latest
 };
 ```
 
@@ -726,7 +775,10 @@ declares *which* effects exist (structure); the **grant** is still Tier-2 policy
 consent (§0.5) — an effect binding can *request* a capability, never self-grant
 it. Effect bindings are subject to the same egress bounds as any capability call
 (§6 broker bounds): an effect bound to a `tick`-driven transition is rate/quota/
-max-in-flight capped like any other.
+max-in-flight capped like any other. An effect bound to a **high-frequency**
+transition (e.g. `persist` on a 60 fps `pan`) declares `debounceMs` to fire on
+settle and/or a `coalesceKey` to collapse superseded in-flight calls — the clean
+authoring form on top of the broker's hard egress cap.
 
 ---
 
@@ -872,7 +924,12 @@ governs the host regardless of a Lumen's palette choice.
   non-recursive pure functions (a DAG, fully inlinable; no new compute power).
 - **Effects:** the `effects` binding list (§6.4) — the declarative trigger by
   which a *pure* transition causes a brokered capability call; result re-enters as
-  an event. Reuses the §6 broker, bounds and consent; no new transport.
+  an event; `debounceMs`/`coalesceKey` for hot-path effects. Reuses the §6 broker,
+  bounds and consent; no new transport.
+- **Event payloads & data:** per-event payload fields (§4.1 — `hitId`,
+  `dropTarget`, `dx`/`dy`, …) the runtime supplies to `{event:…}`; the `dataRef`
+  `projection` schema (§1.1) that `loadData` fills and `{state:ref}` reads; the
+  `lookup` associative-read std-lib (§2.3). Additive, all host-resolved.
 - **Ports & wires:** `ports` and `expose` (published read-only interface) on
   primitives/Lumens, `wires` at container/canvas level (§7) — additive tree
   content, Tier-1-resolved.
@@ -935,12 +992,16 @@ like `walkthroughs.md`.
 **Hand-authoring the reference set is the acceptance gate *before* implementation
 budget is committed.** It is the cheapest test that the binder forms, the kernel
 cut, the invariant/golden-trace loop and the transaction patterns actually hold
-against a non-trivial artifact — not only in prose. **Two of the five are now
-traced** in [`protocol/lumen-walkthroughs.md`](protocol/lumen-walkthroughs.md)
-(the arcade game and the ordering flow); doing so converted "argued watertight"
-into "tested watertight" and surfaced the Rev-3.3 gaps (`defs` §2.8, effect
-bindings §6.4) that *only* appear in full artifacts, not fragments. The remaining
-three (workflow, defrag-viz, map) are still to be traced before L0–L9.
+against a non-trivial artifact — not only in prose. **All five are now traced** in
+[`protocol/lumen-walkthroughs.md`](protocol/lumen-walkthroughs.md) (arcade,
+ordering, workflow, defrag-viz, map); doing so converted "argued watertight" into
+"tested watertight" and surfaced, in order of depth, the Rev-3.3 core gaps (`defs`
+§2.8, effect bindings §6.4 — visible only with reuse-across-sites and
+effects-from-pure-code) then the Rev-3.4 interaction-surface items (event payloads
+§4.1, `dataRef` projection §1.1, `lookup` §2.3, effect debounce §6.4). The
+remaining unknown — **LLM reliability emitting valid LX** — is unprovable on paper
+and waits on a built L1 interpreter; an independent adversarial review is the
+recommended next check.
 
 **Golden-trace authoring gate.** Because behaviour is deterministic, cold
 authoring SHOULD emit, alongside the Lumen, a few example `(input events →
