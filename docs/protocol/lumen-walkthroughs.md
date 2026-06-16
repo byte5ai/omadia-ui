@@ -365,6 +365,174 @@ authoritative; determinism intact (replay re-feeds the recorded result).
 
 ---
 
+---
+
+## C — Interactive workflow Lumen (Kanban triage)
+
+Stresses: **data-driven** view from `loadData`, **optimistic overlay** (loadData
+is read-only), drag-and-drop, write-back via `effects` (§6.4). View is **ordinary
+primitives**, not `scene` — confirming `view → primitive tree` (§1).
+
+`loadData` hands a **read-only** projection, so a card's status **cannot** be
+mutated in place. The canonical pattern: keep edits in a **separate local overlay**
+and merge them in the view (the §6.3 optimistic+reconcile idiom, made concrete).
+
+```jsonc
+"capabilities": [
+  { "cap":"loadData",  "scope":{ "dataRef":"cards" } },
+  { "cap":"writeData", "scope":{ "target":"issues", "writeCapabilities":["update"] } }
+],
+"state": {
+  "cards":    { "type":"dataRef", "projection":{ "type":"list","maxLen":500,
+                  "of":{"type":"record","fields":{
+                          "id":{"type":"string","maxLength":32},
+                          "title":{"type":"string","maxLength":120},
+                          "status":{"type":"string","maxLength":16} } } } },   // ← R2: projection shape
+  "override": { "type":"list","maxLen":500,
+                "of":{"type":"record","fields":{
+                        "id":{"type":"string","maxLength":32},
+                        "status":{"type":"string","maxLength":16} } }, "init":[] }   // local optimistic edits
+},
+"const": { "columns": { "type":"list","of":{"type":"string","maxLength":16},"value":["todo","doing","done"] } }
+```
+
+`effectiveStatus(id, fallback)` — overlay first, else the loaded value. It must
+look up `override` by `id`; **records have no dynamic-key access**, so the lookup
+is a `fold`-find over a list of pairs (R3):
+
+```jsonc
+"defs": {
+  "effStatus": { "params":["id","fallback"], "body":
+    { "fold":{"state":"override"}, "as":"o", "acc":"r", "init":{"var":"fallback"},
+      "body":{ "if":{ "==":[{"var":"o","path":"id"},{"var":"id"}] }, "then":{"var":"o","path":"status"}, "else":{"var":"r"} } } }
+}
+```
+
+`moveCard` — a **drag-and-drop**: drag card `id` onto a column. This needs the
+**dropped item** and the **drop target** from the event payload — neither is
+defined in §4 (R1). Written here against the payload R1 *adds*:
+
+```jsonc
+"moveCard": {                                    // event payload: {item:<cardId>, dropTarget:<columnId>}
+  "set":{ "override":
+    { "concat":[
+        { "filter":{"state":"override"}, "as":"o", "body":{ "!=":[{"var":"o","path":"id"},{"event":"item"}] } },  // drop old entry
+        { "list":[ { "record":{ "id":{"event":"item"}, "status":{"event":"dropTarget"} } } ] } ] } }              // add new
+},
+"effects": [
+  { "on":"moveCard", "call":"writeData",
+    "args":{ "record":{ "target":{"lit":"issues"}, "op":{"lit":"update"},
+                       "id":{"event":"item"}, "status":{"event":"dropTarget"} } },
+    "onResult":"moveConfirmed", "onError":"moveReverted" } 
+]
+```
+
+✅ `effects` (§6.4) carries the optimistic write; `onError` reverts the overlay.
+✅ `view` is primitives: a `row` of `column`s, each a `filter` of cards whose
+`effStatus` matches, mapped to `card` primitives (drag-source bound).
+🔴 **R1 (pointer-event payload undefined):** `moveCard` reads `{event:"item"}`
+and `{event:"dropTarget"}` — but §4 never says a `drag`/`drop` event carries them.
+🟡 **R2 (loadData projection shape):** used `"projection":{…}` on the `dataRef`
+leaf and read `{state:"cards"}` as the list directly — neither is in §1.1/§6.
+🟡 **R3 (no dynamic map access):** `effStatus` is an O(n) `fold`-find because a
+`record` has no dynamic-key read.
+
+## D — Defrag-style visualisation Lumen
+
+Stresses: `loadData` → `scene` grid, a `tick` animation cursor, many-colour fills.
+
+```jsonc
+"capabilities": [ { "cap":"loadData", "scope":{ "dataRef":"extents" } } ],
+"colorMode": "free",                              // a defrag map wants many distinct block colours (R-colour validated)
+"state": {
+  "cells":  { "type":"list","maxLen":4096, "of":{"type":"int","min":0,"max":255}, "init":[] },  // cell → fileIndex (0=free)
+  "cursor": { "type":"int","min":0,"max":4096,"init":0 },
+  "extents":{ "type":"dataRef", "projection":{ "type":"list","of":{"type":"record","fields":{
+                "file":{"type":"int"},"blocks":{"type":"int"} } } } }                            // R2 again
+},
+"defs": {
+  "firstGap":  { "params":["cells","upto"], "body":
+    { "fold":{ "call":"range","args":[{"var":"upto"}] }, "as":"i", "acc":"g", "init":{"var":"upto"},
+      "body":{ "if":{ "and":[{ "==":[{"var":"g"},{"var":"upto"}] },
+                             { "==":[{ "at":{"var":"cells"},"index":[{"var":"i"}],"default":{"lit":1} },{"lit":0}] }] },
+               "then":{"var":"i"}, "else":{"var":"g"} } } }
+}
+```
+
+`tick` compacts one block per frame: move the highest used block into the first
+gap (both are `fold` scans — bounded, no kernel):
+
+```jsonc
+"tick": {
+  "let":{ "g":{ "apply":"firstGap","args":[{"state":"cells"},{"state":"cursor"}] } }, "in":
+  { "if":{ ">=":[{"var":"g"},{"state":"cursor"}] },
+    "then":{ "set":{} },                                              // compacted: no-op
+    "else":
+      { "let":{ "src":{ "apply":"lastUsed","args":[{"state":"cells"},{"state":"cursor"}] } }, "in":
+        { "set":{
+            "cells":{ "setAt":
+              { "setAt":{"state":"cells"}, "index":[{"var":"g"}],
+                "to":{ "at":{"state":"cells"},"index":[{"var":"src"}],"default":{"lit":0} } },
+              "index":[{"var":"src"}], "to":{"lit":0} },               // two functional writes, nested
+            "cursor":{ "+":[{"var":"g"},{"lit":1}] } } } } }
+}
+```
+
+✅ `setAt` nested (move = write dest then clear src), `fold`-scan helpers via
+`defs`, `tick` cadence, `free` colour for many distinct file blocks.
+🟡 **R2** recurs (the `extents` projection drives the initial `cells` layout).
+✅ Otherwise fully expressible — gas trivial (two 4096-bounded folds per frame is
+the worst case; well under budget).
+
+## E — Interactive map Lumen
+
+Stresses: `tiles` + `loadData` capabilities via **`effects`**, `scene` sprites,
+camera pan/zoom, marker hit-testing, `persist`.
+
+```jsonc
+"capabilities": [
+  { "cap":"tiles",    "scope":{ "provider":"osm" } },
+  { "cap":"loadData", "scope":{ "dataRef":"places" } },
+  { "cap":"persist",  "scope":{ "key":"viewport" } }
+],
+"state": {
+  "view":   { "type":"record","fields":{ "cx":{"type":"number"},"cy":{"type":"number"},"z":{"type":"int","min":1,"max":19} },
+              "init":{"cx":0,"cy":0,"z":4} },
+  "tiles":  { "type":"list","maxLen":64, "of":{"type":"record","fields":{
+                "x":{"type":"int"},"y":{"type":"int"},"img":{"type":"dataRef"} } }, "init":[] },
+  "places": { "type":"dataRef", "projection":{ "type":"list","of":{"type":"record","fields":{
+                "id":{"type":"string","maxLength":32},"lat":{"type":"number"},"lon":{"type":"number"} } } } },
+  "sel":    { "type":"string","maxLength":32,"init":"" }
+},
+"transitions": {
+  "pan":    { "set":{ "view":{ "record":{ "cx":{ "+":[{"state":"view","path":"cx"},{"event":"dx"}] },
+                                          "cy":{ "+":[{"state":"view","path":"cy"},{"event":"dy"}] },
+                                          "z":{"state":"view","path":"z"} } } } },          // R1: drag payload dx/dy
+  "selectMarker": { "set":{ "sel":{"event":"hitId"} } }                                     // R1: tap payload hitId
+},
+"events": [
+  { "on":"drag",  "run":"pan" },
+  { "on":"pinch", "run":"zoom" },
+  { "on":"tap",   "run":"selectMarker" }            // payload.hitId = topmost scene node hit (§3) — R1
+],
+"effects": [
+  { "on":"pan",  "call":"tiles",   "args":{ "apply":"tileRange","args":[{"state":"view"}] }, "onResult":"tilesReady" },
+  { "on":"pan",  "call":"persist", "args":{"state":"view"}, "debounceMs":500 }              // R4: coalesce hot effect
+]
+```
+
+✅ **`effects` validated in a second context** (tiles fetch on pan; result patched
+into `state.tiles`). ✅ scene `sprite` tiles + marker hit-testing → `{event:"hitId"}`
+→ `sel`. ✅ `tileRange(view)` is a `def` doing the z/x/y arithmetic (fiddly but
+pure LX — `floor`/`pow`/`mod`; no kernel needed).
+🔴 **R1** again — `pan` reads `{event:"dx/dy"}`, `selectMarker` reads
+`{event:"hitId"}`; the payloads must be defined (§4).
+🟡 **R4 (hot-effect coalescing):** `persist`-on-`pan` would fire every drag frame;
+needs a declarative `debounceMs` (broker rate-limiting catches egress, but
+debounce is the clean authoring form).
+
+---
+
 ## Findings — what the full test changed
 
 | # | Finding | Sev | Status |
@@ -375,19 +543,27 @@ authoritative; determinism intact (replay re-feeds the recorded result).
 | **G4** | Transition **return semantics** unstated — full state vs delta-merge; how to express "no change". | 🟡 | **fixed** — §2 states delta-merge; `{set:{}}` = no-op |
 | **G5** | Multi-field `{set:{a,b,…}}` used everywhere; §2.2 showed only single-key. | 🟡 | **fixed** — §2.2 allows a path→expr map |
 | **G6** | `at`-then-field composition (`cart[i].qty`) undefined; bind-the-row works but is verbose. | 🟢 | noted; bind-row idiom documented, optional `at.path` later |
+| **R1** | **Pointer-event payload schema undefined** — §4 declares event *types* but not the *fields* each carries (`tap`→hit node id + coords, `drag`/`drop`→source + drop-target + delta, `pinch`→scale/focus). `{event:field}` had no defined fields. Surfaced by every interactive Lumen (kanban drop, map pan/tap). | 🔴 high | **fixed** — §4.1 per-event payload schema |
+| **R2** | **`loadData` projection read shape** — a `dataRef`/loadData state leaf is a "handle"; how LX reads it as a value, and its declared shape, were unstated. Every data-driven Lumen needs it. | 🟡 | **fixed** — §1.1 `dataRef` carries a `projection` schema; `{state:field}` yields the read-only value (empty until resolved); §6 |
+| **R3** | **No dynamic map/dict access** — a `record` has only static-path read, so `override[id]`/`menu[sku]` lookups are O(n) `fold`-finds. | 🟡 | **fixed** — `lookup` std-lib (assoc-find over a list-of-pairs by key) §2.3; idiom documented |
+| **R4** | **Hot-effect coalescing** — `persist`-on-`pan` fires every drag frame; broker rate-limiting catches egress but a declarative debounce is the clean authoring form. | 🟢 | **fixed** — optional `debounceMs`/`coalesceKey` on `EffectBinding` §6.4 |
 
 **What held (rev 3.x validated by the complete trace):** the `map`/`filter`/`fold`
 binder nodes + `{var}` (every transition), `at`/`setAt` over `list<list>` (lock,
-cart), `const` table (shapes), `idx` + `flatten` (render, cart-find), native
-`aggregate` kernel (total), `colorMode:'brand'` + `palette` (kiosk), invariants,
-§6.3 local-first (cart touches no capability). **Gas was never the constraint** —
-the costliest frame (lock+clear) is a few hundred ops against the 50 000 budget.
+cart, defrag move), `const` table (shapes/columns), `idx` + `flatten` (render),
+native `aggregate` kernel (total), `colorMode` `theme`/`brand`/`free` (arcade /
+kiosk / defrag), `defs` + `{apply}` and `effects` from rev 3.3 (every later
+Lumen leans on them), `view`→**primitives** (kanban) as well as `scene` (map,
+defrag), invariants, §6.3 local-first + optimistic overlay. **Gas was never the
+constraint** across all five.
 
-**Verdict.** The model expresses both the compute-heavy and the
-capability-heavy reference cases — but only after **two** additions a
-fragment-level review could not have found, because they only appear when logic is
-**reused across sites** (G1) and when an effect must be **triggered from pure
-code** (G2). With §2.8 and §6.4 added, the five-Lumen conformance set is
-expressible; the remaining risk is LLM authoring reliability (mitigated by
-`defs` reducing duplication, invariants, and the golden-trace gate), to be
-measured on a built L1 interpreter.
+**Verdict.** All five reference Lumens are expressible. The two compute/capability
+axes (rev 3.3: `defs`, `effects`) were the deep gaps; the workflow/defrag/map pass
+added only **interaction-surface** specifics — event payloads (R1), the data-read
+shape (R2), a dict-lookup helper (R3), effect debounce (R4) — none touching the
+core model. This is the expected **convergence**: each pass finds shallower things
+(structural → naming → abstraction → payload/IO detail). The standing risk is
+unchanged and unprovable on paper: **can an LLM emit valid LX reliably** — to be
+measured on a built L1 interpreter, with `defs`/invariants/golden-trace as the
+net. An independent adversarial pass (Codex, as for rev 2) is the recommended
+next check before implementation budget.

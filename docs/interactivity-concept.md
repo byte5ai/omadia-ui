@@ -17,6 +17,13 @@
 > only** — no implementation, no PR
 > plan. It extends, and stays inside, the architecture in `CONCEPT.md`.
 
+Version 0.10 — **reference set complete.** Tracing the last three reference
+Lumens (workflow / defrag / map) in real LX-AST added only **interaction-surface**
+items, no core-model gaps — the expected convergence: per-event payload schema
+(`lumens-spec.md` §4.1), the `dataRef` `projection` read shape (§1.1), a `lookup`
+associative-read helper (§2.3), and effect `debounceMs`/`coalesceKey` (§6.4). All
+five reference Lumens now trace end-to-end; the only standing risk is LLM
+emit-valid-LX reliability, measurable on a built L1 interpreter, not on paper.
 Version 0.9 — **acceptance-gate trace.** Hand-authoring the **full** arcade +
 ordering reference Lumens in real LX-AST (`docs/protocol/lumen-walkthroughs.md`)
 surfaced two load-bearing gaps invisible to fragment-level review — they only
