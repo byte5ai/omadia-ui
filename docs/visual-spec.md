@@ -5,6 +5,13 @@
 > Geist (structural) · Source Serif 4 (prose) · Geist Mono (data/code).
 > Codex-review-ready in the CONCEPT.md cadence.
 
+Version 0.6 — **Iconography (§2.12) — three-source model.** Icons gain a
+generative-layer vocabulary: `app:` (curated Lucide subset, immutable) · `lib:`
+(user library) · `gen:` (generated, deferred). The three-custom-icon cap is
+retired in favour of a style constraint (monochrome single-stroke line, single
+`currentColor`). Companion to `./iconography.md` and the `protocol/1.0.md` §12
+affordance.
+
 Version 0.5 — **Lumens & `scene` visual treatment (§4.13).** Pins how the
 Live-Interactivity extension renders in Lume: `scene` is editor-class
 (`radius.0`); draw-list colours are tokens only (always on-theme); presentation
@@ -723,8 +730,8 @@ static fill. Modal open/close becomes instant.
 
 **Three sources, one material.** **Bundled (`app:`)** — Lucide (14/16/20/24 px,
 1.5/1.75/2.0 stroke) plus the curated custom glyphs (`magic-wand`,
-`brush-pressure`, `vector-pen-anchor`); the design-controlled, immutable set the
-agent references by name. **Library (`lib:`)** — user-installed icon sets,
+`brush-pressure`, `vector-pen-anchor`); the design-controlled, immutable set —
+the agent references a **curated subset** of these names. **Library (`lib:`)** — user-installed icon sets,
 picked per canvas. **Generated (`gen:`)** — produced on demand by
 `iconGenerator` (deferred) and constrained to the house style below.
 

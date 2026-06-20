@@ -105,11 +105,13 @@ IconRef := "app:" <name>            // bundled, curated, design-controlled
 | `lib:` | user-installed icon sets | user | no | middle |
 | `gen:` | image-gen agent output | generator | yes | lowest |
 
-`app:` is the named Lucide vocabulary (plus the §2.12 custom glyphs) exposed to
-the UI Skill — *this is what finally lets the agent place icons*: it emits
-`app:calendar`, the renderer draws Lucide `calendar`. Reserving `app:` immutable
-stops user/generated glyphs from silently replacing chrome icons (trust +
-consistency).
+`app:` resolves against Lucide + the §2.12 custom glyphs. The **agent-facing
+vocabulary is a curated subset** of those names (decided — *not* the full Lucide
+set): a smaller, well-chosen vocabulary yields more consistent agent output,
+while the renderer can still resolve any bundled glyph for chrome. *This is what
+finally lets the agent place icons*: it emits `app:calendar`, the renderer draws
+Lucide `calendar`. Reserving `app:` immutable stops user/generated glyphs from
+silently replacing chrome icons (trust + consistency).
 
 ### 3.4 `lib:` / `gen:` icons **are** DataRefs (reuse, don't reinvent)
 
@@ -220,12 +222,19 @@ label-removal.
 > only via `iconState: "active"` (§1.2). See `docs/iconography.md` for the
 > protocol affordance, the resolver, and the generation contract.
 
-## 8. Open questions
+## 8. Decisions & open questions
 
-1. Standalone `icon` primitive (§3.1) vs. trait-only — does the rail/dock need a
-   primitive, or is a `button` + `icon` trait enough? (Leaning: primitive, for
-   the icon-only-with-`label` a11y contract.)
-2. `lib:` distribution — bundled-with-plugin sets vs. a user-importable format.
-3. Placeholder glyph design for a resolver `Miss`.
-4. Should `app:` expose the *full* Lucide name set to the Skill, or a curated
-   subset (smaller vocabulary = more consistent agent output)?
+**Decided (CW, 2026-06-20):**
+
+1. **Keep the standalone `icon` primitive** (the 25th, §3.1). Trait-only would
+   force every icon onto a host primitive; the primitive carries the icon-only
+   rail/dock affordance and its mandatory-`label` a11y contract.
+2. **`app:` exposes a curated subset** of Lucide names to the Skill, *not* the
+   full set — smaller vocabulary → more consistent agent output (§3.3).
+
+**Still open:**
+
+3. `lib:` distribution — bundled-with-plugin sets vs. a user-importable format.
+4. Placeholder glyph design for a resolver `Miss`.
+5. The exact curated subset — which Lucide names form the agent vocabulary, and
+   the governance for growing it.
