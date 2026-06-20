@@ -12,7 +12,6 @@ node_modules/
 public/previews/
 history.md
 latest/
-v0.1/
-v0.2/
-v0.3/
-v0.4/
+# all reconstructed version snapshots (v0.1 … v0.6 …) — globbed so this list
+# never drifts when a new version is added
+v[0-9]*/
