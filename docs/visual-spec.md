@@ -721,10 +721,22 @@ static fill. Modal open/close becomes instant.
 
 ### 2.12 Icons
 
-Unchanged: Lucide as the icon library, 14/16/20/24 px sizes with
-1.5/1.75/2.0 stroke widths. Three documented custom icons allowed
-(`magic-wand`, `brush-pressure`, `vector-pen-anchor`) for editor-specific
-glyphs Lucide doesn't cover.
+**Three sources, one material.** **Bundled (`app:`)** — Lucide (14/16/20/24 px,
+1.5/1.75/2.0 stroke) plus the curated custom glyphs (`magic-wand`,
+`brush-pressure`, `vector-pen-anchor`); the design-controlled, immutable set the
+agent references by name. **Library (`lib:`)** — user-installed icon sets,
+picked per canvas. **Generated (`gen:`)** — produced on demand by
+`iconGenerator` (deferred) and constrained to the house style below.
+
+The earlier hard cap of "three custom icons" is **retired** — superseded by the
+constraint, not the count: every icon, whatever its source, is a **monochrome
+single-stroke line glyph**, stroke 1.5–2.0, on the 24-grid, single
+`currentColor`, no fills, no raster. Colour is never carried *in* the glyph: an
+icon tints to a text token by default and to `accent` only via
+`iconState: "active"` (§1.2) — icons obey the one-accent-slot rule like
+everything else. The protocol affordance (icon trait + `IconRef`), the resolver
+and the generation contract: [`./iconography.md`](./iconography.md) and
+[`protocol/1.0.md`](protocol/1.0.md) §12.
 
 ### 2.13 Surface nesting — the ladder (v0.4)
 
