@@ -28,8 +28,14 @@ const BASE = process.env.DOCS_BASE ?? '/omadia-ui/';
 
 // Newest first. `commit: null` means "current working tree" (the live latest).
 // Commit→version mapping verified against `git log --follow -- docs/visual-spec.md`.
+// NOTE: hand-maintained — append a new entry on every visual-spec version bump
+// and pin the previous "latest" to its last commit at that version.
 const VERSIONS = [
-  { id: 'v0.4', dir: 'latest', alias: 'v0.4', label: 'v0.4 (latest)', commit: null,
+  { id: 'v0.6', dir: 'latest', alias: 'v0.6', label: 'v0.6 (latest)', commit: null,
+    title: 'Iconography — three-source model' },
+  { id: 'v0.5', dir: 'v0.5', label: 'v0.5', commit: '2c1f83e',
+    title: 'Lumens & scene visual treatment' },
+  { id: 'v0.4', dir: 'v0.4', label: 'v0.4', commit: '50985f5',
     title: 'Surface-nesting ladder & chrome budget' },
   { id: 'v0.3', dir: 'v0.3', label: 'v0.3', commit: '78a904b',
     title: 'Three-register typography' },

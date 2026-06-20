@@ -32,6 +32,6 @@ features:
   - icon: 🕑
     title: Every version, browsable
     details: >-
-      v0.1 through v0.4 reconstructed from git and switchable via the Versions menu —
+      v0.1 through v0.6 reconstructed from git and switchable via the Versions menu —
       with a who-added-what-when authorship page that can never drift.
 ---
