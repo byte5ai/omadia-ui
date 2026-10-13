@@ -11,10 +11,8 @@ import {
   type PrimitiveJson,
   type RowMenuRequest,
 } from './render/PrimitiveNode.js';
-import { CanvasLibrary } from './CanvasLibrary.js';
 import { Notifications } from './Notifications.js';
 import { Onboarding } from './onboarding/Onboarding.js';
-import { Sidebar } from './Sidebar.js';
 import {
   addNotification,
   dismissNotification,
@@ -30,30 +28,20 @@ import {
   saveSlots,
   type CanvasSlotMeta,
 } from './store/canvasSlots.js';
-import {
-  desktopsToWire,
-  loadDesktops,
-  mergeWireDesktops,
-  newDesktop,
-  saveDesktops,
-  type DesktopMeta,
-} from './store/desktopStore.js';
-import {
-  collectSlotIds,
-  leaf,
-  removeLeaf,
-  replaceLeaf,
-  setRatioAt,
-  splitLeaf,
-  type SplitDir,
-  type WorkspaceNode,
-} from './store/workspaceStore.js';
 import { initPalette } from './theme/palette.js';
 import { PalettePicker } from './theme/PalettePicker.js';
-import { Workspace } from './Workspace.js';
+import { Board } from './Board.js';
+import {
+  initialBoardState,
+  loadBoard,
+  placeApp,
+  reconcileApps,
+  saveBoard,
+  type BoardState,
+} from './store/boardStore.js';
 
 const DEFAULT_WS_URL: string =
-  import.meta.env.VITE_OMADIA_WS_URL ?? 'ws://127.0.0.1:8181/omadia-ui/canvas';
+  import.meta.env.VITE_OMADIA_WS_URL ?? 'ws://127.0.0.1:8080/omadia-ui/canvas';
 const DEFAULT_USE_AUTH =
   import.meta.env.VITE_OMADIA_USE_AUTH === '1' || DEFAULT_WS_URL.startsWith('wss');
 
@@ -103,56 +91,18 @@ export function App() {
   const [activeSlotId, setActiveSlotId] = useState<string>(
     initialSlots.current.activeId || (initialSlots.current.slots[0]?.slotId ?? ''),
   );
-  // multi-DESKTOPS: each desktop is a named, colored tiling layout (issue
-  // #14 follow-up). The active desktop's split tree is "the layout"; every
-  // structural change below writes into the active desktop.
-  const initialDesktops = useRef<{ desktops: DesktopMeta[]; activeId: string } | null>(null);
-  if (initialDesktops.current === null) {
-    initialDesktops.current =
-      loadDesktops() ??
-      (() => {
-        const d = newDesktop(
-          0,
-          leaf(initialSlots.current.activeId || (initialSlots.current.slots[0]?.slotId ?? '')),
-        );
-        return { desktops: [d], activeId: d.desktopId };
-      })();
-  }
-  const [desktops, setDesktops] = useState<DesktopMeta[]>(initialDesktops.current.desktops);
-  const [activeDesktopId, setActiveDesktopId] = useState<string>(initialDesktops.current.activeId);
-  const activeDesktopIdRef = useRef(activeDesktopId);
-  activeDesktopIdRef.current = activeDesktopId;
-  const layout: WorkspaceNode =
-    desktops.find((d) => d.desktopId === activeDesktopId)?.layout ??
-    leaf(initialSlots.current.slots[0]?.slotId ?? '');
-  const setLayout = (updater: WorkspaceNode | ((l: WorkspaceNode) => WorkspaceNode)): void =>
-    setDesktops((prev) =>
-      prev.map((d) =>
-        d.desktopId === activeDesktopIdRef.current
-          ? {
-              ...d,
-              layout: typeof updater === 'function' ? updater(d.layout) : updater,
-              updatedAt: Date.now(),
-            }
-          : d,
-      ),
-    );
+  // the fluid Board (Miro idiom) replaces Desktops + the split-tree tiling:
+  // a pan/zoom viewport + per-app geometry. Pure Tier-1 view-state (CONCEPT
+  // Authority Model) — persisted client-side, never a server turn.
+  const [board, setBoard] = useState<BoardState>(() => loadBoard() ?? initialBoardState);
   useEffect(() => {
-    saveDesktops(desktops, activeDesktopId);
-  }, [desktops, activeDesktopId]);
-
-  // push desktops to the LVL2 registry (debounced; only after the first
-  // server merge — a fresh install must never clobber the user's desktops)
+    saveBoard(board);
+  }, [board]);
+  // every app gets board geometry; a vanished app loses its frame slot. The
+  // helper is ref-stable when nothing changed, so React bails out (no loop).
   useEffect(() => {
-    if (!desktopListSynced.current) return;
-    const t = setTimeout(() => {
-      window.omadiaCanvas.saveDesktopList(
-        activeSlotIdRef.current,
-        desktopsToWire(desktops, slotsRef.current),
-      );
-    }, 800);
-    return () => clearTimeout(t);
-  }, [desktops, slots]);
+    setBoard((b) => reconcileApps(b, slots.map((s) => s.slotId)));
+  }, [slots]);
   // one canvas state per slot — background slots keep receiving their
   // streams (one socket per slot), so switching mid-turn loses nothing
   const slotStates = useRef(new Map<string, CanvasState>());
@@ -175,19 +125,12 @@ export function App() {
   // sessions deleted this run (issue #8) — an in-flight canvas_list merge
   // must never resurrect them before the shrunken registry put lands
   const deletedSessions = useRef(new Set<string>());
-  // panes minted by a split that have not decided yet (issue #14): they show
-  // the chooser — "Ask Omadia" OR adopt an existing canvas (library look)
-  const chooserSlots = useRef(new Set<string>());
-  // desktop LVL2 sync: pushes wait for the first server merge; deleted
-  // desktops stay dead while an in-flight merge could resurrect them
-  const desktopListSynced = useRef(false);
-  const deletedDesktops = useRef(new Set<string>());
   // turn prose is debug-only: hidden behind the bottom-right marker
   const [showTurnLog, setShowTurnLog] = useState(false);
   // ⌥⌘P palette quick-picker (VS-Code-Quick-Pick idiom, §3.6 modal)
   const [showPalettePicker, setShowPalettePicker] = useState(false);
-  // canvas library overlay (issue #12 v1) — inventory of every held canvas
-  const [showLibrary, setShowLibrary] = useState(false);
+  // floating instance-switcher chip (relocated from the deleted sidebar)
+  const [instancesOpen, setInstancesOpen] = useState(false);
   // right-click context-invoke panel (closed on any outside click)
   const [rowMenu, setRowMenu] = useState<RowMenuRequest | null>(null);
   // free-intent text in the panel's beam field
@@ -240,18 +183,8 @@ export function App() {
       }
       // per-user canvas registry (LVL2-persisted): server list is authoritative
       // for known sessions; local-only slots (never connected) are kept.
-      if (msg.type === 'desktop_list') {
-        // requested AFTER the canvas_list merge, so sessionId→slotId resolves
-        desktopListSynced.current = true;
-        setDesktops((local) =>
-          mergeWireDesktops(local, msg.desktops, slotsRef.current, deletedDesktops.current),
-        );
-        return;
-      }
       if (msg.type === 'canvas_list') {
         canvasListSynced.current = true;
-        // desktops sync once the canvas registry (and its slots) landed
-        window.omadiaCanvas.requestDesktopList(slotKey);
         const server = msg.canvases.filter((e) => !deletedSessions.current.has(e.sessionId));
         if (server.length > 0) {
           setSlots((prev) => {
@@ -367,17 +300,12 @@ export function App() {
       }
       setSettings(saved);
       if (!saved) return;
-      // every pane of the persisted workspace dials its own socket — the
-      // focused pane must be one of them (the layout may have been pruned)
-      const leaves = collectSlotIds(layout);
-      if (!leaves.includes(activeSlotIdRef.current) && leaves[0]) {
-        setActiveSlotId(leaves[0]);
-      }
-      for (const slotId of leaves) {
-        const slot = initialSlots.current.slots.find((s) => s.slotId === slotId);
-        void window.omadiaCanvas.connect(slotId, {
+      // every app on the board is "visible" and live — each dials its own
+      // socket on boot (no tiling layout to gate which panes connect).
+      for (const slot of initialSlots.current.slots) {
+        void window.omadiaCanvas.connect(slot.slotId, {
           ...toConnectOptions(saved),
-          ...(slot?.sessionId ? { canvasSessionId: slot.sessionId } : { freshSession: true }),
+          ...(slot.sessionId ? { canvasSessionId: slot.sessionId } : { freshSession: true }),
         });
       }
     });
@@ -478,137 +406,19 @@ export function App() {
     ensureConnected(slotId);
   };
 
-  /** Sidebar select: focus the pane already showing this canvas, else load
-   *  it into the FOCUSED pane (single-pane layout = the classic full switch). */
-  const switchCanvas = (slotId: string) => {
-    if (!settings || slotId === activeSlotId) return;
-    if (!collectSlotIds(layout).includes(slotId)) {
-      setLayout((l) => replaceLeaf(l, activeSlotIdRef.current, slotId));
-    }
-    focusSlot(slotId);
-  };
-
-  const addCanvas = () => {
+  /** New app on the board: a fresh cold-start canvas placed at `anchor`
+   *  (double-click point) or cascaded. It dials its own socket and takes
+   *  focus; geometry is set here so the anchor is honoured (the reconcile
+   *  effect only fills geometry that is still missing). */
+  const addCanvas = (anchor?: { x: number; y: number }) => {
     if (!settings) return;
     const slot = newSlot(slots.length);
     setSlots((prev) => [...prev, slot]);
-    setLayout((l) => replaceLeaf(l, activeSlotIdRef.current, slot.slotId));
+    setBoard((b) => ({
+      ...b,
+      apps: { ...b.apps, [slot.slotId]: placeApp(b.apps, anchor) },
+    }));
     focusSlot(slot.slotId);
-  };
-
-  /** Switch desktop: the whole tiling layout swaps; every canvas socket
-   *  keeps streaming. Panes of the target desktop dial lazily. */
-  const switchDesktop = (desktopId: string) => {
-    if (desktopId === activeDesktopId) return;
-    const target = desktops.find((d) => d.desktopId === desktopId);
-    if (!target) return;
-    setActiveDesktopId(desktopId);
-    const leaves = collectSlotIds(target.layout);
-    for (const slotId of leaves) ensureConnected(slotId);
-    const focusTarget = leaves.includes(activeSlotIdRef.current)
-      ? activeSlotIdRef.current
-      : leaves[0];
-    if (focusTarget && focusTarget !== activeSlotIdRef.current) focusSlot(focusTarget);
-  };
-
-  /** New desktop: starts as a single chooser pane (ask Omadia or adopt). */
-  const addDesktop = () => {
-    if (!settings) return;
-    const slot = newSlot(slots.length);
-    chooserSlots.current.add(slot.slotId);
-    setSlots((prev) => [...prev, slot]);
-    const d = newDesktop(desktops.length, leaf(slot.slotId));
-    setDesktops((prev) => [...prev, d]);
-    setActiveDesktopId(d.desktopId);
-    focusSlot(slot.slotId);
-  };
-
-  const renameDesktop = (desktopId: string, name: string) =>
-    setDesktops((prev) =>
-      prev.map((d) =>
-        d.desktopId === desktopId
-          ? { ...d, name: name.slice(0, 48), updatedAt: Date.now() }
-          : d,
-      ),
-    );
-
-  const cycleDesktopColor = (desktopId: string) =>
-    setDesktops((prev) =>
-      prev.map((d) =>
-        d.desktopId === desktopId
-          ? { ...d, color: (d.color + 1) % 6, updatedAt: Date.now() }
-          : d,
-      ),
-    );
-
-  /** Delete a desktop (the canvases it shows stay). Tombstoned so an
-   *  in-flight merge cannot resurrect it; the shrunken list pushes NOW. */
-  const deleteDesktop = (desktopId: string) => {
-    if (desktops.length <= 1) return;
-    deletedDesktops.current.add(desktopId);
-    const remaining = desktops.filter((d) => d.desktopId !== desktopId);
-    setDesktops(remaining);
-    if (desktopListSynced.current) {
-      window.omadiaCanvas.saveDesktopList(
-        activeSlotIdRef.current,
-        desktopsToWire(remaining, slotsRef.current),
-      );
-    }
-    if (desktopId === activeDesktopIdRef.current) {
-      const next = remaining[0] as DesktopMeta;
-      setActiveDesktopId(next.desktopId);
-      const leaves = collectSlotIds(next.layout);
-      for (const slotId of leaves) ensureConnected(slotId);
-      if (leaves[0] && !leaves.includes(activeSlotIdRef.current)) focusSlot(leaves[0]);
-    }
-  };
-
-  /** New Column / New Row (issue #14): split the pane. The new pane takes
-   *  focus and shows the CHOOSER — ask Omadia fresh, or adopt an existing
-   *  canvas (library look). */
-  const splitPane = (targetSlotId: string, dir: SplitDir) => {
-    if (!settings) return;
-    const slot = newSlot(slots.length);
-    chooserSlots.current.add(slot.slotId);
-    setSlots((prev) => [...prev, slot]);
-    setLayout((l) => splitLeaf(l, targetSlotId, dir, slot.slotId));
-    focusSlot(slot.slotId);
-  };
-
-  /** Chooser pick: the pane adopts an EXISTING canvas; the placeholder slot
-   *  the split minted is discarded (socket, refs, registry entry). */
-  const adoptIntoPane = (placeholderSlotId: string, pickedSlotId: string) => {
-    chooserSlots.current.delete(placeholderSlotId);
-    setLayout((l) => replaceLeaf(l, placeholderSlotId, pickedSlotId));
-    focusSlot(pickedSlotId);
-    const placeholder = slots.find((s) => s.slotId === placeholderSlotId);
-    const remaining = slots.filter((s) => s.slotId !== placeholderSlotId);
-    if (placeholder?.sessionId) {
-      deletedSessions.current.add(placeholder.sessionId);
-      if (canvasListSynced.current) {
-        const carrier = connectedSlots.current.has(pickedSlotId)
-          ? pickedSlotId
-          : activeSlotIdRef.current;
-        window.omadiaCanvas.saveCanvasList(carrier, toRegistryEntries(remaining));
-      }
-    }
-    void window.omadiaCanvas.disconnect(placeholderSlotId);
-    slotStates.current.delete(placeholderSlotId);
-    connectedSlots.current.delete(placeholderSlotId);
-    statusBySlot.current.delete(placeholderSlotId);
-    setSlots(remaining);
-  };
-
-  /** Close a pane — the canvas itself stays in the sidebar (its socket and
-   *  stream keep running); the last pane cannot close. */
-  const closePane = (slotId: string) => {
-    const next = removeLeaf(layout, slotId);
-    if (!next) return;
-    setLayout(next);
-    if (slotId === activeSlotIdRef.current) {
-      const first = collectSlotIds(next)[0];
-      if (first) focusSlot(first);
-    }
   };
 
   /** Issue #8, pre-sharing v1: deleting a canvas is a COMPLETE delete — the
@@ -647,8 +457,6 @@ export function App() {
       setShowPrompt(false);
       setDraft('');
       setStatus({ state: 'connecting' });
-      // every desktop's layout falls back to the fresh cold-start canvas
-      setDesktops((prev) => prev.map((d) => ({ ...d, layout: leaf(fresh.slotId) })));
       void window.omadiaCanvas.connect(fresh.slotId, {
         ...toConnectOptions(settings),
         freshSession: true,
@@ -656,17 +464,10 @@ export function App() {
       return;
     }
     setSlots(remaining);
-    // prune the deleted canvas out of EVERY desktop's layout — its pane
-    // collapses into the sibling; an emptied desktop falls back to a leaf
-    const fallbackSlotId = (remaining[0] as CanvasSlotMeta).slotId;
-    const prunedActive = removeLeaf(layout, slotId);
-    setDesktops((prev) =>
-      prev.map((d) => ({ ...d, layout: removeLeaf(d.layout, slotId) ?? leaf(fallbackSlotId) })),
-    );
+    // the deleted app's frame + geometry are dropped by the reconcile effect;
+    // if it was focused, fall through to the first remaining app.
     if (slotId === activeSlotId) {
-      const focusTarget =
-        (prunedActive ? collectSlotIds(prunedActive)[0] : undefined) ?? fallbackSlotId;
-      focusSlot(focusTarget);
+      focusSlot((remaining[0] as CanvasSlotMeta).slotId);
     }
   };
 
@@ -735,12 +536,11 @@ export function App() {
     connectedSlots.current.clear();
     statusBySlot.current.clear();
     const redial = (): void => {
-      // every visible pane redials against the new server
-      for (const slotId of collectSlotIds(layout)) {
-        const slot = slots.find((s) => s.slotId === slotId);
-        void window.omadiaCanvas.connect(slotId, {
+      // every app on the board redials against the new server
+      for (const slot of slots) {
+        void window.omadiaCanvas.connect(slot.slotId, {
           ...toConnectOptions(candidate),
-          ...(slot?.sessionId ? { canvasSessionId: slot.sessionId } : { freshSession: true }),
+          ...(slot.sessionId ? { canvasSessionId: slot.sessionId } : { freshSession: true }),
         });
       }
     };
@@ -810,8 +610,6 @@ export function App() {
   const submitPrompt = () => {
     const text = draft.trim();
     if (!text) return;
-    // asking turns a chooser pane into a real canvas
-    chooserSlots.current.delete(activeSlotId);
     const turnId = crypto.randomUUID();
     pendingTurnIds.current.set(activeSlotId, turnId);
     window.omadiaCanvas.sendTurn(activeSlotId, { type: 'turn', turnId, text });
@@ -915,67 +713,7 @@ export function App() {
     const st = focused ? canvas : (slotStates.current.get(slotId) ?? initialCanvasState);
     if (st.tree === null) {
       if (!focused) {
-        return <div className="lume-pane-empty">Leerer Canvas — klicken zum Fokussieren.</div>;
-      }
-      // chooser pane (fresh split, issue #14): ask Omadia OR adopt an
-      // existing canvas — same card look as the library (#12)
-      const isChooser = chooserSlots.current.has(slotId);
-      const candidates = isChooser ? slots.filter((s) => s.slotId !== slotId) : [];
-      if (isChooser && candidates.length > 0) {
-        return (
-          <div className="lume-pane-chooser">
-            <input
-              ref={promptRef}
-              className="lume-input lume-spotlight-input"
-              autoFocus
-              placeholder="Ask omadia…"
-              disabled={status.state !== 'ready'}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && submitPrompt()}
-            />
-            <div className="lume-pane-chooser-divider">oder bestehenden Canvas öffnen</div>
-            <div className="lume-library-grid lume-pane-chooser-grid">
-              {candidates.map((s) => {
-                const tree =
-                  s.slotId === activeSlotId
-                    ? canvas.tree
-                    : (slotStates.current.get(s.slotId)?.tree ?? null);
-                return (
-                  <div key={s.slotId} className="lume-library-card">
-                    <div className="lume-library-card-head">
-                      <span className={`lume-sidebar-dot lume-canvas-dot-${s.color}`} aria-hidden />
-                      <span className="lume-library-card-title" title={s.title}>
-                        {s.title}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className="lume-library-preview"
-                      title={`„${s.title}“ in dieser Pane öffnen`}
-                      onClick={() => adoptIntoPane(slotId, s.slotId)}
-                    >
-                      {tree !== null ? (
-                        <div className="lume-library-preview-scale" aria-hidden>
-                          <PrimitiveNode
-                            node={tree as PrimitiveJson}
-                            onAction={() => undefined}
-                            onRowMenu={() => undefined}
-                            root
-                          />
-                        </div>
-                      ) : (
-                        <span className="lume-library-preview-empty">
-                          Noch nicht geladen — öffnen stellt den Canvas wieder her.
-                        </span>
-                      )}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
+        return <div className="lume-pane-empty">Leere App — klicken zum Fokussieren.</div>;
       }
       return (
         // Cold-start: a canvas is never empty (concept §Interaction Model).
@@ -1088,28 +826,7 @@ export function App() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'row', height: '100%' }}>
-      <Sidebar
-        instances={settings?.instances ?? []}
-        activeInstanceId={settings?.activeInstanceId}
-        onSwitchInstance={switchInstance}
-        onManageInstances={() => setShowSetup(true)}
-        desktops={desktops}
-        activeDesktopId={activeDesktopId}
-        onSelectDesktop={switchDesktop}
-        onAddDesktop={addDesktop}
-        onRenameDesktop={renameDesktop}
-        onDesktopColor={cycleDesktopColor}
-        onDeleteDesktop={deleteDesktop}
-        slots={slots}
-        activeSlotId={activeSlotId}
-        busySlotIds={busySlots}
-        onSelect={switchCanvas}
-        onAdd={addCanvas}
-        onDelete={deleteCanvas}
-        onLibrary={() => setShowLibrary(true)}
-      />
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+    <div className="lume-shell">
       {/* instant feedback the moment a turn fires — the old view stays
           (back-navigable), the lit strip says "omadia is working" */}
       {canvas.turnPending && (
@@ -1131,21 +848,19 @@ export function App() {
           ✕ Abbrechen
         </button>
       )}
-      <div className="lume-workspace">
-        <Workspace
-          layout={layout}
-          activeSlotId={activeSlotId}
-          busySlotIds={busySlots}
-          canClose={layout.kind === 'split'}
-          paneTitle={(id) => slots.find((s) => s.slotId === id)?.title ?? 'Canvas'}
-          paneBarExtras={paneBarNav}
-          renderPane={renderPane}
-          onFocus={focusSlot}
-          onSplit={splitPane}
-          onClose={closePane}
-          onRatioChange={(path, ratio) => setLayout((l) => setRatioAt(l, path, ratio))}
-        />
-      </div>
+      <Board
+        board={board}
+        setBoard={setBoard}
+        apps={slots.map((s) => ({ slotId: s.slotId, title: s.title, color: s.color }))}
+        activeSlotId={activeSlotId}
+        busySlotIds={busySlots}
+        canDelete={slots.length > 1}
+        paneBarExtras={paneBarNav}
+        renderApp={renderPane}
+        onFocus={focusSlot}
+        onAddApp={addCanvas}
+        onDeleteApp={deleteCanvas}
+      />
       {rowMenu && (
         // context-invoke action panel: agent-pre-supplied suggestedActions
         // (no turn on open!) own the menu; the generic details affordance is
@@ -1289,24 +1004,61 @@ export function App() {
           window.omadiaCanvas.ackNotification(n.slotKey, n.id);
         }}
       />
-      {showLibrary && (
-        <CanvasLibrary
-          slots={slots}
-          activeSlotId={activeSlotId}
-          treeFor={(slotId) =>
-            slotId === activeSlotId
-              ? canvas.tree
-              : (slotStates.current.get(slotId)?.tree ?? null)
-          }
-          onOpen={(slotId) => {
-            setShowLibrary(false);
-            switchCanvas(slotId);
-          }}
-          onDelete={deleteCanvas}
-          onClose={() => setShowLibrary(false)}
-        />
+      {/* instance switcher — relocated from the deleted sidebar to a floating
+          bottom-left chip. Which omadia this board talks to; switching
+          re-fetches EVERYTHING against the selected server. */}
+      {settings?.instances && settings.instances.length > 0 && (
+        <div className="lume-board-instances">
+          {instancesOpen && (
+            <div className="lume-instance-list" role="menu">
+              {settings.instances.map((i) => (
+                <button
+                  key={i.id}
+                  type="button"
+                  role="menuitem"
+                  className={`lume-instance-item${
+                    i.id === settings.activeInstanceId ? ' lume-instance-active' : ''
+                  }`}
+                  title={i.serverUrl}
+                  onClick={() => {
+                    setInstancesOpen(false);
+                    switchInstance(i.id);
+                  }}
+                >
+                  <span className="lume-instance-dot" aria-hidden />
+                  {i.name}
+                  {i.id === settings.activeInstanceId ? ' ✓' : ''}
+                </button>
+              ))}
+              <button
+                type="button"
+                role="menuitem"
+                className="lume-instance-item"
+                onClick={() => {
+                  setInstancesOpen(false);
+                  setShowSetup(true);
+                }}
+              >
+                + Instanz hinzufügen…
+              </button>
+            </div>
+          )}
+          <button
+            type="button"
+            className="lume-instance-chip"
+            aria-expanded={instancesOpen}
+            onClick={() => setInstancesOpen((o) => !o)}
+          >
+            <span className="lume-instance-dot lume-instance-dot-live" aria-hidden />
+            <span className="lume-instance-name">
+              {settings.instances.find((i) => i.id === settings.activeInstanceId)?.name ?? 'Omadia'}
+            </span>
+            <span className="lume-instance-caret" aria-hidden>
+              {instancesOpen ? '▾' : '▸'}
+            </span>
+          </button>
+        </div>
       )}
-      </div>
     </div>
   );
 }
