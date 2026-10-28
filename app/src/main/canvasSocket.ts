@@ -25,6 +25,14 @@ export interface CanvasSocketOptions {
 
 const BACKOFF_MS = [1000, 2000, 5000, 10_000, 30_000] as const;
 
+/** Post-upgrade session end (kernel #1262): the server closes a live socket
+ *  with 4401 when the session expires and 4403 when it is revoked. Same
+ *  meaning as a 401/403 on the upgrade — re-auth, never reconnect. */
+const SESSION_CLOSE_DETAIL: Readonly<Record<number, string>> = {
+  4401: 'Session expired — sign in again',
+  4403: 'Session revoked — sign in again',
+};
+
 /**
  * Owns the WebSocket to omadia-ui-channel: handshake on every (re)connect,
  * exponential-backoff reconnect, canvasSessionId persistence across sessions.
@@ -114,9 +122,16 @@ export class CanvasSocket {
       this.opts.onMessage(msg);
     });
 
-    ws.on('close', () => {
+    ws.on('close', (code) => {
       this.ready = false;
       if (this.authFailed) return; // the failed/authRequired status stands
+      const sessionEnded = SESSION_CLOSE_DETAIL[code];
+      if (sessionEnded) {
+        this.authFailed = true;
+        this.closedByUser = true;
+        this.opts.onStatus({ state: 'failed', detail: sessionEnded, authRequired: true });
+        return;
+      }
       if (this.closedByUser) {
         this.opts.onStatus({ state: 'disconnected' });
         return;

@@ -24,6 +24,10 @@ export interface HandshakeAck {
   type: 'handshake_ack';
   handshakeId: string;
   canvasSessionId: string;
+  /** when the session behind the socket expires (Unix epoch seconds); the
+   *  server then closes with 4401 (4403 on revocation). Absent on servers
+   *  that predate the session-lifetime contract. */
+  sessionExpiresAt?: number;
 }
 
 export interface AgentTextDelta {
