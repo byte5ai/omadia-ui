@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AppSettings, ConnectOptions, ConnectionStatus } from '../../shared/ipc.js';
-import { applyServerMessage, goBack, initialCanvasState, type CanvasState } from './store/canvasStore.js';
+import { goBack, initialCanvasState, type CanvasState } from './store/canvasStore.js';
 import { extractRootMenu, loadStoredMenu, storeMenu } from './store/canvasMenu.js';
+import { routeServerMessage } from './store/slotRouting.js';
 import { syncNamespace } from './store/prefsNamespace.js';
 import { validateTree } from './validate/validator.js';
 import {
@@ -309,19 +310,20 @@ export function App() {
       }
       // route by SLOT: background streams land in their slot's state, the
       // active slot additionally re-renders the visible canvas.
-      const prev =
-        slotKey === activeSlotIdRef.current
-          ? stateRef.current
-          : (slotStates.current.get(slotKey) ?? initialCanvasState);
-      const { state, resync } = applyServerMessage(prev, msg);
-      slotStates.current.set(slotKey, state);
+      const { state, resync, prev, active } = routeServerMessage(
+        slotKey,
+        msg,
+        activeSlotIdRef.current,
+        stateRef,
+        slotStates.current,
+      );
       // §2.15: persist the app menu so it survives an app restart that
       // lands on a menu-less server state (e.g. an error tree)
       if (state.menu !== prev.menu) {
         const sess = slotsRef.current.find((s) => s.slotId === slotKey)?.sessionId;
         if (sess) storeMenu(sess, state.menu);
       }
-      if (slotKey === activeSlotIdRef.current) {
+      if (active) {
         setCanvas(state);
       } else {
         setBgTick((t) => t + 1); // sidebar busy/title indicators
