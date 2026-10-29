@@ -831,7 +831,12 @@ export function App() {
   /** Beam-as-prompt (concept §Interaction Model): free intent deterministically
    *  bound to the row's stable TargetRef — `{kind:'item', containerId, itemKey}`,
    *  never view positions. The pin sticks to the row until the turn resolves. */
-  const submitBeam = (menu: RowMenuRequest, text: string, target?: unknown) => {
+  const submitBeam = (
+    menu: RowMenuRequest,
+    text: string,
+    target?: unknown,
+    action?: { type: string; payload?: Record<string, unknown> },
+  ) => {
     setRowMenu(null);
     setBeamDraft('');
     const turnId = crypto.randomUUID();
@@ -841,6 +846,7 @@ export function App() {
       turnId,
       text,
       target: target ?? { kind: 'item', containerId: menu.tableId, itemKey: menu.rowKey },
+      ...(action ? { action } : {}),
     });
     setBeam({ containerId: menu.tableId, rowKey: menu.rowKey, x: menu.x, y: menu.y });
     setCanvas((c) => ({ ...c, turnPending: true, turnError: null, prose: '' }));
@@ -878,6 +884,11 @@ export function App() {
       `Zeige die Details zu diesem Datensatz ${rowContext(menu)}. ` +
         `Stelle die Ansicht als Panes dar — eine Übersicht und die zum Datensatz ` +
         `passenden Detail-Tabellen.`,
+      undefined,
+      // structured twin of the text: a server that knows `row_details`
+      // answers from the table's recorded query without any model call;
+      // older servers ignore it and read the text as before.
+      { type: 'row_details', payload: { locale: navigator.language } },
     );
   };
 
