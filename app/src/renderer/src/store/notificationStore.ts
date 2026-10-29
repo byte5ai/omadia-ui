@@ -21,6 +21,23 @@ export const DEFAULT_TOAST_TTL_MS = 6000;
 export const isToast = (n: UiNotification): boolean =>
   n.severity === 'info' || n.severity === 'success';
 
+/** client-minted notifications carry this id prefix — the server never saw
+ *  them, so they are never acked back over the wire */
+const LOCAL_ID_PREFIX = 'local:';
+export const isLocalNotification = (n: { id: string }): boolean => n.id.startsWith(LOCAL_ID_PREFIX);
+
+/** Banner for turns cut off by a socket drop. One dedupeKey for every slot: a
+ *  server deploy drops all sockets at once and should raise ONE banner. */
+export function turnInterruptedNotification(title: string, now: number): NotificationMsg {
+  return {
+    type: 'notification',
+    id: `${LOCAL_ID_PREFIX}turn-interrupted:${now}`,
+    severity: 'warning',
+    title,
+    dedupeKey: `${LOCAL_ID_PREFIX}turn-interrupted`,
+  };
+}
+
 export function loadNotifications(): UiNotification[] {
   try {
     const parsed = JSON.parse(localStorage.getItem(prefsKey(STORAGE_KEY)) ?? '') as UiNotification[];
