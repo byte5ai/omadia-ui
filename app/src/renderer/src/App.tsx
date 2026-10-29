@@ -841,6 +841,7 @@ export function App() {
     text: string,
     target?: unknown,
     action?: { type: string; payload?: Record<string, unknown> },
+    extra?: Record<string, unknown>,
   ) => {
     setRowMenu(null);
     setBeamDraft('');
@@ -852,6 +853,7 @@ export function App() {
       text,
       target: target ?? { kind: 'item', containerId: menu.tableId, itemKey: menu.rowKey },
       ...(action ? { action } : {}),
+      ...(extra ?? {}),
     });
     setBeam({ containerId: menu.tableId, rowKey: menu.rowKey, x: menu.x, y: menu.y });
     setCanvas((c) => ({ ...c, turnPending: true, turnError: null, prose: '' }));
@@ -1174,11 +1176,11 @@ export function App() {
           style={{ left: rowMenu.x, top: rowMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
-          {rowMenu.suggestedActions.length === 0 && (
-            <button className="lume-row-menu-item" onClick={() => showRowDetails(rowMenu)}>
-              Details anzeigen
-            </button>
-          )}
+          {/* always offered: a server with LLM-free row details answers it
+              from the table's recorded query in well under a second */}
+          <button className="lume-row-menu-item" onClick={() => showRowDetails(rowMenu)}>
+            Details anzeigen
+          </button>
           {/* per-primitive refresh (issue #5): scoped to THIS table — a local
               affordance, present regardless of agent-supplied actions */}
           <button
@@ -1198,8 +1200,17 @@ export function App() {
               className="lume-row-menu-item"
               // fires immediately — prompt + the clicked row spelled out, so the
               // agent never has to disambiguate (no confirm round-trip).
+              // The structured twin lets a server that registered a recipe
+              // variant for this action run it LLM-free against the live tree;
+              // older servers ignore it and read the text as before.
               onClick={() =>
-                submitBeam(rowMenu, `${a.prompt?.trim() ? a.prompt : a.label} ${rowContext(rowMenu)}`)
+                submitBeam(
+                  rowMenu,
+                  `${a.prompt?.trim() ? a.prompt : a.label} ${rowContext(rowMenu)}`,
+                  undefined,
+                  { type: 'recipe_variant', payload: { actionId: a.id, containerId: rowMenu.tableId } },
+                  inPlaceCanvasState(),
+                )
               }
             >
               {a.label}
