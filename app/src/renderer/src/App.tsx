@@ -87,11 +87,11 @@ const LOCAL_PENDING_TREE = {
   ],
 };
 
-
 /** The host UI is written in German (no i18n yet). Requests that ask the
  *  server for localized output use this, NOT navigator.language — Electron
  *  reports the OS locale (e.g. en-GB) even though every label here is German. */
 const UI_LOCALE = 'de-DE';
+
 export function App() {
   // undefined = settings not loaded yet; null = never connected successfully
   const [settings, setSettings] = useState<AppSettings | null | undefined>(undefined);
