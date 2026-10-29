@@ -337,11 +337,41 @@ export function Onboarding({ defaults, status, busy, canCancel, onSubmit, onCanc
       <div className="lume-card">
         <h2 className="lume-heading lume-onboarding-title">Connect to Omadia</h2>
         <p className="lume-onboarding-hint">
-          Enter your Omadia server&apos;s address — the same URL you open in the browser. We figure
-          out the canvas connection for you. It is stored locally on this machine once the
-          connection succeeds.
+          Pick a server found on your network, or enter its address. We figure out the
+          canvas connection for you — it&apos;s stored locally on this machine once connected.
         </p>
-        <label className="lume-field-label" htmlFor="server-url">
+
+        {/* A) On this network — zero-config LAN discovery (mDNS _omadia._tcp).
+            Always shown while the server step is open: lists 1-click hosts, or a
+            passive "searching" state when none have answered yet. */}
+        <span className="lume-field-label">On this network</span>
+        <div className="lume-discovered">
+          {lanHosts.length > 0 ? (
+            lanHosts.map((host) => (
+              <button
+                key={host.id}
+                type="button"
+                className="lume-button lume-discovered-host"
+                disabled={connecting || authBusy || discovering}
+                onClick={() => void submit(`${host.address}:${host.port}`)}
+                title={`${host.address}:${host.port}`}
+              >
+                <span className="lume-discovered-host-name">{host.name}</span>
+                {host.authMode && host.authMode !== 'none' ? (
+                  <span className="lume-discovered-host-auth">sign-in</span>
+                ) : null}
+              </button>
+            ))
+          ) : (
+            <div className="lume-discovered-empty">
+              <span className="lume-spinner-sm" aria-hidden />
+              Searching the local network…
+            </div>
+          )}
+        </div>
+
+        {/* B) Server address (public / remote) — C) or a full canvas URL pasted verbatim */}
+        <label className="lume-field-label lume-login-label" htmlFor="server-url">
           Server address
         </label>
         <input
@@ -358,25 +388,10 @@ export function Onboarding({ defaults, status, busy, canCancel, onSubmit, onCanc
           }}
           onKeyDown={(e) => e.key === 'Enter' && void submit()}
         />
+        <p className="lume-onboarding-subhint">
+          Or paste a full <code>wss://…/omadia-ui/canvas</code> URL directly.
+        </p>
         {error && <div className="lume-field-error">{error}</div>}
-        {lanHosts.length > 0 && (
-          <div className="lume-discovered">
-            <span className="lume-field-label">On this network</span>
-            {lanHosts.map((host) => (
-              <button
-                key={host.id}
-                type="button"
-                className="lume-button lume-discovered-host"
-                disabled={connecting || authBusy || discovering}
-                onClick={() => void submit(`${host.address}:${host.port}`)}
-                title={`${host.address}:${host.port}`}
-              >
-                {host.name}
-                {host.authMode && host.authMode !== 'none' ? ' · sign-in' : ''}
-              </button>
-            ))}
-          </div>
-        )}
         <label className="lume-check-row">
           <input
             type="checkbox"
