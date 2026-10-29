@@ -41,6 +41,9 @@ export interface CanvasState {
   /** §2.15 root-toolbar hoisting: the plugin's app menu — STICKY across
    *  revisions, so an error tree without a toolbar never strands the user */
   menu: MenuNode | null;
+  /** turnIds cut off by a socket drop (newest last, bounded) — their late
+   *  agent_text_delta / turn_complete / turn_error frames are ignored */
+  interruptedTurns: readonly string[];
 }
 
 export const initialCanvasState: CanvasState = {
@@ -58,6 +61,7 @@ export const initialCanvasState: CanvasState = {
   history: [],
   dataRefs: {},
   menu: null,
+  interruptedTurns: [],
 };
 
 const nodeId = (n: unknown): string | undefined => {
@@ -254,6 +258,41 @@ function applySurfaceEvent(state: CanvasState, ev: SurfaceEvent, now: number): A
   }
 }
 
+/** user-facing text for a turn lost to a socket drop (the UI speaks German) */
+export const TURN_INTERRUPTED_MESSAGE = 'Verbindung unterbrochen – Anfrage bitte erneut senden.';
+const MAX_INTERRUPTED_TURNS = 10;
+
+/**
+ * The socket dropped (server deploy, network loss, resync close) while a turn
+ * was in flight. The server binds a turn to its connection — on close it stops
+ * sending, and a reconnect opens a NEW connection that never resumes the old
+ * turn — so no turn_complete/turn_error will ever arrive for it. End the turn
+ * locally the way a turn_error would: stop the pending state (input re-enabled),
+ * surface the notice, keep every server-authoritative surface that already
+ * rendered. Never resends. No pending turn → the SAME state object (no-op).
+ */
+export function interruptTurn(state: CanvasState, turnId?: string): CanvasState {
+  if (!state.turnPending) return state;
+  return {
+    ...noticed(state, `turn_interrupted: ${TURN_INTERRUPTED_MESSAGE}`),
+    turnPending: false,
+    turnError: TURN_INTERRUPTED_MESSAGE,
+    // the connection's surfaceSeq run died with it; the next turn opens a new one
+    lastSurfaceSeq: null,
+    // only the client-local pending skeleton (no server snapshot) → cold start
+    ...(state.revision === null ? { tree: null } : {}),
+    ...(turnId
+      ? { interruptedTurns: [...state.interruptedTurns.slice(-(MAX_INTERRUPTED_TURNS - 1)), turnId] }
+      : {}),
+  };
+}
+
+/** a turn-scoped frame (prose / completion) for a turn already interrupted */
+const isLateTurnFrame = (state: CanvasState, msg: ServerMessage): boolean =>
+  (msg.type === 'agent_text_delta' || msg.type === 'turn_complete' || msg.type === 'turn_error') &&
+  typeof msg.forTurn === 'string' &&
+  state.interruptedTurns.includes(msg.forTurn);
+
 export function applyServerMessage(
   state: CanvasState,
   msg: ServerMessage,
@@ -261,6 +300,16 @@ export function applyServerMessage(
 ): ApplyResult {
   if (SURFACE_EVENT_TYPES.has(msg.type)) {
     return applySurfaceEvent(state, msg as SurfaceEvent, now);
+  }
+  // A late frame of an interrupted turn must not end (or write prose into) the
+  // turn the user re-sent meanwhile: turn_complete would clear turnPending of
+  // the NEW turn. Dropped. Surface events carry no turnId — the revision /
+  // surfaceSeq guards above already make a stale one harmless (drop + resync).
+  if (isLateTurnFrame(state, msg)) {
+    return {
+      state: msg.type === 'agent_text_delta' ? state : noticed(state, `ignored late ${msg.type}`),
+      resync: false,
+    };
   }
   switch (msg.type) {
     case 'agent_text_delta':

@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AppSettings, ConnectOptions, ConnectionStatus } from '../../shared/ipc.js';
-import { goBack, initialCanvasState, type CanvasState } from './store/canvasStore.js';
+import {
+  goBack,
+  initialCanvasState,
+  TURN_INTERRUPTED_MESSAGE,
+  type CanvasState,
+} from './store/canvasStore.js';
 import { extractRootMenu, loadStoredMenu, storeMenu } from './store/canvasMenu.js';
-import { routeServerMessage } from './store/slotRouting.js';
+import { interruptSlotTurn, routeServerMessage } from './store/slotRouting.js';
 import { syncNamespace } from './store/prefsNamespace.js';
 import { validateTree } from './validate/validator.js';
 import {
@@ -19,9 +24,11 @@ import { Sidebar } from './Sidebar.js';
 import {
   addNotification,
   dismissNotification,
+  isLocalNotification,
   loadNotifications,
   markAllRead,
   persistNotifications,
+  turnInterruptedNotification,
   type UiNotification,
 } from './store/notificationStore.js';
 import {
@@ -347,6 +354,27 @@ export function App() {
       // expired/missing kernel session (issue #7): surface the sign-in card
       // instead of a generic connection error — regardless of which slot hit it
       if (st.state === 'failed' && st.authRequired) setShowSetup(true);
+      // socket left `ready` (deploy, network drop, resync, auth end): the
+      // server-side turn died with the connection and will never answer —
+      // end this slot's in-flight turn instead of spinning forever. No resend.
+      if (st.state !== 'ready') {
+        const { state, interrupted, active } = interruptSlotTurn(
+          slotKey,
+          pendingTurnIds.current.get(slotKey),
+          activeSlotIdRef.current,
+          stateRef,
+          slotStates.current,
+        );
+        if (interrupted) {
+          pendingTurnIds.current.delete(slotKey);
+          if (active) setCanvas(state);
+          else setBgTick((t) => t + 1); // sidebar busy indicator
+          const now = Date.now();
+          setNotifications((l) =>
+            addNotification(l, turnInterruptedNotification(TURN_INTERRUPTED_MESSAGE, now), slotKey, now),
+          );
+        }
+      }
       if (st.state === 'ready') {
         connectedSlots.current.add(slotKey);
         if (st.canvasSessionId) {
@@ -1298,16 +1326,19 @@ export function App() {
         onDismiss={(id) => {
           const n = notifications.find((x) => x.id === id);
           setNotifications((l) => dismissNotification(l, id));
-          if (n) window.omadiaCanvas.ackNotification(n.slotKey, id);
+          // client-minted notices (e.g. turn interrupted) were never on the wire
+          if (n && !isLocalNotification(n)) window.omadiaCanvas.ackNotification(n.slotKey, id);
         }}
         onMarkAllRead={() => setNotifications((l) => markAllRead(l))}
         onAction={(n) => {
           // typed action reuses the canvas action→turn plumbing on the
           // ACTIVE canvas; the notification is dismissed alongside.
           if (n.action) {
+            const turnId = crypto.randomUUID();
+            pendingTurnIds.current.set(activeSlotId, turnId);
             window.omadiaCanvas.sendTurn(activeSlotId, {
               type: 'turn',
-              turnId: crypto.randomUUID(),
+              turnId,
               action: { type: n.action.type, payload: n.action.payload },
               // PR-9b-3: patch in place when a live tree is rendered.
               ...(inPlaceCanvasState() ?? {}),
