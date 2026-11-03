@@ -40,11 +40,21 @@ const TASK_LABEL: Readonly<Record<string, string>> = {
   'fast-path.gate': 'Gate',
   'fast-path.source': 'Datenquelle',
   'fast-path.direct-plan': 'Gelernte Abfrage',
+  // the batch turn gate: every question of the turn in one request
+  'fast-path.turn-gate.data': 'Nur Daten',
+  'fast-path.turn-gate.complex': 'Komplex',
+  'fast-path.turn-gate.plan': 'Plan nötig',
+  'fast-path.turn-gate.source': 'Datenquelle',
+  'fast-path.turn-gate.direct': 'Gelernte Abfrage',
+  'fast-path.turn-gate.slot': 'Wert',
   'canvas.layout': 'Darstellung',
 };
 
 const CHOICE_LABEL: Readonly<Record<string, string>> = {
   data: 'Daten, kein Sprachmodell nötig',
+  yes: 'ja',
+  no: 'nein',
+  value: 'aus der Nachricht übernommen',
   model_simple: 'Sprachmodell, einfach',
   model_complex: 'Sprachmodell, komplex',
   none: 'keine passende Quelle',

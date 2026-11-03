@@ -46,6 +46,25 @@ describe('decisionView', () => {
     expect(unsure?.saved).toBeUndefined();
   });
 
+  it('the batch turn gate: its questions in words, yes/no answers', () => {
+    const v = decisionView({
+      ...ANSWERED,
+      direct: undefined,
+      steps: [
+        { task: 'fast-path.turn-gate.data', choice: 'yes', confidence: 0.93, ms: 180 },
+        { task: 'fast-path.turn-gate.complex', choice: 'no', confidence: 0.8, ms: 180 },
+        { task: 'fast-path.turn-gate.source', choice: 'tool:odoo_query', confidence: 0.95, ms: 180 },
+        { task: 'fast-path.turn-gate.slot', choice: 'value', confidence: 0.9, ms: 180 },
+      ],
+    });
+    expect(v?.lines.slice(0, 4).map((l) => [l.label, l.value])).toEqual([
+      ['Nur Daten', 'ja'],
+      ['Komplex', 'nein'],
+      ['Datenquelle', 'odoo_query'],
+      ['Wert', 'aus der Nachricht übernommen'],
+    ]);
+  });
+
   it('an older server without steps still gets its gate line', () => {
     const v = decisionView({ provider: 'jev', verdict: 'data', tool: 'odoo_query', confidence: 0.8, ms: 300, answered: true });
     expect(v?.lines.map((l) => l.label)).toEqual(['Gate', 'Datenquelle']);
