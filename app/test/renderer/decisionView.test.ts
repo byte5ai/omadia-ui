@@ -65,6 +65,12 @@ describe('decisionView', () => {
     ]);
   });
 
+  it('a chosen chart the rows did not fit: the shown table and why', () => {
+    const v = decisionView({ ...ANSWERED, ui: { skeleton: 'plan', layout: 'table' } });
+    expect(v?.headline).toBe('ohne LLM beantwortet');
+    expect(v?.lines.at(-1)).toEqual({ label: 'Gezeigt', value: 'Tabelle – die Zeilen passen nicht in ein Diagramm' });
+  });
+
   it('an older server without steps still gets its gate line', () => {
     const v = decisionView({ provider: 'jev', verdict: 'data', tool: 'odoo_query', confidence: 0.8, ms: 300, answered: true });
     expect(v?.lines.map((l) => l.label)).toEqual(['Gate', 'Datenquelle']);

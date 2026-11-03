@@ -165,6 +165,15 @@ export function decisionView(raw: unknown): DecisionView | null {
   if (layout !== undefined && !lines.some((l) => l.label === TASK_LABEL['canvas.layout'])) {
     lines.push({ label: 'Darstellung', value: LAYOUT_LABEL[layout]! });
   }
+  // a chart was chosen, but the rows did not fit one (count, no numbers)
+  const chosenChart = Array.isArray(d['steps'])
+    ? (d['steps'] as Array<Record<string, unknown>>).some(
+        (s) => s?.['task'] === 'canvas.layout' && typeof s['choice'] === 'string' && s['choice'].startsWith('chart_'),
+      )
+    : false;
+  if (layout === 'table' && chosenChart) {
+    lines.push({ label: 'Gezeigt', value: 'Tabelle – die Zeilen passen nicht in ein Diagramm' });
+  }
   const saved = savedOf(d, view);
   return {
     provider: PROVIDERS[provider.toLowerCase()] ?? provider,
