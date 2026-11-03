@@ -19,6 +19,7 @@ import {
 } from './render/PrimitiveNode.js';
 import { CanvasLibrary } from './CanvasLibrary.js';
 import { Notifications } from './Notifications.js';
+import { JevBadge } from './JevBadge.js';
 import { Onboarding } from './onboarding/Onboarding.js';
 import { Sidebar } from './Sidebar.js';
 import {
@@ -829,7 +830,7 @@ export function App() {
       currentTree: canvas.tree,
       ...(scope ? { scope } : {}),
     });
-    setCanvas((c) => ({ ...c, turnPending: true, turnError: null, prose: '' }));
+    setCanvas((c) => ({ ...c, turnPending: true, turnError: null, prose: '', decision: null }));
   };
 
   /** PR-9b-3: on an ACTION turn, hand the server our live tree + revision so it
@@ -855,6 +856,7 @@ export function App() {
       turnPending: true,
       turnError: null,
       prose: '',
+      decision: null,
       // jump to the canvas immediately on cold start — local skeleton, no wait
       ...(c.tree === null ? { tree: LOCAL_PENDING_TREE } : {}),
     }));
@@ -884,7 +886,7 @@ export function App() {
       ...(extra ?? {}),
     });
     setBeam({ containerId: menu.tableId, rowKey: menu.rowKey, x: menu.x, y: menu.y });
-    setCanvas((c) => ({ ...c, turnPending: true, turnError: null, prose: '' }));
+    setCanvas((c) => ({ ...c, turnPending: true, turnError: null, prose: '', decision: null }));
   };
 
   const onAction = (action: PrimitiveAction) => {
@@ -1262,6 +1264,11 @@ export function App() {
           {beam.error}
         </div>
       )}
+      {/* Jev chip bottom-left: what the decision model decided for the last
+          turn; hover lists every decision. */}
+      {canvas.decision !== null && !canvas.turnPending && canvas.tree !== null && (
+        <JevBadge view={canvas.decision} />
+      )}
       {/* The canvas is the surface of record — raw turn prose is debug-only,
           reachable via the small marker bottom-right. */}
       {canvas.prose && (
@@ -1343,7 +1350,7 @@ export function App() {
               // PR-9b-3: patch in place when a live tree is rendered.
               ...(inPlaceCanvasState() ?? {}),
             });
-            setCanvas((c) => ({ ...c, turnPending: true, turnError: null, prose: '' }));
+            setCanvas((c) => ({ ...c, turnPending: true, turnError: null, prose: '', decision: null }));
           }
           setNotifications((l) => dismissNotification(l, n.id));
           window.omadiaCanvas.ackNotification(n.slotKey, n.id);

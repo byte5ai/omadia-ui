@@ -1843,6 +1843,132 @@ textarea.lume-input:disabled {
 .lume-debug-marker:hover {
   color: var(--lume-accent);
 }
+/* Jev chip (decision model, TypeSafe Jev) — bottom-left, mirror of the debug
+   marker: quiet until hovered; the popover lists every decision of the turn.
+   Answered without a model = success tone, routed to the model = accent,
+   unsure (a model decided) = warning. */
+.lume-jev {
+  position: fixed;
+  left: 10px;
+  bottom: 10px;
+  z-index: 25;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-family: var(--lume-font-mono);
+  color: var(--lume-text-tertiary);
+  border-radius: var(--lume-radius-pill);
+  border: 1px solid var(--lume-border-subtle-top);
+  background: var(--lume-surface);
+  cursor: help;
+  outline: none;
+  transition: color var(--lume-motion-quick) var(--lume-ease-standard);
+}
+.lume-jev:hover,
+.lume-jev:focus-visible {
+  color: var(--lume-text-secondary);
+}
+.lume-jev-mark {
+  font-size: 10px;
+}
+.lume-jev-answered .lume-jev-mark,
+.lume-jev-answered .lume-jev-provider {
+  color: var(--lume-success-fg);
+}
+.lume-jev-model .lume-jev-mark,
+.lume-jev-model .lume-jev-provider {
+  color: var(--lume-accent);
+}
+.lume-jev-fallback .lume-jev-mark,
+.lume-jev-fallback .lume-jev-provider {
+  color: var(--lume-warning-fg);
+}
+.lume-jev-provider {
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.lume-jev-popover {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  min-width: 280px;
+  max-width: 380px;
+  padding: 10px 12px;
+  border-radius: var(--lume-radius-md);
+  background: linear-gradient(180deg, var(--lume-raised-top) 0%, var(--lume-raised-btm) 100%);
+  border: 1px solid var(--lume-border-btm);
+  border-top-color: var(--lume-border-top);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    var(--lume-elev-popover);
+  color: var(--lume-text-secondary);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition:
+    opacity var(--lume-motion-quick) var(--lume-ease-standard),
+    transform var(--lume-motion-quick) var(--lume-ease-standard),
+    visibility 0s linear var(--lume-motion-quick);
+  pointer-events: none;
+}
+.lume-jev:hover .lume-jev-popover,
+.lume-jev:focus-visible .lume-jev-popover {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  transition-delay: 0s;
+}
+.lume-jev-popover-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  color: var(--lume-text-primary, #e6e8ee);
+  font-weight: 600;
+}
+.lume-jev-model {
+  color: var(--lume-text-tertiary);
+  font-weight: 400;
+}
+.lume-jev-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 5px;
+}
+.lume-jev-step {
+  display: grid;
+  grid-template-columns: 112px 1fr auto;
+  gap: 8px;
+  align-items: baseline;
+}
+.lume-jev-step-label {
+  color: var(--lume-text-tertiary);
+}
+.lume-jev-step-value {
+  color: var(--lume-text-secondary);
+  overflow-wrap: anywhere;
+}
+.lume-jev-step-meta {
+  color: var(--lume-text-tertiary);
+  white-space: nowrap;
+}
+.lume-jev-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 9px;
+  padding-top: 7px;
+  border-top: 1px solid var(--lume-border-subtle-top);
+  color: var(--lume-text-tertiary);
+}
+.lume-jev-total {
+  margin-left: auto;
+}
 /* Context-invoke action panel (concept §Interaction Model): deterministic
    affordances + agent-pre-supplied suggestedActions + beam field. Raised
    surface, elev.popover, radius.md. */

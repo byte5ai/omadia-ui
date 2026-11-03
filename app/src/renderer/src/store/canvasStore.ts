@@ -2,6 +2,7 @@ import { SURFACE_EVENT_TYPES, type ServerMessage, type SurfaceEvent } from '../.
 import { applyTreePatches } from '../../../shared/treePatch.js';
 import { validateSurfaceEvent, validateTree } from '../validate/validator.js';
 import { extractRootMenu, type MenuNode } from './canvasMenu.js';
+import { decisionView, type DecisionView } from './decisionView.js';
 
 /** How the current tree arrived — drives the visual-spec §6.1 motion split:
  *  snapshot → full-canvas crossfade; patch → condensation on changed nodes. */
@@ -44,6 +45,9 @@ export interface CanvasState {
   /** turnIds cut off by a socket drop (newest last, bounded) — their late
    *  agent_text_delta / turn_complete / turn_error frames are ignored */
   interruptedTurns: readonly string[];
+  /** what the decision model (Jev) decided for the last finished turn —
+   *  the Jev chip bottom-left; cleared when a new turn starts */
+  decision: DecisionView | null;
 }
 
 export const initialCanvasState: CanvasState = {
@@ -62,6 +66,7 @@ export const initialCanvasState: CanvasState = {
   dataRefs: {},
   menu: null,
   interruptedTurns: [],
+  decision: null,
 };
 
 const nodeId = (n: unknown): string | undefined => {
@@ -323,6 +328,7 @@ export function applyServerMessage(
           ...state,
           turnPending: false,
           turnError: null,
+          decision: decisionView(msg.decision),
           ...(state.revision === null ? { tree: null } : {}),
         },
         resync: false,
@@ -333,6 +339,7 @@ export function applyServerMessage(
           ...noticed(state, `turn_error: ${msg.message}`),
           turnPending: false,
           turnError: msg.message,
+          decision: null,
           ...(state.revision === null ? { tree: null } : {}),
         },
         resync: false,
