@@ -382,6 +382,27 @@ textarea.lume-input:disabled {
   font-weight: 500;
   font-size: 13px;
 }
+/* Privacy Guard — a column whose real values were masked from the LLM and
+   resolved server-side. Marked violet (deliberately distinct from the cyan
+   accent) so the user sees at a glance which data never reached a model. */
+.lume-table th.lume-col-guarded {
+  color: var(--lume-guard, #b7a3f7);
+}
+.lume-col-guarded-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.lume-guard-badge {
+  display: inline-flex;
+  align-items: center;
+  color: var(--lume-guard, #b7a3f7);
+  cursor: help;
+}
+.lume-table td.lume-cell-guarded {
+  background: var(--lume-guard-subtle, rgba(167, 139, 250, 0.12));
+  box-shadow: inset 2px 0 0 var(--lume-guard, #b7a3f7);
+}
 /* §2.6/§3.5 skeleton: state.loading base + highlight, linear-gradient pulse */
 .lume-skeleton-cell {
   display: inline-block;

@@ -260,7 +260,12 @@ function renderNode(node: PrimitiveJson, ctx: Omit<Props, 'node' | 'root'>, root
       return <p className={`lume-text ${styleClasses(node)}`}>{stripMd((node['content'] as string) ?? '')}</p>;
 
     case 'table': {
-      const cols = (node['columns'] as Array<{ fieldKey: string; label: string }>) ?? [];
+      const cols =
+        (node['columns'] as Array<{
+          fieldKey: string;
+          label: string;
+          privacy?: 'guard-protected';
+        }>) ?? [];
       const rows = (node['rows'] as Array<{ rowKey: string; cells: Record<string, unknown> }>) ?? [];
       const skeleton = node['loading'] === 'skeleton';
       const tableId = (node['id'] as string) ?? '';
@@ -271,9 +276,30 @@ function renderNode(node: PrimitiveJson, ctx: Omit<Props, 'node' | 'root'>, root
         <table className={`lume-table ${skeleton ? 'lume-skeleton' : ''}`} data-id={node['id'] as string}>
           <thead>
             <tr>
-              {cols.map((c) => (
-                <th key={c.fieldKey}>{c.label}</th>
-              ))}
+              {cols.map((c) =>
+                c.privacy === 'guard-protected' ? (
+                  <th key={c.fieldKey} className="lume-col-guarded">
+                    <span className="lume-col-guarded-label">
+                      {c.label}
+                      <span
+                        className="lume-guard-badge"
+                        role="img"
+                        aria-label="Durch den Privacy Guard geschützt — nie an ein LLM übermittelt"
+                        title="Privacy Guard: diese Werte wurden serverseitig aufgelöst und nie an ein LLM übermittelt"
+                      >
+                        <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false">
+                          <path
+                            fill="currentColor"
+                            d="M8 1 2.5 3.2v4.1c0 3.4 2.3 6.6 5.5 7.6 3.2-1 5.5-4.2 5.5-7.6V3.2L8 1Zm-.9 9.6L4.6 8.1l1-1 1.5 1.5 3-3 1 1-4 4Z"
+                          />
+                        </svg>
+                      </span>
+                    </span>
+                  </th>
+                ) : (
+                  <th key={c.fieldKey}>{c.label}</th>
+                ),
+              )}
             </tr>
           </thead>
           <tbody>
@@ -319,7 +345,12 @@ function renderNode(node: PrimitiveJson, ctx: Omit<Props, 'node' | 'root'>, root
                       }}
                     >
                       {cols.map((c) => (
-                        <td key={c.fieldKey}>{stripMd(String(r.cells[c.fieldKey] ?? ''))}</td>
+                        <td
+                          key={c.fieldKey}
+                          className={c.privacy === 'guard-protected' ? 'lume-cell-guarded' : undefined}
+                        >
+                          {stripMd(String(r.cells[c.fieldKey] ?? ''))}
+                        </td>
                       ))}
                     </tr>
                   );
