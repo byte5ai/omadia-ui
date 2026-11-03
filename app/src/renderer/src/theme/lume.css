@@ -1894,8 +1894,9 @@ textarea.lume-input:disabled {
   position: absolute;
   left: 0;
   bottom: calc(100% + 8px);
-  min-width: 280px;
-  max-width: 380px;
+  width: max-content;
+  min-width: 360px;
+  max-width: 460px;
   padding: 10px 12px;
   border-radius: var(--lume-radius-md);
   background: linear-gradient(180deg, var(--lume-raised-top) 0%, var(--lume-raised-btm) 100%);
@@ -1942,7 +1943,7 @@ textarea.lume-input:disabled {
 }
 .lume-jev-step {
   display: grid;
-  grid-template-columns: 112px 1fr auto;
+  grid-template-columns: 96px minmax(150px, 1fr) auto;
   gap: 8px;
   align-items: baseline;
 }
@@ -1951,7 +1952,7 @@ textarea.lume-input:disabled {
 }
 .lume-jev-step-value {
   color: var(--lume-text-secondary);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .lume-jev-step-meta {
   color: var(--lume-text-tertiary);
