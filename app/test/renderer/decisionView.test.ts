@@ -71,6 +71,20 @@ describe('decisionView', () => {
     expect(v?.lines.at(-1)).toEqual({ label: 'Gezeigt', value: 'Tabelle – die Zeilen passen nicht in ein Diagramm' });
   });
 
+  it('row details through a detail tool: the decision names it', () => {
+    const v = decisionView({
+      provider: 'jev',
+      verdict: 'data',
+      tool: 'get_issue',
+      confidence: 0.93,
+      ms: 160,
+      answered: true,
+      steps: [{ task: 'canvas.detail-tool', choice: 'tool:get_issue', confidence: 0.93, ms: 160 }],
+    });
+    expect(v?.lines[0]).toEqual({ label: 'Detail-Abfrage', value: 'get_issue', confidencePct: 93, ms: 160 });
+    expect(v?.headline).toBe('ohne LLM beantwortet');
+  });
+
   it('an older server without steps still gets its gate line', () => {
     const v = decisionView({ provider: 'jev', verdict: 'data', tool: 'odoo_query', confidence: 0.8, ms: 300, answered: true });
     expect(v?.lines.map((l) => l.label)).toEqual(['Gate', 'Datenquelle']);

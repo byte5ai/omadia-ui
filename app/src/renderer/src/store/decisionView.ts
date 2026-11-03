@@ -48,6 +48,7 @@ const TASK_LABEL: Readonly<Record<string, string>> = {
   'fast-path.turn-gate.direct': 'Gelernte Abfrage',
   'fast-path.turn-gate.slot': 'Wert',
   'canvas.layout': 'Darstellung',
+  'canvas.detail-tool': 'Detail-Abfrage',
 };
 
 const CHOICE_LABEL: Readonly<Record<string, string>> = {
