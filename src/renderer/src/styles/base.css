@@ -1,0 +1,502 @@
+/* Base elements of the Licht design system. Components compose these classes. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+  transition:
+    background 300ms ease,
+    color 300ms ease;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+}
+
+:focus-visible {
+  outline: 1.5px solid var(--ink);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--light);
+  color: var(--on-ink);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mono {
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ── type scale: weight follows the light ── */
+.t-display {
+  font-size: 48px;
+  font-weight: 300;
+  letter-spacing: -1.4px;
+  line-height: 1.15;
+  color: var(--ink);
+}
+.t-title {
+  font-size: 28px;
+  font-weight: 300;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+  color: var(--ink);
+}
+.t-section {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.t-voice {
+  font-size: 17px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.t-small {
+  font-size: 13px;
+  color: var(--meta);
+}
+.t-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--meta);
+}
+
+/* ── keycap ── */
+.kbd {
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--meta);
+  background: var(--kbd);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 2px 7px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+/* ── buttons: one main action per surface, it is the brightest spot ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: var(--r-control);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--ink);
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease;
+}
+.btn:hover:not(:disabled) {
+  background: var(--lit);
+}
+.btn.sm {
+  height: 32px;
+  font-size: 13px;
+  padding: 0 14px;
+}
+.btn.primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--on-ink);
+}
+.btn.primary:hover:not(:disabled) {
+  background: var(--ink);
+  opacity: 0.88;
+}
+.btn.ghost {
+  border-color: transparent;
+  color: var(--text);
+}
+.btn.ghost:hover:not(:disabled) {
+  color: var(--ink);
+}
+.btn.danger {
+  color: var(--blocked);
+}
+.btn:disabled {
+  cursor: default;
+  color: var(--dim);
+  border-color: var(--line);
+  background: transparent;
+}
+.btn.sent {
+  cursor: default;
+  color: var(--meta);
+  border-color: var(--line);
+  background: transparent;
+}
+
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-small);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  flex-shrink: 0;
+}
+.icon-btn:hover:not(:disabled) {
+  color: var(--ink);
+  background: var(--lit);
+}
+.icon-btn.active {
+  background: var(--lit);
+  border-color: var(--line);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+.icon-btn:disabled {
+  color: var(--dim);
+  cursor: default;
+}
+
+/* ── fields ── */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.field > label,
+.field-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+.input {
+  width: 100%;
+  height: 42px;
+  padding: 0 14px;
+  border-radius: var(--r-control);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 15px;
+  outline: none;
+  user-select: text;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+}
+textarea.input {
+  height: auto;
+  min-height: 84px;
+  padding: 10px 14px;
+  resize: vertical;
+  line-height: 1.5;
+}
+.input::placeholder {
+  color: var(--dim);
+}
+.input:focus {
+  background: var(--lit);
+  border-color: var(--ink);
+  box-shadow: 0 0 0 4px var(--focus-ring);
+}
+.input.invalid {
+  border-color: var(--blocked);
+}
+.field-error {
+  font-size: 13px;
+  color: var(--blocked);
+}
+.field-help {
+  font-size: 13px;
+  color: var(--meta);
+}
+
+/* ── status: colour only as text with a dot ── */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text);
+  white-space: nowrap;
+}
+.status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.status.success {
+  color: var(--verified);
+}
+.status.warning {
+  color: var(--masked);
+}
+.status.danger {
+  color: var(--blocked);
+}
+.status.info {
+  color: var(--ink);
+}
+.status.neutral {
+  color: var(--meta);
+}
+
+/* ── switch, checkbox, radio: selected means ink ── */
+.switch {
+  width: 40px;
+  height: 24px;
+  border-radius: 999px;
+  border: none;
+  padding: 3px;
+  background: var(--line-strong);
+  display: inline-flex;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  transition: background 160ms ease;
+}
+.switch::after {
+  content: "";
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--lit);
+  transition: transform 200ms var(--ease-light);
+}
+.switch[aria-checked="true"] {
+  background: var(--ink);
+}
+.switch[aria-checked="true"]::after {
+  background: var(--on-ink);
+  transform: translateX(16px);
+}
+
+.check,
+.radio {
+  appearance: none;
+  margin: 0;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 5px;
+  background: transparent;
+  display: inline-grid;
+  place-content: center;
+  cursor: pointer;
+}
+.radio {
+  border-radius: 999px;
+}
+.check:checked {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+.check:checked::after {
+  content: "";
+  width: 9px;
+  height: 5px;
+  border-left: 1.75px solid var(--on-ink);
+  border-bottom: 1.75px solid var(--on-ink);
+  transform: translateY(-1px) rotate(-45deg);
+}
+.radio:checked {
+  border-color: var(--ink);
+}
+.radio:checked::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--ink);
+}
+.choice-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+.choice-row.on {
+  color: var(--ink);
+}
+
+/* ── segmented tabs ── */
+.segmented {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  align-self: flex-start;
+  flex-wrap: wrap;
+}
+.segmented > button {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: var(--r-small);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+}
+.segmented > button[aria-selected="true"] {
+  border-color: var(--line);
+  background: var(--lit);
+  color: var(--ink);
+  font-weight: 500;
+  box-shadow: var(--shadow);
+}
+
+/* ── panels and rows ── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  box-shadow: var(--shadow);
+}
+
+.lit {
+  background: var(--lit);
+  box-shadow: var(--shadow);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: none;
+  border-radius: var(--r-small);
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  text-align: left;
+}
+.menu-item:hover,
+.menu-item.active {
+  background: var(--lit);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+.menu-item > .grow {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.menu-sep {
+  height: 1px;
+  background: var(--line);
+  margin: 4px 0;
+}
+.menu-heading {
+  margin: 8px 10px 4px;
+  font-size: 13px;
+  color: var(--meta);
+}
+
+.skeleton {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--line);
+  animation: skeleton-breathe 1.6s ease-in-out infinite;
+}
+@keyframes skeleton-breathe {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* New or changed nodes rise out of the half-dark instead of fading in. */
+.emerge {
+  animation: emerge 420ms var(--ease-light);
+}
+@keyframes emerge {
+  from {
+    color: var(--dim);
+    opacity: 0.4;
+  }
+}

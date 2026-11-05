@@ -1,0 +1,98 @@
+/*
+ * Licht als Interface: one source, two rooms.
+ * There is no accent colour. Emphasis is light, colour is status.
+ * Light always comes from the top right, so day shadows fall to the bottom left.
+ */
+
+:root,
+:root[data-mode="night"] {
+  color-scheme: dark;
+  --ground: #0a0a0b;
+  --surface: #111113;
+  --lit: #19191c;
+  --line: #222226;
+  --line-strong: #2e2e33;
+  --ink: #f3efe6;
+  --text: #a1a1aa;
+  --meta: #85858d;
+  --dim: #55555c;
+  --kbd: #1d1d21;
+  --verified: #3fc1ee;
+  --masked: #ffb547;
+  --blocked: #ff6a55;
+  --on-ink: #0a0a0b;
+  --shadow: none;
+  --focus-ring: rgba(243, 239, 230, 0.14);
+  --cone-top: 0.16;
+  --cone-bottom: 0.03;
+  /* Night: the air in the cone glows. */
+  --cone-day: 0;
+  --cone-patch: #f3efe6;
+  --scrim: rgba(10, 10, 11, 0.62);
+  --light: var(--ink);
+  --tint-0: #ffe3c2;
+  --tint-1: #f3efe6;
+  --tint-2: #e3ecff;
+  --tint-3: #ddefe4;
+  --tint-4: #f1e0f0;
+  --tint-5: #e9e4d6;
+}
+
+:root[data-mode="day"] {
+  color-scheme: light;
+  --ground: #e2e2de;
+  --surface: #ecece8;
+  --lit: #ffffff;
+  --line: #d2d2cc;
+  --line-strong: #bcbcb5;
+  --ink: #141416;
+  --text: #45454b;
+  --meta: #5c5c63;
+  --dim: #8d8d92;
+  --kbd: #f4f4f1;
+  --verified: #0a6f92;
+  --masked: #8f5408;
+  --blocked: #b3311c;
+  --on-ink: #ffffff;
+  --shadow: -3px 4px 14px rgba(20, 20, 22, 0.08);
+  --focus-ring: rgba(20, 20, 22, 0.1);
+  --cone-top: 0.95;
+  --cone-bottom: 0.25;
+  /* Day: the room dims and the light lands as a patch on the surface. */
+  --cone-day: 1;
+  --cone-patch: #fffcf6;
+  --scrim: rgba(226, 226, 222, 0.6);
+  --light: #ffffff;
+  /* Same hues as night, deep enough for 3:1 against surface and lit. */
+  --tint-0: #b8692a;
+  --tint-1: #857f73;
+  --tint-2: #4a72c4;
+  --tint-3: #3f8a5c;
+  --tint-4: #a0559c;
+  --tint-5: #8f7a45;
+}
+
+/* Light temperature only tints the light: cone, selection edge, focus. */
+:root[data-temp="2700"] {
+  --light: #ffe3c2;
+}
+:root[data-temp="6500"] {
+  --light: #e3ecff;
+}
+/* By day the patch is only lightly tinted; the temperature is never status. */
+:root[data-mode="day"][data-temp="2700"] {
+  --cone-patch: #fff0dd;
+}
+:root[data-mode="day"][data-temp="6500"] {
+  --cone-patch: #f4f8ff;
+}
+
+:root {
+  --font: "Archivo Variable", "Archivo", "Helvetica Neue", sans-serif;
+  --mono: "Geist Mono Variable", "Geist Mono", ui-monospace, monospace;
+  --r-panel: 14px;
+  --r-control: 10px;
+  --r-small: 8px;
+  --r-editor: 2px;
+  --ease-light: cubic-bezier(0.16, 1, 0.3, 1);
+}
