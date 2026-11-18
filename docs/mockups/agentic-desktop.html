@@ -1,0 +1,1625 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>omadia UI: the agentic desktop (clickable mockup)</title>
+<meta name="description" content="Clickable mockup: omadia UI as the desktop. The host OS only boots it; every application is generated on request and runs on omadia core with its plugins." />
+<!--
+  Clickable mockup, not an implementation. Shows omadia UI as the desktop shell
+  of a thin client: applications are generated on request from primitives and
+  Lumens (docs/lumens-spec.md), backed by omadia core and its plugins.
+  Material: Lume, dark base, Lagoon palette (docs/visual-spec.md).
+  Interaction model: direct manipulation, context-invoke action panel, beam,
+  Cmd/Ctrl+K, Spaces, Trace (CONCEPT.md "Interaction Model").
+  All data is fictional. All logic is illustrative and runs in this page.
+-->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%2303121D%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%276%27 fill=%27%236FC8D6%27/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Days+One&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;450;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --canvas-top:#232631; --canvas-btm:#1B1D24;
+  --surface-top:#2A2D38; --surface-btm:#23262F;
+  --raised-top:#303440; --raised-btm:#292C37;
+  --sunken-top:#1D1F26; --sunken-btm:#16181E;
+  --t1:#EEEFF3; --t2:#B6B9C3; --t3:#888B95;
+  --bst:rgba(255,255,255,0.06); --bsb:rgba(0,0,0,0.40);
+  --bdt:rgba(255,255,255,0.10); --bdb:rgba(0,0,0,0.50);
+  --accent:#6FC8D6; --accent-hover:#88D2DE; --accent-active:#A1DCE6;
+  --accent-subtle:rgba(111,200,214,0.20); --accent-glow:rgba(111,200,214,0.32);
+  --accent-glow-strong:rgba(111,200,214,0.48); --accent-glow-core:rgba(210,245,250,0.50);
+  --on-accent:#0A2026;
+  --loading:#3E414C; --loading-hi:#525561;
+  --err:#E08577; --err-edge:#C5685A; --ok:#88C499; --warn:#D6B468;
+  --r-sm:6px; --r-md:8px; --r-lg:12px; --r-pill:999px;
+  --ease-s:cubic-bezier(0.22,0.61,0.36,1.00); --ease-e:cubic-bezier(0.40,0.00,0.20,1.00);
+  --sans:'Geist',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  --serif:'Source Serif 4',Charter,'Iowan Old Style',Georgia,serif;
+  --c-jonas:#A495F2; --c-mira:#EE8FB0; --c-deniz:#C6D36B;
+}
+:root[data-palette="atelier"]{
+  --accent:#E0A26B; --accent-hover:#E5B080; --accent-active:#EBBE93;
+  --accent-subtle:rgba(224,162,107,0.18); --accent-glow:rgba(224,162,107,0.30);
+  --accent-glow-strong:rgba(224,162,107,0.46); --accent-glow-core:rgba(250,228,200,0.45);
+  --on-accent:#2A1806;
+}
+:root[data-palette="petrol"]{
+  --accent:#52B0E2; --accent-hover:#74C0E8; --accent-active:#90CFEE;
+  --accent-subtle:rgba(82,176,226,0.16); --accent-glow:rgba(82,176,226,0.28);
+  --accent-glow-strong:rgba(82,176,226,0.44); --accent-glow-core:rgba(197,229,245,0.45);
+  --on-accent:#06192A;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--sans);font-size:14px;line-height:1.5;color:var(--t1);background:#0B0C10;overflow:hidden;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:none}
+.mono{font-family:var(--mono);font-weight:450;font-variant-numeric:tabular-nums}
+.serif{font-family:var(--serif)}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--t3)}
+.palette-fade *{transition:color .2s var(--ease-s),background-color .2s var(--ease-s),border-color .2s var(--ease-s),box-shadow .2s var(--ease-s),fill .2s,stroke .2s}
+
+/* ---------- Boot (thin client) ---------- */
+#boot{position:fixed;inset:0;z-index:100;background:#08090C;display:grid;place-items:center;cursor:pointer}
+#boot .log{position:absolute;left:32px;top:28px;font:450 12.5px/1.75 var(--mono);color:#7d808a;white-space:pre}
+#boot .log b{color:#88C499;font-weight:450}
+#boot .mark{font-family:'Days One',var(--sans);font-size:56px;color:#fff;opacity:0;transform:scale(1.03);filter:blur(3px);
+  text-shadow:0 0 18px rgba(210,245,250,.35),0 0 60px rgba(111,200,214,.35);transition:all .8s var(--ease-e)}
+#boot .mark.on{opacity:1;transform:none;filter:none}
+#boot .arc{position:absolute;width:520px;height:520px;border-radius:50%;opacity:0;
+  background:radial-gradient(closest-side,rgba(111,200,214,.18),transparent 70%);transition:opacity 1s}
+#boot .arc.on{opacity:1}
+#boot .skip{position:absolute;right:24px;bottom:20px;font-size:12px;color:#6b6e78}
+#boot.done{opacity:0;transition:opacity .45s var(--ease-s);pointer-events:none}
+
+/* ---------- Shell ---------- */
+#shell{position:fixed;inset:0;display:grid;grid-template-rows:42px 1fr;
+  background:linear-gradient(180deg,var(--canvas-top) 0%,var(--canvas-btm) 100%)}
+.topbar{display:grid;grid-template-columns:minmax(150px,1fr) auto minmax(0,1fr);align-items:center;gap:12px;padding:0 12px;
+  background:linear-gradient(180deg,var(--sunken-top),var(--sunken-btm));border-bottom:1px solid var(--bsb);position:relative;z-index:20}
+.wordmark{font-family:'Days One',var(--sans);font-size:17px;color:#fff;letter-spacing:.01em;
+  text-shadow:0 0 10px rgba(210,245,250,.18);display:flex;align-items:center;gap:10px}
+.wordmark small{font-family:var(--sans);font-size:11.5px;color:var(--t3);font-weight:500;letter-spacing:0}
+.spaces{display:flex;gap:4px;align-items:center}
+.space{height:28px;padding:0 6px 0 12px;border-radius:var(--r-pill);color:var(--t2);display:flex;align-items:center;gap:6px;
+  font-size:13px;font-weight:500;border:1px solid transparent;white-space:nowrap}
+.space:hover{background:var(--accent-subtle);color:var(--t1)}
+.space.is-home{padding-right:12px}
+.space.active{color:var(--t1);background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));
+  border-color:var(--bdb);border-top-color:var(--bdt);box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 0 4px var(--accent-glow-core),0 3px 10px var(--accent-glow)}
+.space .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent-glow-strong)}
+.space .x{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;color:var(--t3);font-size:13px;line-height:1}
+.space .x:hover{background:rgba(255,255,255,.08);color:var(--t1)}
+.tray{justify-self:end;display:flex;align-items:center;gap:6px;min-width:0}
+@media (max-width:1560px){.core span{display:none}}
+@media (max-width:1320px){#btn-cmdk .lbl{display:none}}
+.tbtn{white-space:nowrap;height:28px;padding:0 10px;border-radius:var(--r-sm);color:var(--t2);font-size:12.5px;font-weight:500;border:1px solid transparent;display:flex;align-items:center;gap:6px}
+.tbtn:hover{background:var(--accent-subtle);color:var(--t1)}
+.tbtn[aria-pressed="true"]{color:var(--accent);border-color:var(--accent-subtle);background:rgba(111,200,214,.06)}
+.kbd{font:500 11px var(--mono);padding:1px 5px;border-radius:4px;border:1px solid var(--bdb);border-top-color:var(--bdt);color:var(--t3)}
+.core{white-space:nowrap;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--t2);padding:0 8px}
+.core i{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px rgba(136,196,153,.6)}
+.clock{font:450 12.5px var(--mono);color:var(--t2);padding:0 6px}
+.avatar{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:600;
+  background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--bdb);border-top-color:var(--bdt)}
+
+#stage{position:relative;overflow:hidden}
+.canvas{position:absolute;inset:0;padding:14px 14px 48px;display:none}
+.canvas.on{display:block}
+.canvas.enter-r{animation:enterR .32s var(--ease-s) both}
+.canvas.enter-l{animation:enterL .32s var(--ease-s) both}
+.canvas.leave-l{display:block;animation:leaveL .32s var(--ease-s) both;pointer-events:none}
+.canvas.leave-r{display:block;animation:leaveR .32s var(--ease-s) both;pointer-events:none}
+@keyframes enterR{from{opacity:0;transform:translateX(4px)}to{opacity:1;transform:none}}
+@keyframes enterL{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
+@keyframes leaveL{to{opacity:0;transform:translateX(-4px)}}
+@keyframes leaveR{to{opacity:0;transform:translateX(4px)}}
+
+/* status + trace launcher */
+#status{position:absolute;left:16px;bottom:12px;z-index:15;max-width:min(760px,62vw);font-size:12.5px;color:var(--t3);
+  display:flex;align-items:center;gap:8px;min-height:24px}
+#status b{color:var(--t1);font-weight:500}
+#status .sdot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex:none;box-shadow:0 0 6px var(--accent-glow-strong)}
+.corner{position:absolute;right:14px;bottom:10px;z-index:15;display:flex;gap:6px}
+
+/* ---------- Lume primitives ---------- */
+.pane{position:relative;display:flex;flex-direction:column;min-height:0;min-width:0;border-radius:var(--r-lg);
+  background:linear-gradient(180deg,var(--surface-top) 0%,var(--surface-btm) 100%);
+  border:1px solid var(--bdb);border-top-color:var(--bdt);box-shadow:0 1px 0 rgba(255,255,255,.05) inset}
+.pane-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--bsb);min-height:44px}
+.pane-h h3{font-size:13px;font-weight:600;letter-spacing:-.005em;white-space:nowrap}
+.pane-h .sub{font-size:12px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pane-b{flex:1;min-height:0;overflow:auto;position:relative}
+.btn{text-decoration:none;height:32px;padding:0 13px;border-radius:var(--r-sm);font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;
+  background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--bdb);border-top-color:var(--bdt);
+  box-shadow:0 1px 0 rgba(255,255,255,.06) inset;color:var(--t1);transition:box-shadow .1s,border-color .1s}
+.btn:hover{border-color:var(--accent-subtle);box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 0 4px var(--accent-glow-core),0 4px 12px var(--accent-glow)}
+.btn.primary{background:linear-gradient(180deg,var(--accent-active),var(--accent));color:var(--on-accent);border-color:transparent;font-weight:600;
+  box-shadow:0 0 4px var(--accent-glow-core),0 4px 12px var(--accent-glow)}
+.btn.primary:hover{box-shadow:0 0 6px var(--accent-glow-core),0 6px 18px var(--accent-glow-strong)}
+.btn.ghost{background:none;border-color:transparent;box-shadow:none;color:var(--t2)}
+.btn.ghost:hover{background:var(--accent-subtle);color:var(--t1)}
+.btn.sm{height:26px;padding:0 9px;font-size:12px}
+.btn.icon{width:26px;padding:0;justify-content:center}
+.seg{display:inline-flex;padding:2px;border-radius:var(--r-md);background:linear-gradient(180deg,var(--sunken-top),var(--sunken-btm));border:1px solid var(--bsb)}
+.seg button{height:26px;padding:0 9px;border-radius:var(--r-sm);font-size:12.5px;color:var(--t2);font-weight:500}
+.seg button[aria-pressed="true"]{color:var(--t1);background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 0 0 1px var(--accent-subtle)}
+.toggle{width:34px;height:20px;border-radius:var(--r-pill);background:var(--sunken-btm);border:1px solid var(--bsb);position:relative;flex:none}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--t3);transition:all .15s var(--ease-s)}
+.toggle[aria-pressed="true"]{background:var(--accent-subtle);border-color:var(--accent)}
+.toggle[aria-pressed="true"]::after{left:16px;background:var(--accent);box-shadow:0 0 6px var(--accent-glow-strong)}
+
+/* condensation (visual-spec 3.5) */
+.pane.pre{background:linear-gradient(180deg,var(--surface-top),var(--surface-btm))}
+.pane.pre > *{visibility:hidden}
+.pane.pre::before{content:'';position:absolute;inset:14px;border-radius:var(--r-md);
+  background:linear-gradient(90deg,var(--loading) 0%,var(--loading-hi) 50%,var(--loading) 100%);background-size:200% 100%;
+  opacity:.35;animation:skel 1.4s linear infinite}
+@keyframes skel{from{background-position:100% 0}to{background-position:-100% 0}}
+.condense{animation:condense .8s var(--ease-e) both}
+.condense::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:6;
+  background:radial-gradient(closest-side,var(--accent-glow-strong),transparent);animation:bloom .8s var(--ease-e) both}
+.condense::after{content:'';position:absolute;left:8px;right:8px;bottom:0;height:1px;background:var(--accent);pointer-events:none;z-index:6;
+  box-shadow:0 0 8px var(--accent-glow-strong);transform-origin:left;animation:sweep .8s var(--ease-s) both}
+@keyframes condense{0%{opacity:0;transform:scale(1.03);filter:blur(2px)}40%{opacity:.92;filter:blur(0)}100%{opacity:1;transform:none;filter:none}}
+@keyframes bloom{0%{opacity:.9;transform:scale(1.2)}100%{opacity:0;transform:scale(.5)}}
+@keyframes sweep{0%{transform:scaleX(0);opacity:1}62%{transform:scaleX(1);opacity:1}100%{transform:scaleX(1);opacity:0}}
+.patch{animation:patch .8s var(--ease-e)}
+@keyframes patch{0%{opacity:.2;filter:blur(2px);box-shadow:0 0 0 1px var(--accent),0 0 18px var(--accent-glow-strong)}40%{opacity:1;filter:none}100%{box-shadow:0 0 0 0 transparent}}
+.ctx-target{box-shadow:0 0 0 1px var(--accent),0 0 6px var(--accent-glow-core),0 6px 18px var(--accent-glow-strong)!important;border-radius:var(--r-md)}
+.beaming{animation:beamPulse 1s ease-in-out infinite}
+@keyframes beamPulse{0%,100%{box-shadow:0 0 0 1px var(--accent),0 0 6px var(--accent-glow-core)}50%{box-shadow:0 0 0 1px var(--accent),0 0 14px var(--accent-glow-core),0 8px 26px var(--accent-glow-strong)}}
+
+/* ---------- Home ---------- */
+.home{height:100%;display:grid;grid-template-rows:1fr auto auto;gap:14px;max-width:1080px;margin:0 auto}
+.home-center{position:relative;align-self:center;justify-self:center;width:min(720px,100%);text-align:center;display:flex;flex-direction:column;gap:16px;padding-top:12px}
+.greet{font-family:var(--serif);font-size:30px;font-weight:600;letter-spacing:-.01em}
+.brief{font-family:var(--serif);font-size:17px;line-height:1.6;color:var(--t2);max-width:56ch;margin:0 auto}
+.cold{display:flex;align-items:center;gap:8px;height:54px;padding:0 8px 0 18px;border-radius:var(--r-lg);margin-top:6px;
+  background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--bdb);border-top-color:var(--bdt);
+  box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 0 0 4px var(--accent-glow),0 0 16px var(--accent-glow-core),0 12px 40px var(--accent-glow-strong)}
+.cold input{flex:1;height:100%;background:none;border:none;outline:none;font-size:16px}
+.cold input::placeholder{color:var(--t3)}
+.cold .go{width:38px;height:38px;border-radius:var(--r-md);display:grid;place-items:center;color:var(--on-accent);background:linear-gradient(180deg,var(--accent-active),var(--accent))}
+.cold-hint{min-height:20px;font-size:12.5px;color:var(--warn)}
+.sugg{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:left}
+.chip{padding:12px 14px;border-radius:var(--r-md);display:flex;flex-direction:column;gap:4px;min-height:84px;
+  background:linear-gradient(180deg,var(--surface-top),var(--surface-btm));border:1px solid var(--bdb);border-top-color:var(--bdt);
+  box-shadow:0 1px 0 rgba(255,255,255,.05) inset;transition:box-shadow .12s,border-color .12s,transform .12s}
+.chip:hover{border-color:var(--accent);box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 0 4px var(--accent-glow-core),0 4px 14px var(--accent-glow)}
+.chip:active{transform:translateY(1px)}
+.chip b{font-size:13.5px;font-weight:500;line-height:1.4}
+.chip span{font-size:11.5px;color:var(--t3)}
+.tools .pane-b{padding:12px 14px;overflow:visible}
+.tool-grid{display:flex;gap:10px;flex-wrap:wrap}
+.tool{width:220px;padding:12px;border-radius:var(--r-md);text-align:left;display:flex;gap:12px;align-items:center;
+  background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--bdb);border-top-color:var(--bdt);box-shadow:0 1px 0 rgba(255,255,255,.06) inset}
+.tool:hover{border-color:var(--accent);box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 0 4px var(--accent-glow-core),0 4px 12px var(--accent-glow)}
+.tool .glyph{width:36px;height:36px;border-radius:var(--r-md);display:grid;place-items:center;color:var(--accent);flex:none;
+  background:radial-gradient(circle,var(--accent-subtle) 0%,var(--accent-subtle) 40%,rgba(210,245,250,.18) 80%,transparent 100%)}
+.tool b{display:block;font-size:13px;font-weight:600}
+.tool span{font-size:11.5px;color:var(--t3)}
+.empty{font-size:12.5px;color:var(--t3)}
+.systems{display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--t3);padding:0 4px}
+.systems .sys{display:flex;align-items:center;gap:6px;color:var(--t2)}
+.systems .sys i{width:6px;height:6px;border-radius:50%;background:var(--ok)}
+.systems .host{margin-left:auto}
+
+/* ---------- Generation overlay ---------- */
+.genlog{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:12;width:min(560px,90%);padding:20px 22px;border-radius:var(--r-lg);
+  background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--bdb);border-top-color:var(--bdt);
+  box-shadow:0 4px 16px rgba(0,0,0,.55),0 24px 48px rgba(0,0,0,.65),0 0 32px var(--accent-glow-core),0 0 96px var(--accent-glow);transition:opacity .3s,transform .3s}
+.genlog.out{opacity:0;transform:translate(-50%,-48%) scale(.98)}
+.genlog .q{font-family:var(--serif);font-size:16px;line-height:1.55;color:var(--t1);margin:6px 0 14px}
+.genlog ol{list-style:none;display:flex;flex-direction:column;gap:6px}
+.genlog li{display:grid;grid-template-columns:70px 1fr auto;gap:10px;align-items:baseline;font-size:12.5px;color:var(--t2);animation:condense .5s var(--ease-e) both}
+.genlog li .tag{font:600 10.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.genlog li .st{font:450 11.5px var(--mono);color:var(--t3)}
+.genlog li.done .st{color:var(--ok)}
+.genlog li:not(.done) .st::after{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-left:4px;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.2}}
+
+/* ---------- App shells ---------- */
+.app{height:100%;display:grid;gap:12px;min-height:0}
+.apphead{flex-direction:row;align-items:center;gap:18px;padding:10px 14px;flex-wrap:nowrap}
+.apphead .title{display:flex;flex-direction:column;min-width:0}
+.apphead .title b{font-size:15px;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
+.apphead .title span{font-size:12px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.apphead .grow{flex:1}
+.kpis{display:flex;gap:20px;padding:0 6px}
+.kpi{display:flex;flex-direction:column;line-height:1.2}
+.kpi .v{font:600 17px var(--mono);font-variant-numeric:tabular-nums}
+.kpi .l{font-size:11px;color:var(--t3)}
+.kpi.warn .v{color:var(--warn)} .kpi.good .v{color:var(--ok)}
+.gen-note{font-size:11.5px;color:var(--t3)}
+
+/* Dispatch */
+.app.dispatch{grid-template-rows:auto minmax(0,1fr) auto}
+.dmid{display:grid;grid-template-columns:300px minmax(0,1fr);gap:12px;min-height:0}
+.queue-list{padding:10px;display:flex;flex-direction:column;gap:8px;min-height:100%}
+.queue-list.drop-on{outline:1.5px dashed var(--accent);outline-offset:-4px;border-radius:var(--r-md)}
+.order{padding:10px 12px;border-radius:var(--r-md);user-select:none;touch-action:none;cursor:grab;
+  background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--bsb);border-top-color:var(--bst);box-shadow:0 1px 0 rgba(255,255,255,.05) inset}
+.order:hover{border-color:var(--accent-subtle)}
+.order.sel{border-color:var(--accent);box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 0 4px var(--accent-glow-core),0 4px 12px var(--accent-glow)}
+.order .r1{display:flex;justify-content:space-between;font-size:11.5px;color:var(--t3)}
+.order .prio{font-weight:600}
+.prio.high{color:var(--warn)} .prio.low{color:var(--t3)} .prio.normal{color:var(--t2)}
+.order .cust{font-size:13.5px;font-weight:600;margin-top:2px}
+.order .task{font-size:12.5px;color:var(--t2)}
+.order .r3{display:flex;gap:10px;font-size:11.5px;color:var(--t3);margin-top:4px}
+.queue-empty{font-family:var(--serif);font-size:14px;color:var(--t2);padding:18px 8px;text-align:center}
+.mapwrap{position:relative;flex:1;min-height:0;overflow:hidden;border-radius:0 0 var(--r-lg) var(--r-lg)}
+.mapwrap svg{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.mapwrap svg.panning{cursor:grabbing}
+.pin{cursor:pointer}
+.pin circle.ring{transition:r .15s}
+.callout{position:absolute;pointer-events:none;padding:8px 10px;border-radius:var(--r-md);font-size:12px;white-space:nowrap;transform:translate(-50%,calc(-100% - 18px));
+  background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--bdb);border-top-color:var(--bdt);box-shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.45)}
+.callout b{display:block;font-size:12.5px}
+.callout span{color:var(--t3)}
+.legend{position:absolute;left:12px;bottom:10px;display:flex;gap:12px;font-size:11.5px;color:var(--t2);pointer-events:none}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.timeline .pane-b{overflow:visible}
+.axis{display:grid;grid-template-columns:230px 1fr;padding:6px 14px 0}
+.axis .hours{position:relative;height:18px}
+.axis .hours span{position:absolute;transform:translateX(-50%);font:450 11px var(--mono);color:var(--t3)}
+.lanes{display:flex;flex-direction:column;padding:4px 14px 12px;gap:6px}
+.lane{display:grid;grid-template-columns:230px 1fr;align-items:stretch;border-radius:var(--r-md)}
+.lane-h{display:flex;align-items:center;gap:10px;padding-right:12px;cursor:context-menu;border-radius:var(--r-md)}
+.av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:600;flex:none;color:#15161b;background:var(--c)}
+.lane-h .who{display:flex;flex-direction:column;line-height:1.25;min-width:0;flex:1}
+.lane-h .who b{font-size:13px;font-weight:600}
+.lane-h .who span{font-size:11px;color:var(--t3)}
+.load{display:flex;flex-direction:column;align-items:flex-end;gap:3px;font:450 11.5px var(--mono);color:var(--t2)}
+.load .bar{width:54px;height:4px;border-radius:2px;background:var(--sunken-btm);overflow:hidden}
+.load .bar i{display:block;height:100%;background:var(--c)}
+.load.over{color:var(--warn)}
+.track{position:relative;height:50px;border-radius:var(--r-md);background:linear-gradient(180deg,var(--sunken-top),var(--sunken-btm));border:1px solid var(--bsb);overflow:hidden}
+.lane.collapsed .track{height:22px}
+.lane.collapsed .job .t2{display:none}
+.track.drop-on{outline:1.5px dashed var(--accent);outline-offset:-1px}
+.track .grid{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.04)}
+.track .ot{position:absolute;top:0;bottom:0;right:0;background:repeating-linear-gradient(135deg,rgba(214,180,104,.07) 0 6px,transparent 6px 12px);border-left:1px dashed rgba(214,180,104,.45)}
+.track .ot span{position:absolute;right:6px;top:3px;font-size:10px;color:var(--warn);opacity:.8}
+.travel{position:absolute;top:50%;height:2px;margin-top:-1px;background:repeating-linear-gradient(90deg,var(--c) 0 4px,transparent 4px 8px);opacity:.6}
+.job{position:absolute;top:5px;bottom:5px;border-radius:var(--r-sm);padding:4px 8px;overflow:hidden;cursor:grab;user-select:none;touch-action:none;
+  background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--bsb);border-left:3px solid var(--c);box-shadow:0 1px 0 rgba(255,255,255,.05) inset}
+.job .t1{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.job .t2{font:450 10.5px var(--mono);color:var(--t3);white-space:nowrap}
+.job.sel{box-shadow:0 0 0 1px var(--accent),0 0 4px var(--accent-glow-core),0 4px 12px var(--accent-glow)}
+.job.mismatch{border-color:var(--err-edge);border-left-color:var(--c)}
+.job.mismatch .t2{color:var(--err)}
+.lane.dim{opacity:.55}
+.dragghost{position:fixed;left:0;top:0;z-index:90;pointer-events:none;opacity:.85;padding:8px 12px;border-radius:var(--r-md);font-size:12.5px;font-weight:600;
+  background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--accent);box-shadow:0 8px 24px rgba(0,0,0,.55)}
+.dragghost span{display:block;font:450 11px var(--mono);color:var(--t3)}
+.dragging, .dragging *{cursor:grabbing!important}
+
+/* Solar */
+.app.solar{grid-template-rows:auto minmax(0,1fr)}
+.smain{display:grid;grid-template-columns:minmax(0,1fr) 360px;grid-template-rows:minmax(0,1fr) 250px;gap:12px;min-height:0}
+.roof{grid-column:1;grid-row:1}
+.sbottom{grid-column:1;grid-row:2;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:12px;min-height:0}
+.config{grid-column:2;grid-row:1 / span 2}
+.roofwrap{flex:1;min-height:0;position:relative}
+.roofwrap svg{display:block;width:100%;height:100%;touch-action:none}
+.cell{cursor:crosshair}
+.cell:hover .hov{stroke:var(--accent);stroke-width:1.5;filter:drop-shadow(0 0 4px var(--accent-glow-strong))}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;padding:14px;border-bottom:1px solid var(--bsb)}
+.metric .v{font:600 20px var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.metric .v small{font-size:12px;color:var(--t3);font-weight:450;margin-left:3px}
+.metric .l{font-size:11px;color:var(--t3)}
+.cfg{padding:12px 14px;display:flex;flex-direction:column;gap:14px}
+.cfg .row{display:flex;flex-direction:column;gap:7px}
+.cfg .row.inline{flex-direction:row;align-items:center;justify-content:space-between;gap:10px}
+.cfg .row.inline .lbl{display:flex;flex-direction:column}
+.cfg .row.inline .lbl span{font-size:11.5px;color:var(--t3)}
+.cfg label.h{font-size:12px;font-weight:600;color:var(--t2)}
+.mods{display:flex;flex-direction:column;gap:6px}
+.mod{display:grid;grid-template-columns:1fr auto;gap:2px 10px;text-align:left;padding:9px 11px;border-radius:var(--r-md);
+  background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--bsb);border-top-color:var(--bst)}
+.mod b{font-size:13px;font-weight:600} .mod .p{font:450 12px var(--mono);color:var(--t2);text-align:right}
+.mod span:not(.p){font-size:11.5px;color:var(--t3);grid-column:1 / -1}
+.mod[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 4px var(--accent-glow-core),0 4px 12px var(--accent-glow)}
+table.q{width:100%;border-collapse:collapse;font-size:12.5px}
+table.q th{font-size:11px;font-weight:600;color:var(--t3);text-align:left;padding:7px 10px;border-bottom:1px solid var(--bsb);position:sticky;top:0;background:var(--surface-top)}
+table.q td{padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.035)}
+table.q td.n, table.q th.n{text-align:right;font-family:var(--mono);font-weight:450;font-variant-numeric:tabular-nums}
+table.q tr.sum td{font-weight:600;border-bottom:none;color:var(--t1)}
+table.q tr.sum.first td{border-top:1px solid var(--bdb)}
+table.q tr.disc td{color:var(--ok)}
+.chartwrap{flex:1;min-height:0;padding:8px 12px 10px}
+.chartwrap svg{display:block;width:100%;height:100%}
+
+/* Kiosk */
+.app.kiosk{grid-template-rows:auto minmax(0,1fr)}
+.kframe{flex:1;border:0;width:100%;height:100%;border-radius:0 0 var(--r-lg) var(--r-lg);background:#1B1D24}
+
+/* ---------- Overlays ---------- */
+.scrim{position:fixed;inset:0;z-index:60;background:rgba(10,24,30,.6);animation:fade .2s var(--ease-e) both}
+@keyframes fade{from{opacity:0}}
+#panel{position:fixed;z-index:70;width:330px;border-radius:var(--r-lg);overflow:hidden;
+  background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--bdb);border-top-color:var(--bdt);
+  box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 4px 16px rgba(0,0,0,.55),0 18px 40px rgba(0,0,0,.55),0 0 24px var(--accent-glow);animation:pop .2s var(--ease-e) both}
+@keyframes pop{from{opacity:0;transform:scale(.97)}}
+#panel .ph{padding:12px 14px 10px;border-bottom:1px solid var(--bsb)}
+#panel .ph b{display:block;font-size:13.5px;font-weight:600}
+#panel .ph span{font-size:11.5px;color:var(--t3)}
+#panel .zone{padding:8px 6px;border-bottom:1px solid var(--bsb)}
+#panel .zone .eyebrow{padding:2px 8px 6px;display:flex;justify-content:space-between}
+#panel .zone .eyebrow em{font-style:normal;text-transform:none;letter-spacing:0;font-weight:500}
+#panel .act{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 8px;border-radius:var(--r-sm);text-align:left;font-size:13px}
+#panel .act:hover{background:var(--accent-subtle)}
+#panel .act .fx{font-size:11px;color:var(--t3);white-space:nowrap}
+#panel .act .fx.ext{color:var(--warn)}
+#panel .beam{display:flex;gap:6px;padding:10px 10px 4px}
+#panel .bhint{display:block;padding:0 12px 10px;font-size:11.5px;color:var(--t3);text-align:left}
+#panel .bhint:hover{color:var(--accent)}
+#panel .beam input{flex:1;height:32px;padding:0 10px;border-radius:var(--r-sm);outline:none;font-size:13px;
+  background:linear-gradient(180deg,var(--sunken-top),var(--sunken-btm));border:1px solid var(--bsb)}
+#panel .beam input:focus{border-color:var(--accent);box-shadow:0 0 6px var(--accent-glow-core),0 6px 18px var(--accent-glow-strong)}
+.beamchip{position:fixed;z-index:65;padding:5px 10px;border-radius:var(--r-pill);font-size:12px;pointer-events:none;
+  background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--accent);box-shadow:0 0 6px var(--accent-glow-core),0 4px 12px var(--accent-glow)}
+#modal{position:fixed;z-index:80;left:50%;top:50%;transform:translate(-50%,-50%);width:min(460px,92vw);border-radius:var(--r-lg);padding:22px;
+  background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--bdb);border-top-color:var(--bdt);
+  box-shadow:0 4px 16px rgba(0,0,0,.55),0 24px 48px rgba(0,0,0,.65),0 0 32px var(--accent-glow-core),0 0 96px var(--accent-glow);animation:modalIn .2s var(--ease-e) both}
+@keyframes modalIn{from{opacity:0;transform:translate(-50%,-50%) scale(.97)}}
+#modal h2{font-size:18px;font-weight:600;margin:6px 0 8px;letter-spacing:-.01em}
+#modal p{font-family:var(--serif);font-size:15px;line-height:1.6;color:var(--t2)}
+#modal ul{margin:12px 0 4px;padding-left:18px;color:var(--t2);font-size:13px;display:flex;flex-direction:column;gap:4px}
+#modal .eyebrow{color:var(--warn)}
+#modal .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+#cmdk{position:fixed;z-index:80;left:50%;top:14vh;transform:translateX(-50%);width:min(620px,92vw);border-radius:var(--r-lg);overflow:hidden;
+  background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--bdb);border-top-color:var(--bdt);
+  box-shadow:0 0 0 4px var(--accent-glow),0 0 16px var(--accent-glow-core),0 12px 40px var(--accent-glow-strong);animation:pop .2s var(--ease-e) both}
+#cmdk input{width:100%;height:54px;padding:0 18px;background:none;border:none;outline:none;font-size:16px;border-bottom:1px solid var(--bsb)}
+#cmdk ul{list-style:none;padding:6px;max-height:50vh;overflow:auto}
+#cmdk li{display:flex;justify-content:space-between;gap:12px;padding:9px 12px;border-radius:var(--r-sm);font-size:13.5px;cursor:pointer}
+#cmdk li span{font-size:11.5px;color:var(--t3)}
+#cmdk li.on{background:var(--accent-subtle)}
+#trace{position:fixed;z-index:50;right:14px;top:56px;bottom:52px;width:340px;display:flex;flex-direction:column;border-radius:var(--r-lg);
+  background:linear-gradient(180deg,var(--surface-top),var(--surface-btm));border:1px solid var(--bdb);border-top-color:var(--bdt);
+  box-shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.45);animation:pop .2s var(--ease-e) both}
+#trace ol{list-style:none;overflow:auto;padding:8px 12px;display:flex;flex-direction:column;gap:10px}
+#trace li{display:grid;grid-template-columns:44px 1fr;gap:8px;font-size:12.5px;color:var(--t2)}
+#trace li .tm{font:450 11px var(--mono);color:var(--t3);padding-top:2px}
+#trace li b.k{display:block;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+#trace li b:not(.k){color:var(--t1);font-weight:500}
+#guide{position:fixed;z-index:55;right:14px;top:56px;width:350px;padding:16px 18px;border-radius:var(--r-lg);
+  background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--bdb);border-top-color:var(--bdt);
+  box-shadow:0 4px 16px rgba(0,0,0,.5),0 18px 40px rgba(0,0,0,.5),0 0 24px var(--accent-glow);animation:pop .25s var(--ease-e) both}
+#guide p{font-family:var(--serif);font-size:14.5px;line-height:1.55;color:var(--t2);margin:6px 0 10px}
+#guide ol{padding-left:18px;font-size:13px;color:var(--t2);display:flex;flex-direction:column;gap:5px}
+#guide ol b{color:var(--t1);font-weight:500}
+#guide .foot{display:flex;justify-content:space-between;align-items:center;margin-top:14px}
+
+/* ---------- X-ray ---------- */
+.xr{display:none}
+body.xray .xr{display:block;position:absolute;z-index:8;pointer-events:none;left:10px;bottom:10px;max-width:300px;padding:8px 10px;border-radius:var(--r-md);
+  font:450 11px/1.55 var(--mono);color:var(--t1);background:rgba(10,14,18,.86);border:1px dashed var(--accent);box-shadow:0 0 12px var(--accent-glow)}
+body.xray .xr b{color:var(--accent);font-weight:600}
+body.xray .xr.tr{left:auto;right:10px;bottom:auto;top:52px}
+body.xray .pane{outline:1.5px dashed rgba(111,200,214,.45);outline-offset:-1px}
+#xbar{display:none}
+body.xray #xbar{display:block;position:absolute;left:50%;transform:translateX(-50%);bottom:44px;z-index:16;width:min(820px,92%);padding:10px 14px;border-radius:var(--r-md);
+  font-size:12.5px;line-height:1.55;color:var(--t1);background:rgba(10,14,18,.92);border:1px solid var(--accent);box-shadow:0 0 16px var(--accent-glow)}
+#xbar b{color:var(--accent);font-weight:600}
+
+@media (max-width:1180px){
+  .dmid{grid-template-columns:240px minmax(0,1fr)}
+  .smain{grid-template-columns:minmax(0,1fr) 300px}
+  .kpis{gap:12px} .gen-note{display:none}
+}
+@media (max-width:900px){
+  body{overflow:auto}
+  .sugg{grid-template-columns:1fr}
+  .wordmark small,.core span,.clock{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important}
+  .condense::before,.condense::after{display:none}
+}
+</style>
+</head>
+<body>
+
+<div id="boot" role="status" aria-label="Booting">
+  <div class="log" id="bootlog"></div>
+  <div class="arc" id="bootarc"></div>
+  <div class="mark" id="bootmark">omadia</div>
+  <div class="skip">Click to skip</div>
+</div>
+
+<div id="shell" aria-hidden="true">
+  <header class="topbar">
+    <div class="wordmark">omadia <small>UI</small></div>
+    <nav class="spaces" id="spaces" aria-label="Spaces"></nav>
+    <div class="tray">
+      <button class="tbtn" id="btn-cmdk" title="Ask omadia or run a command"><span class="lbl">Ask or run</span> <span class="kbd" id="kbd">Ctrl K</span></button>
+      <button class="tbtn" id="btn-xray" aria-pressed="false" title="Show what this canvas is made of">X-ray</button>
+      <button class="tbtn" id="btn-guide" title="About this mockup">?</button>
+      <div class="core" title="omadia core connection"><i></i><span>omadia core, 34 plugins</span></div>
+      <div class="clock" id="clock">--:--</div>
+      <div class="avatar" title="Lea Sommer">LS</div>
+    </div>
+  </header>
+  <main id="stage">
+    <section class="canvas on" data-space="home" id="cv-home"></section>
+    <div id="status"><span class="sdot"></span><span id="status-t">Canvas ready.</span></div>
+    <div id="xbar"></div>
+    <div class="corner">
+      <button class="tbtn" id="btn-trace" aria-pressed="false">Trace</button>
+    </div>
+  </main>
+</div>
+
+<script>
+(() => {
+'use strict';
+/* =========================================================================
+   Utilities
+   ========================================================================= */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const wait = (ms) => new Promise((r) => setTimeout(r, RM ? Math.min(ms, 60) : ms));
+const el = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const hm = (t) => { const m = Math.round(t * 60); return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+const eur = (n) => '€' + Math.round(n).toLocaleString('en-US');
+const num = (n, d = 0) => n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+const nowHM = () => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+function flash(node, cls = 'patch') {
+  if (!node) return;
+  node.classList.remove(cls); void node.offsetWidth; node.classList.add(cls);
+  node.addEventListener('animationend', () => node.classList.remove(cls), { once: true });
+}
+$('#kbd').textContent = isMac ? '⌘K' : 'Ctrl K';
+setInterval(() => { $('#clock').textContent = nowHM(); }, 1000); $('#clock').textContent = nowHM();
+
+/* =========================================================================
+   Status line + Trace
+   ========================================================================= */
+function status(html) { const s = $('#status'); $('#status-t').innerHTML = html; flash(s); }
+const TRACE = [];
+function trace(kind, text) { TRACE.unshift({ t: nowHM(), kind, text }); if ($('#trace')) renderTrace(); }
+function renderTrace() {
+  const t = $('#trace'); if (!t) return;
+  t.querySelector('ol').innerHTML = TRACE.length ? TRACE.map((e) =>
+    `<li><span class="tm">${e.t}</span><div><b class="k">${esc(e.kind)}</b>${e.text}</div></li>`).join('')
+    : '<li><span class="tm"></span><div>Nothing yet. Prompts, beams, actions and external effects land here.</div></li>';
+}
+function toggleTrace(force) {
+  const open = force ?? !$('#trace');
+  $('#btn-trace').setAttribute('aria-pressed', String(open));
+  if (!open) { $('#trace')?.remove(); return; }
+  if ($('#trace')) return;
+  closeGuide();
+  document.body.appendChild(el(`<aside id="trace"><div class="pane-h"><h3>Trace</h3><span class="sub">what you asked, what omadia did</span></div><ol></ol></aside>`));
+  renderTrace();
+}
+$('#btn-trace').onclick = () => toggleTrace();
+
+/* =========================================================================
+   Palette (Lume: one accent slot, three palettes, set conversationally)
+   ========================================================================= */
+function setPalette(p, said) {
+  document.body.classList.add('palette-fade');
+  document.documentElement.dataset.palette = p;
+  setTimeout(() => document.body.classList.remove('palette-fade'), 260);
+  const name = { lagoon: 'Lagoon', atelier: 'Atelier', petrol: 'Petrol' }[p];
+  trace('Preference', `${esc(said)}: palette set to ${name} for this user.`);
+  status(`Palette <b>${name}</b>. Stored as your preference, every canvas follows.`);
+}
+
+/* =========================================================================
+   Spaces (one canvas per task, persistent)
+   ========================================================================= */
+const S = { space: 'home', order: ['home'], built: {}, pinned: {}, xray: false };
+const META = {
+  home: { label: 'Home' },
+  dispatch: { label: 'Service day, team north', short: 'Service day', glyph: 'route' },
+  solar: { label: 'Solar quote, Müller GmbH', short: 'Solar quote', glyph: 'sun' },
+  kiosk: { label: 'Lobby kiosk, AURA', short: 'Lobby kiosk', glyph: 'screen' },
+};
+function renderSpaces() {
+  const nav = $('#spaces');
+  nav.innerHTML = S.order.map((id) => {
+    const m = META[id]; const active = id === S.space ? ' active' : '';
+    if (id === 'home') return `<button class="space is-home${active}" data-go="home">Home</button>`;
+    return `<div class="space${active}" data-go="${id}" role="button" tabindex="0"><span class="dot"></span>${esc(m.short)}<button class="x" data-close="${id}" title="Close space" aria-label="Close ${esc(m.short)}">×</button></div>`;
+  }).join('');
+}
+$('#spaces').addEventListener('click', (e) => {
+  const c = e.target.closest('[data-close]');
+  if (c) { e.stopPropagation(); closeSpace(c.dataset.close); return; }
+  const g = e.target.closest('[data-go]'); if (g) switchTo(g.dataset.go);
+});
+function canvasOf(id) { return $(`.canvas[data-space="${id}"]`); }
+function switchTo(id) {
+  if (S.space === id) return;
+  closePanel();
+  const from = canvasOf(S.space), to = canvasOf(id);
+  const dir = S.order.indexOf(id) > S.order.indexOf(S.space) ? 'r' : 'l';
+  if (from) {
+    from.classList.remove('on', 'enter-r', 'enter-l');
+    from.classList.add(dir === 'r' ? 'leave-l' : 'leave-r');
+    setTimeout(() => from.classList.remove('leave-l', 'leave-r'), 330);
+  }
+  S.space = id;
+  setTimeout(() => {
+    to.classList.add('on', dir === 'r' ? 'enter-r' : 'enter-l');
+    to.addEventListener('animationend', () => to.classList.remove('enter-r', 'enter-l'), { once: true });
+  }, RM ? 0 : 60);
+  renderSpaces(); renderXbar();
+}
+function openSpace(id) {
+  if (!S.order.includes(id)) S.order.push(id);
+  if (!canvasOf(id)) $('#stage').insertBefore(el(`<section class="canvas" data-space="${id}"></section>`), $('#status'));
+  renderSpaces();
+}
+function closeSpace(id) {
+  if (S.space === id) switchTo('home');
+  S.order = S.order.filter((x) => x !== id);
+  setTimeout(() => canvasOf(id)?.remove(), 360);
+  delete S.built[id];
+  renderSpaces();
+  trace('Space', `Closed <b>${esc(META[id].short)}</b>.${S.pinned[id] ? ' Kept as a tool on Home.' : ''}`);
+  status(S.pinned[id] ? `Closed. <b>${esc(META[id].short)}</b> stays in your tools and reopens instantly.` : `Closed <b>${esc(META[id].short)}</b>. Pin an application to keep it as a tool.`);
+}
+
+/* =========================================================================
+   Boot: the thin client only starts the shell
+   ========================================================================= */
+let bootSkip = false;
+async function boot() {
+  const log = $('#bootlog');
+  const lines = [
+    'omadia thin client   Linux 6.8   4 GB RAM   no local applications',
+    '<b>[  ok  ]</b> network            wired, 1 Gbit/s',
+    '<b>[  ok  ]</b> display            3840 x 2160 at 60 Hz, touch',
+    '<b>[  ok  ]</b> device identity    key loaded from secure element',
+    '<b>[  ok  ]</b> omadia core        connected, 34 plugins, tenant byte5-demo',
+    '<b>[  ok  ]</b> session            Lea Sommer, Operations and Sales',
+    '<b>[  ok  ]</b> starting omadia UI shell',
+  ];
+  for (const l of lines) { if (bootSkip) break; log.innerHTML += l + '\n'; await wait(230); }
+  if (!bootSkip) { $('#bootarc').classList.add('on'); $('#bootmark').classList.add('on'); await wait(1100); }
+  finishBoot();
+}
+let booted = false;
+function finishBoot() {
+  if (booted) return; booted = true;
+  const b = $('#boot'); b.classList.add('done'); setTimeout(() => b.remove(), 500);
+  $('#shell').removeAttribute('aria-hidden');
+  buildHome(); renderSpaces();
+  $$('#cv-home .pane, #cv-home .home-center').forEach((p, i) => setTimeout(() => flash(p, 'condense'), i * 90));
+  status('Canvas ready. Ask anything, or press <b>' + (isMac ? '⌘K' : 'Ctrl K') + '</b>.');
+  setTimeout(() => { if (!sessionStorage.getItem('omadia-guide-seen')) openGuide(); }, 700);
+}
+$('#boot').addEventListener('click', () => { bootSkip = true; finishBoot(); });
+document.addEventListener('keydown', (e) => { if (!booted && (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter')) { bootSkip = true; finishBoot(); } }, true);
+
+/* =========================================================================
+   Guide card (for the person looking at the mockup)
+   ========================================================================= */
+function openGuide() {
+  if ($('#guide')) return;
+  toggleTrace(false);
+  sessionStorage.setItem('omadia-guide-seen', '1');
+  document.body.appendChild(el(`<aside id="guide">
+    <div class="eyebrow">Clickable mockup</div>
+    <p>This screen is the whole desktop. The thin client boots straight into omadia UI. Every application you open here is generated for the task and works on live data through omadia core and its plugins.</p>
+    <ol>
+      <li><b>Pick a request</b> on Home and watch the application assemble.</li>
+      <li><b>Work in it:</b> drag orders onto technicians, paint panels on the roof.</li>
+      <li><b>Right-click or long-press</b> anything for actions and the beam.</li>
+      <li><b>${isMac ? '⌘K' : 'Ctrl K'}</b> for commands. Try “make it warmer”.</li>
+      <li><b>X-ray</b> shows what each canvas is made of.</li>
+    </ol>
+    <div class="foot"><button class="btn ghost sm" id="g-replay">Replay boot</button><button class="btn primary sm" id="g-ok">Start</button></div>
+  </aside>`));
+  $('#g-ok').onclick = closeGuide;
+  $('#g-replay').onclick = () => location.reload();
+}
+function closeGuide() { $('#guide')?.remove(); }
+$('#btn-guide').onclick = () => ($('#guide') ? closeGuide() : openGuide());
+
+/* =========================================================================
+   Home canvas
+   ========================================================================= */
+const GLYPH = {
+  route: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5"/></svg>',
+  sun: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  screen: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
+};
+const REQUESTS = {
+  dispatch: { text: 'Plan today’s service routes for team north. Two escalations came in overnight.', area: 'Operations', note: 'ERP orders, HR calendars, maps' },
+  solar: { text: 'Draft a solar quote for Müller GmbH from yesterday’s site visit.', area: 'Sales', note: 'CRM, site photos, ERP price list' },
+  kiosk: { text: 'Show the lobby kiosk for the AURA launch.', area: 'Marketing', note: 'brand assets, kiosk screen' },
+};
+function buildHome() {
+  const cv = $('#cv-home');
+  cv.innerHTML = `<div class="home">
+    <div class="home-center">
+      <div class="greet">Good morning, Lea.</div>
+      <p class="brief">Two service escalations came in overnight for team north, and the site visit at Müller GmbH is ready to be quoted.</p>
+      <form class="cold" id="cold" autocomplete="off">
+        <input id="cold-in" aria-label="What do you want to get done?" placeholder="What do you want to get done?" />
+        <button class="go" aria-label="Send" type="submit"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </form>
+      <div class="cold-hint" id="cold-hint"></div>
+      <div class="sugg">
+        ${Object.entries(REQUESTS).map(([k, r]) => `<button class="chip" data-req="${k}"><span class="eyebrow">${r.area}</span><b>${esc(r.text)}</b><span>${r.note}</span></button>`).join('')}
+      </div>
+    </div>
+    <section class="pane tools" data-ctx="tools">
+      <div class="pane-h"><h3>Your tools</h3><span class="sub">applications you generated and pinned</span></div>
+      <div class="pane-b"><div class="tool-grid" id="tool-grid"></div></div>
+      <div class="xr tr"><b>Presets</b><br>A pinned application is stored as data.<br>Reopening instantiates it, no regeneration.</div>
+    </section>
+    <div class="systems">
+      <span class="eyebrow">Connected through omadia core</span>
+      ${['ERP', 'CRM', 'HR', 'Maps', 'Drive', 'Mail', 'Mobile push'].map((s) => `<span class="sys"><i></i>${s}</span>`).join('')}
+      <span>and 27 more plugins</span>
+      <span class="host">Host: omadia thin client, no local applications</span>
+    </div>
+  </div>`;
+  renderTools();
+  $('#cold').addEventListener('submit', (e) => { e.preventDefault(); submitPrompt($('#cold-in').value); });
+  cv.addEventListener('click', (e) => {
+    const c = e.target.closest('[data-req]'); if (c) typeAndRun(c.dataset.req);
+    const t = e.target.closest('[data-tool]'); if (t) openTool(t.dataset.tool);
+  });
+}
+function renderTools() {
+  const g = $('#tool-grid'); if (!g) return;
+  const ids = Object.keys(S.pinned);
+  g.innerHTML = ids.length ? ids.map((id) => `<button class="tool" data-tool="${id}" data-ctx="tool:${id}"><span class="glyph">${GLYPH[META[id].glyph]}</span><span><b>${esc(META[id].short)}</b><span>Pinned ${S.pinned[id]}. Opens instantly.</span></span></button>`).join('')
+    : '<div class="empty">Nothing pinned yet. Generate an application, then pin it. It stays live with your data and opens instantly next time.</div>';
+}
+async function typeAndRun(kind) {
+  const inp = $('#cold-in'); if (!inp) return generate(kind);
+  if (S.built[kind]) return switchTo(kind);
+  const text = REQUESTS[kind].text; inp.value = ''; inp.focus();
+  for (let i = 0; i < text.length; i += 2) { inp.value = text.slice(0, i + 2); await wait(14); }
+  await wait(160);
+  submitPrompt(text);
+}
+function route(text) {
+  const t = text.toLowerCase();
+  if (/route|service|technician|dispatch|escalation|team north|einsatz|tour/.test(t)) return 'dispatch';
+  if (/solar|quote|pv|roof|müller|mueller|angebot/.test(t)) return 'solar';
+  if (/kiosk|lobby|aura/.test(t)) return 'kiosk';
+  if (/warm/.test(t)) return 'p:atelier';
+  if (/cool|blue|petrol/.test(t)) return 'p:petrol';
+  if (/lagoon|default/.test(t)) return 'p:lagoon';
+  return null;
+}
+function submitPrompt(text) {
+  text = (text || '').trim(); if (!text) return;
+  const r = route(text);
+  const hint = $('#cold-hint');
+  if (!r) {
+    if (hint) hint.textContent = 'This mockup scripts three requests: service routes, the solar quote and the lobby kiosk. Pick one below.';
+    return;
+  }
+  if (hint) hint.textContent = '';
+  if ($('#cold-in')) $('#cold-in').value = '';
+  if (r.startsWith('p:')) return setPalette(r.slice(2), text);
+  generate(r, text);
+}
+
+/* =========================================================================
+   Generation: a new application condenses out of light
+   ========================================================================= */
+const STEPS = {
+  dispatch: [
+    ['omadia', 'Understanding the request, 2 escalations flagged', 450],
+    ['ERP', '7 open service orders for team north', 520],
+    ['HR', 'Shifts and skills of 3 technicians', 380],
+    ['Maps', 'Road network and tiles for the region', 420],
+    ['Compose', 'Order queue, map Lumen, day timeline, 3 live figures', 520],
+    ['Wire', 'Selection shared by queue, map and timeline. Drag into lanes', 420],
+    ['Grant', 'Read access granted. Publishing and texting ask you first', 380],
+  ],
+  solar: [
+    ['omadia', 'Understanding the request', 380],
+    ['CRM', 'Müller GmbH, Kronau. Site visit report from yesterday', 480],
+    ['Drive', '14 roof photos. Roof measured at 31.2 x 13.6 m, 2 faces', 560],
+    ['ERP', 'Price list 2026-11, stock for 3 module types', 420],
+    ['Compose', 'Roof editor scene, configurator, yield chart, quote lines', 520],
+    ['Wire', 'Every roof cell drives yield, price and quote', 400],
+    ['Grant', 'Read access granted. Sending the quote asks you first', 360],
+  ],
+  kiosk: [
+    ['Drive', 'AURA launch assets and brand colours', 420],
+    ['Compose', 'Kiosk Lumen in brand colours, touch-first', 480],
+    ['Cadence', 'Static layout, 1 Hz clock, motion on the GPU', 420],
+  ],
+};
+async function generate(kind, promptText) {
+  closePanel(); closeCmdk();
+  if (S.built[kind]) { switchTo(kind); return; }
+  const fromPreset = !!S.pinned[kind];
+  openSpace(kind); switchTo(kind);
+  const cv = canvasOf(kind);
+  S.built[kind] = true;
+  APPS[kind].reset?.(fromPreset);
+  APPS[kind].build(cv);
+  renderXbar();
+  const t0 = performance.now();
+  if (fromPreset) {
+    trace('Preset', `Opened <b>${esc(META[kind].short)}</b> from your tools with today’s data. No regeneration.`);
+    $$('.pane', cv).forEach((p, i) => setTimeout(() => flash(p, 'condense'), i * 60));
+    status(`Opened <b>${esc(META[kind].short)}</b> from your tools in 0.2 s. Same application, today’s data.`);
+    return;
+  }
+  trace('Prompt', esc(promptText || REQUESTS[kind].text));
+  const panes = $$('.pane', cv);
+  panes.forEach((p) => p.classList.add('pre'));
+  const log = el(`<div class="genlog" role="status"><div class="eyebrow">Generating an application</div><div class="q">“${esc(promptText || REQUESTS[kind].text)}”</div><ol></ol></div>`);
+  cv.appendChild(log);
+  for (const [tag, text, ms] of STEPS[kind]) {
+    const li = el(`<li><span class="tag">${tag}</span><span>${esc(text)}</span><span class="st"></span></li>`);
+    log.querySelector('ol').appendChild(li);
+    await wait(ms);
+    li.classList.add('done'); li.querySelector('.st').textContent = 'done';
+    if (!canvasOf(kind)) return;
+  }
+  log.classList.add('out'); setTimeout(() => log.remove(), 320);
+  for (let i = 0; i < panes.length; i++) {
+    panes[i].classList.remove('pre'); flash(panes[i], 'condense'); await wait(110);
+  }
+  const secs = ((performance.now() - t0) / 1000).toFixed(1);
+  const m = APPS[kind].manifest;
+  status(`<b>${esc(META[kind].label)}</b> generated in ${secs} s from ${m}. Nothing was installed.`);
+  trace('Generated', `${esc(META[kind].label)}: ${m}.`);
+}
+function pin(kind) {
+  if (S.pinned[kind]) { status(`<b>${esc(META[kind].short)}</b> is already in your tools.`); return; }
+  S.pinned[kind] = 'today ' + nowHM();
+  renderTools();
+  $$(`[data-pin="${kind}"]`).forEach((b) => { b.textContent = 'Pinned'; });
+  trace('Preset', `Pinned <b>${esc(META[kind].short)}</b> as a tool. Stored as data, reusable by your team.`);
+  status(`Pinned. <b>${esc(META[kind].short)}</b> is now one of your tools on Home.`);
+}
+function openTool(kind) { if (S.built[kind]) switchTo(kind); else generate(kind); }
+
+/* =========================================================================
+   APP 1: Service day (dispatch). Map Lumen + queue + timeline, wired.
+   ========================================================================= */
+const TECHS = [
+  { id: 'jonas', name: 'Jonas Keller', ini: 'JK', skills: ['heat', 'pv'] },
+  { id: 'mira', name: 'Mira Hoffmann', ini: 'MH', skills: ['elec', 'pv'] },
+  { id: 'deniz', name: 'Deniz Aydin', ini: 'DA', skills: ['heat', 'elec'] },
+];
+const TECH = Object.fromEntries(TECHS.map((t) => [t.id, t]));
+const SKILL = { heat: 'Heat pump', pv: 'PV', elec: 'Electrical' };
+const ORD = {
+  4711: { cust: 'Bäckerei Hansen', town: 'Ostfeld', x: 628, y: 150, dur: 1.5, skill: 'heat', prio: 'high', task: 'Heat pump fault, no hot water' },
+  4712: { cust: 'Kita Sonnenhof', town: 'Wiesbach', x: 452, y: 98, dur: 2, skill: 'pv', prio: 'high', task: 'Inverter offline since Sunday' },
+  4713: { cust: 'Familie Akın', town: 'Kronau', x: 508, y: 318, dur: 3, skill: 'heat', prio: 'normal', task: 'Commission new heat pump' },
+  4714: { cust: 'Autohaus Brandt', town: 'Lindhof', x: 318, y: 372, dur: 2.5, skill: 'elec', prio: 'normal', task: 'Install 4 wallboxes, 22 kW' },
+  4715: { cust: 'Praxis Dr. Vogel', town: 'Seetal', x: 676, y: 300, dur: 1, skill: 'elec', prio: 'normal', task: 'Annual electrical inspection' },
+  4716: { cust: 'Hofladen Mertens', town: 'Mühlberg', x: 262, y: 132, dur: 1.5, skill: 'pv', prio: 'low', task: 'Clean and inspect PV array' },
+  4717: { cust: 'Gemeindehalle', town: 'Wiesbach', x: 424, y: 70, dur: 2, skill: 'elec', prio: 'low', task: 'Emergency lighting test' },
+  4718: { cust: 'Familie Schulte', town: 'Ostfeld', x: 654, y: 120, dur: 1, skill: 'heat', prio: 'normal', task: 'Annual heat pump service' },
+  4719: { cust: 'Pension Seeblick', town: 'Seetal', x: 704, y: 334, dur: 2, skill: 'pv', prio: 'high', task: 'Battery storage warning' },
+};
+const DEPOT = { x: 150, y: 255 };
+const TOWNS = [['Mühlberg', 250, 118, 242, 106, 'end'], ['Wiesbach', 440, 84, 472, 82, 'start'], ['Ostfeld', 640, 136, 674, 142, 'start'], ['Seetal', 690, 318, 724, 318, 'start'], ['Kronau', 520, 332, 520, 358, 'middle'], ['Lindhof', 300, 386, 300, 410, 'middle']];
+const KM = 0.09, SPEED = 55, START = 7, WORKEND = 15, AXIS_END = 18;
+const PRIO_RANK = { high: 0, normal: 1, low: 2 };
+let D;
+function dispatchReset() {
+  D = { lanes: { jonas: ['4711', '4713', '4719'], mira: ['4712', '4714'], deniz: ['4718'] }, queue: ['4715', '4716', '4717'],
+    sel: null, focus: null, collapsed: {}, sort: 'prio', vb: { x: 0, y: 0, w: 800, h: 460 }, sig: {}, published: false };
+}
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) * KM;
+function sched(tid, list = D.lanes[tid]) {
+  let t = START, pos = DEPOT, km = 0; const stops = [];
+  for (const id of list) {
+    const o = ORD[id]; const d = dist(pos, o); const tr = d / SPEED;
+    stops.push({ id, from: t, arrive: t + tr, end: t + tr + o.dur }); km += d; t += tr + o.dur; pos = o;
+  }
+  const back = list.length ? dist(pos, DEPOT) : 0; km += back;
+  const finish = list.length ? t + back / SPEED : START;
+  return { stops, km, lastEnd: t, finish, overtime: Math.max(0, finish - WORKEND), work: finish - START };
+}
+const laneOf = (id) => TECHS.find((t) => D.lanes[t.id].includes(id))?.id || null;
+function totals() {
+  let km = 0, ot = 0; for (const t of TECHS) { const s = sched(t.id); km += s.km; ot += s.overtime; }
+  return { km, ot, open: D.queue.length };
+}
+function bestFit(id, exclude) {
+  let best = null;
+  for (const t of TECHS) {
+    if (t.id === exclude || !t.skills.includes(ORD[id].skill)) continue;
+    const base = D.lanes[t.id].filter((x) => x !== id);
+    for (let i = 0; i <= base.length; i++) {
+      const l = base.slice(); l.splice(i, 0, id);
+      const s = sched(t.id, l); const cost = s.finish + s.overtime * 4;
+      if (!best || cost < best.cost) best = { tid: t.id, idx: i, cost };
+    }
+  }
+  return best;
+}
+function removeEverywhere(id) { D.queue = D.queue.filter((x) => x !== id); for (const t of TECHS) D.lanes[t.id] = D.lanes[t.id].filter((x) => x !== id); }
+function assign(id, tid, idx) { removeEverywhere(id); const l = D.lanes[tid]; l.splice(idx == null ? l.length : Math.min(idx, l.length), 0, id); }
+function unassign(id) { removeEverywhere(id); D.queue.push(id); }
+function optimise(tid) {
+  const rest = D.lanes[tid].slice(); const out = []; let pos = DEPOT;
+  while (rest.length) { rest.sort((a, b) => dist(pos, ORD[a]) - dist(pos, ORD[b])); const n = rest.shift(); out.push(n); pos = ORD[n]; }
+  const before = sched(tid).km; D.lanes[tid] = out; return before - sched(tid).km;
+}
+function assignAllOpen() {
+  const open = D.queue.slice().sort((a, b) => PRIO_RANK[ORD[a].prio] - PRIO_RANK[ORD[b].prio]);
+  const done = [];
+  for (const id of open) { const b = bestFit(id); if (b) { assign(id, b.tid, b.idx); done.push(`${ORD[id].cust} to ${TECH[b.tid].name.split(' ')[0]}`); } }
+  return done;
+}
+function rebalance() {
+  const moves = [];
+  for (let guard = 0; guard < 6; guard++) {
+    const over = TECHS.map((t) => ({ t, s: sched(t.id) })).filter((x) => x.s.overtime > 0.05).sort((a, b) => b.s.overtime - a.s.overtime)[0];
+    if (!over) break;
+    let pick = null;
+    for (const id of D.lanes[over.t.id]) {
+      const b = bestFit(id, over.t.id); if (!b) continue;
+      const l2 = D.lanes[b.tid].slice(); l2.splice(b.idx, 0, id);
+      if (sched(b.tid, l2).overtime > 0.05) continue;
+      if (!pick || ORD[id].dur < ORD[pick.id].dur) pick = { id, b };
+    }
+    if (!pick) break;
+    assign(pick.id, pick.b.tid, pick.b.idx); moves.push(`${ORD[pick.id].cust} from ${over.t.name.split(' ')[0]} to ${TECH[pick.b.tid].name.split(' ')[0]}`);
+  }
+  return moves;
+}
+
+function dispatchBuild(cv) {
+  cv.innerHTML = `<div class="app dispatch">
+    <section class="pane apphead" data-ctx="kpis">
+      <div class="title"><b>Service day, team north</b><span>Tuesday, 24 November. 3 technicians, depot Altstadt</span></div>
+      <div class="kpis" id="d-kpis"></div>
+      <div class="grow"></div>
+      <span class="gen-note">Generated for you at ${nowHM()}</span>
+      <button class="btn" id="d-opt">Optimise routes</button>
+      <button class="btn ghost" data-pin="dispatch">${S.pinned.dispatch ? 'Pinned' : 'Pin as tool'}</button>
+      <button class="btn primary" id="d-pub">${D.published ? 'Published' : 'Publish day plans'}</button>
+      <div class="xr tr" style="top:56px"><b>status primitives</b> computed on this device<br>from the wired state, no server round trip</div>
+    </section>
+    <div class="dmid">
+      <section class="pane" data-ctx="queue">
+        <div class="pane-h"><h3>Open orders</h3>
+          <div class="seg" id="d-sort"><button data-sort="prio">Priority</button><button data-sort="dur">Duration</button><button data-sort="town">Town</button></div></div>
+        <div class="pane-b"><div class="queue-list" data-drop="queue" id="d-queue"></div></div>
+        <div class="xr"><b>list primitive</b><br>sort, select, drag: on this device<br>data: ERP service orders</div>
+      </section>
+      <section class="pane" data-ctx="map">
+        <div class="pane-h"><h3>Region north</h3>
+          <div style="display:flex;gap:6px"><button class="btn sm icon" id="d-zin" aria-label="Zoom in">+</button><button class="btn sm icon" id="d-zout" aria-label="Zoom out">−</button><button class="btn sm" id="d-fit">Fit</button></div></div>
+        <div class="mapwrap" id="d-mapwrap"><svg id="d-map" viewBox="0 0 800 460" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="legend">${TECHS.map((t) => `<span><i style="background:var(--c-${t.id})"></i>${t.name.split(' ')[0]}</span>`).join('')}<span><i style="background:var(--t3)"></i>open</span></div>
+        </div>
+        <div class="xr tr"><b>Lumen</b> map.north, <b>scene</b> primitive<br>pan, zoom, select at 60 fps on this device<br>colorMode free (crew colours)<br>capabilities: tiles, loadData</div>
+      </section>
+    </div>
+    <section class="pane timeline" data-ctx="timeline">
+      <div class="axis"><div class="eyebrow" style="align-self:end">Technicians</div><div class="hours" id="d-hours"></div></div>
+      <div class="lanes" id="d-lanes"></div>
+      <div class="xr tr" style="top:8px"><b>Lumen</b> schedule.day<br>transitions: assign, reorder, optimise<br>invariant: no technician double-booked<br><b>wires</b> queue ⇄ map ⇄ timeline</div>
+    </section>
+  </div>`;
+  const hours = $('#d-hours', cv);
+  for (let h = START; h <= AXIS_END; h++) hours.appendChild(el(`<span style="left:${((h - START) / (AXIS_END - START)) * 100}%">${String(h).padStart(2, '0')}</span>`));
+  drawMapBase();
+  dispatchRender(true);
+  $('#d-sort', cv).addEventListener('click', (e) => { const b = e.target.closest('[data-sort]'); if (b) { D.sort = b.dataset.sort; dispatchRender(); } });
+  $('#d-opt', cv).onclick = () => { const saved = TECHS.reduce((a, t) => a + optimise(t.id), 0); dispatchRender(); status(saved > 0.5 ? `Routes optimised. <b>${num(saved)} km</b> less driving today.` : 'Routes are already optimal.'); trace('Action', `Optimise routes: ${num(saved)} km saved.`); };
+  $('[data-pin="dispatch"]', cv).onclick = () => pin('dispatch');
+  $('#d-pub', cv).onclick = publishPlans;
+  $('#d-zin', cv).onclick = () => zoomMap(0.8); $('#d-zout', cv).onclick = () => zoomMap(1.25); $('#d-fit', cv).onclick = fitMap;
+  wireDispatchPointer(cv);
+}
+
+function dispatchRender(first) {
+  if (!canvasOf('dispatch') || !$('#d-queue')) return;
+  const tot = totals();
+  $('#d-kpis').innerHTML = `
+    <div class="kpi ${tot.open ? 'warn' : 'good'}"><span class="v">${tot.open}</span><span class="l">open orders</span></div>
+    <div class="kpi"><span class="v">${num(tot.km)} km</span><span class="l">driving today</span></div>
+    <div class="kpi ${tot.ot > 0.05 ? 'warn' : 'good'}"><span class="v">${num(tot.ot, 1)} h</span><span class="l">overtime</span></div>`;
+  $$('#d-sort button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.sort === D.sort)));
+  const q = D.queue.slice().sort((a, b) => D.sort === 'dur' ? ORD[b].dur - ORD[a].dur : D.sort === 'town' ? ORD[a].town.localeCompare(ORD[b].town) : PRIO_RANK[ORD[a].prio] - PRIO_RANK[ORD[b].prio]);
+  $('#d-queue').innerHTML = q.length ? q.map((id) => { const o = ORD[id]; return `
+    <div class="order${D.sel === id ? ' sel' : ''}" data-order="${id}" data-ctx="order:${id}">
+      <div class="r1"><span class="mono">SO-${id}</span><span class="prio ${o.prio}">${o.prio === 'high' ? 'Escalated' : o.prio === 'low' ? 'Low' : 'Normal'}</span></div>
+      <div class="cust">${esc(o.cust)}</div><div class="task">${esc(o.task)}</div>
+      <div class="r3"><span>${o.town}</span><span class="mono">${num(o.dur, 1)} h</span><span>${SKILL[o.skill]}</span></div>
+    </div>`; }).join('') : '<div class="queue-empty">Every order has a technician.<br>Drag one back here to unassign it.</div>';
+  const span = AXIS_END - START, pct = (t) => (Math.min(Math.max(t, START), AXIS_END) - START) / span * 100;
+  const lanes = $('#d-lanes');
+  lanes.innerHTML = TECHS.map((t) => {
+    const s = sched(t.id); const load = Math.min(100, (s.work / (WORKEND - START)) * 100);
+    const grid = Array.from({ length: span - 1 }, (_, i) => `<i class="grid" style="left:${((i + 1) / span) * 100}%"></i>`).join('');
+    const items = s.stops.map((st) => {
+      const o = ORD[st.id]; const mism = !t.skills.includes(o.skill);
+      return `<i class="travel" style="left:${pct(st.from)}%;width:${pct(st.arrive) - pct(st.from)}%"></i>
+        <div class="job${D.sel === st.id ? ' sel' : ''}${mism ? ' mismatch' : ''}" data-order="${st.id}" data-ctx="order:${st.id}" style="left:${pct(st.arrive)}%;width:calc(${pct(st.end) - pct(st.arrive)}% - 2px)" title="${esc(o.cust)}, ${hm(st.arrive)} to ${hm(st.end)}">
+          <div class="t1">${esc(o.cust)}</div><div class="t2">${mism ? 'needs ' + SKILL[o.skill] : hm(st.arrive) + ' ' + o.town}</div></div>`;
+    }).join('') + (s.stops.length ? `<i class="travel" style="left:${pct(s.lastEnd)}%;width:${pct(s.finish) - pct(s.lastEnd)}%"></i>` : '');
+    return `<div class="lane${D.collapsed[t.id] ? ' collapsed' : ''}${D.focus && D.focus !== t.id ? ' dim' : ''}" style="--c:var(--c-${t.id})" data-lane="${t.id}">
+      <div class="lane-h" data-ctx="lane:${t.id}" data-tech="${t.id}"><span class="av">${t.ini}</span>
+        <div class="who"><b>${t.name}</b><span>${t.skills.map((k) => SKILL[k]).join(', ')}</span></div>
+        <div class="load${s.overtime > 0.05 ? ' over' : ''}"><span>${s.stops.length ? 'back ' + hm(s.finish) : 'free'}</span><span class="bar"><i style="width:${load}%"></i></span></div></div>
+      <div class="track" data-drop="lane:${t.id}">${grid}<div class="ot" style="left:${pct(WORKEND)}%"><span>overtime</span></div>${items}</div>
+    </div>`;
+  }).join('');
+  // condense what changed (patch semantics)
+  for (const t of TECHS) {
+    const sig = D.lanes[t.id].join(',');
+    if (!first && D.sig[t.id] !== undefined && D.sig[t.id] !== sig) flash($(`.lane[data-lane="${t.id}"] .track`));
+    D.sig[t.id] = sig;
+  }
+  const qsig = D.queue.slice().sort().join(',');
+  if (!first && D.sig.q !== undefined && D.sig.q !== qsig) flash($('#d-queue'));
+  D.sig.q = qsig;
+  renderMapDyn();
+}
+
+/* ---- map scene ---- */
+function drawMapBase() {
+  const svg = $('#d-map');
+  const roads = [[[150, 255], [250, 118], [440, 84], [640, 136]], [[150, 255], [300, 386], [520, 332], [690, 318]], [[440, 84], [520, 332]], [[640, 136], [690, 318]], [[150, 255], [520, 332]], [[250, 118], [300, 386]]];
+  svg.innerHTML = `
+  <defs>
+    <pattern id="mgrid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="rgba(255,255,255,0.025)"/></pattern>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <radialGradient id="lake" cx="0.5" cy="0.5" r="0.6"><stop offset="0" stop-color="#20414b"/><stop offset="1" stop-color="#18303a"/></radialGradient>
+  </defs>
+  <rect x="-2000" y="-2000" width="5000" height="5000" fill="#191b21"/>
+  <rect x="-2000" y="-2000" width="5000" height="5000" fill="url(#mgrid)"/>
+  <g opacity="0.55" fill="#1f2a24">${[[90, 90, 70], [150, 60, 46], [360, 200, 60], [600, 240, 48], [740, 120, 52], [420, 420, 70], [90, 400, 60]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g>
+  <path d="M -20 180 C 120 200, 220 300, 380 260 S 600 200, 760 260 S 860 300, 900 290" fill="none" stroke="#1d3a44" stroke-width="10" stroke-linecap="round"/>
+  <ellipse cx="736" cy="390" rx="70" ry="38" fill="url(#lake)"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    ${roads.map((r) => `<polyline points="${r.map((p) => p.join(',')).join(' ')}" stroke="rgba(255,255,255,0.07)" stroke-width="7"/><polyline points="${r.map((p) => p.join(',')).join(' ')}" stroke="rgba(255,255,255,0.05)" stroke-width="1.5"/>`).join('')}
+  </g>
+  <g font-family="Geist, sans-serif" font-size="12" fill="#888B95">${TOWNS.map(([n, x, y, lx, ly, a]) => `<circle cx="${x}" cy="${y}" r="3" fill="#5a5d68"/><text x="${lx}" y="${ly}" text-anchor="${a}">${n}</text>`).join('')}</g>
+  <g id="routes"></g>
+  <g transform="translate(${DEPOT.x},${DEPOT.y})"><rect x="-11" y="-11" width="22" height="22" rx="6" fill="#23262F" stroke="var(--accent)" stroke-width="1.5"/><path d="M-5 2 L0 -4 L5 2 V6 H-5 Z" fill="var(--accent)"/><text x="0" y="28" text-anchor="middle" font-family="Geist, sans-serif" font-size="11.5" fill="#B6B9C3">Depot Altstadt</text></g>
+  <g id="pins"></g>`;
+  applyVB();
+}
+function renderMapDyn() {
+  const routes = $('#routes'), pins = $('#pins'); if (!routes) return;
+  routes.innerHTML = TECHS.map((t) => {
+    const l = D.lanes[t.id]; if (!l.length) return '';
+    const pts = [DEPOT, ...l.map((id) => ORD[id])];
+    const back = `${pts[pts.length - 1].x},${pts[pts.length - 1].y} ${DEPOT.x},${DEPOT.y}`;
+    const op = D.focus && D.focus !== t.id ? 0.18 : 0.9;
+    return `<g opacity="${op}"><polyline class="rt" data-tech="${t.id}" points="${pts.map((p) => p.x + ',' + p.y).join(' ')}" fill="none" stroke="var(--c-${t.id})" stroke-width="${D.focus === t.id ? 3.5 : 2.5}" stroke-linejoin="round" stroke-linecap="round"/>
+      <polyline points="${back}" fill="none" stroke="var(--c-${t.id})" stroke-width="1.5" stroke-dasharray="3 5" opacity="0.6"/></g>`;
+  }).join('');
+  // draw-in animation for changed routes
+  $$('.rt', routes).forEach((p) => {
+    const tid = p.dataset.tech; const sig = D.lanes[tid].join(',');
+    if (p.ownerSVGElement && D.sig['r' + tid] !== sig) {
+      const len = p.getTotalLength(); p.style.strokeDasharray = len; p.style.strokeDashoffset = len;
+      p.getBoundingClientRect(); p.style.transition = RM ? 'none' : 'stroke-dashoffset .8s cubic-bezier(0.4,0,0.2,1)'; p.style.strokeDashoffset = 0;
+      D.sig['r' + tid] = sig;
+    }
+  });
+  const items = [];
+  for (const t of TECHS) D.lanes[t.id].forEach((id, i) => items.push({ id, n: i + 1, c: `var(--c-${t.id})`, tid: t.id }));
+  for (const id of D.queue) items.push({ id, n: null, c: '#888B95', tid: null });
+  pins.innerHTML = items.map(({ id, n, c, tid }) => {
+    const o = ORD[id]; const sel = D.sel === id; const dim = D.focus && tid !== D.focus ? 0.35 : 1;
+    return `<g class="pin" data-order="${id}" data-ctx="order:${id}" transform="translate(${o.x},${o.y})" opacity="${dim}">
+      ${sel ? `<circle r="20" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.8" filter="url(#glow)"/>` : ''}
+      ${o.prio === 'high' && !n ? '' : ''}
+      <circle class="ring" r="${sel ? 13 : 11}" fill="#23262F" stroke="${c}" stroke-width="2" ${n ? '' : 'stroke-dasharray="3 3"'} ${sel ? 'filter="url(#glow)"' : ''}/>
+      <text text-anchor="middle" dy="4" font-family="Geist Mono, monospace" font-size="11" font-weight="600" fill="${n ? c : '#B6B9C3'}">${n ?? '+'}</text>
+      ${o.prio === 'high' ? `<circle cx="9" cy="-9" r="3.5" fill="#D6B468"/>` : ''}
+    </g>`;
+  }).join('');
+  renderCallout();
+}
+function renderCallout() {
+  const wrap = $('#d-mapwrap'); if (!wrap) return;
+  $('.callout', wrap)?.remove();
+  if (!D.sel) return;
+  const o = ORD[D.sel]; const svg = $('#d-map');
+  const pt = svg.createSVGPoint(); pt.x = o.x; pt.y = o.y;
+  const ctm = svg.getScreenCTM(); if (!ctm) return;
+  const p = pt.matrixTransform(ctm); const r = wrap.getBoundingClientRect();
+  const tid = laneOf(D.sel); const st = tid ? sched(tid).stops.find((s) => s.id === D.sel) : null;
+  wrap.appendChild(el(`<div class="callout" style="left:${p.x - r.left}px;top:${p.y - r.top}px"><b>${esc(o.cust)}</b><span>${tid ? `${TECH[tid].name.split(' ')[0]}, arrives ${hm(st.arrive)}` : 'not assigned yet'}</span></div>`));
+}
+function applyVB() { const v = D.vb; $('#d-map')?.setAttribute('viewBox', `${v.x} ${v.y} ${v.w} ${v.h}`); renderCallout(); }
+function zoomMap(f, cx, cy) {
+  const v = D.vb; cx ??= v.x + v.w / 2; cy ??= v.y + v.h / 2;
+  const w = Math.min(1400, Math.max(220, v.w * f)); const h = w * 460 / 800;
+  D.vb = { x: cx - (cx - v.x) * (w / v.w), y: cy - (cy - v.y) * (h / v.h), w, h }; applyVB();
+}
+function fitMap() { D.vb = { x: 0, y: 0, w: 800, h: 460 }; applyVB(); }
+
+/* ---- pointer: select, drag (move > 6 px), long-press (400 ms), pan ---- */
+function wireDispatchPointer(cv) {
+  cv.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    const item = e.target.closest('[data-order]');
+    if (item) return startOrderGesture(e, item);
+    const svg = e.target.closest('#d-map');
+    if (svg) return startPan(e, svg);
+  });
+  cv.addEventListener('mouseover', (e) => { if (document.body.classList.contains('dragging')) return; const h = e.target.closest('.lane-h'); const f = h ? h.dataset.tech : null; if (f !== D.focus) { D.focus = f; dispatchRender(); } });
+  cv.addEventListener('mouseleave', () => { if (D.focus) { D.focus = null; dispatchRender(); } });
+  $('#d-mapwrap', cv).addEventListener('wheel', (e) => {
+    e.preventDefault(); const svg = $('#d-map'); const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    const p = pt.matrixTransform(svg.getScreenCTM().inverse()); zoomMap(e.deltaY > 0 ? 1.12 : 0.89, p.x, p.y);
+  }, { passive: false });
+}
+function startPan(e, svg) {
+  const sx = e.clientX, sy = e.clientY, v0 = { ...D.vb }; let moved = false;
+  const lp = setTimeout(() => { if (!moved) { cleanup(); openPanel($('[data-ctx="map"]')); } }, 400);
+  const scale = v0.w / svg.getBoundingClientRect().width;
+  const move = (ev) => {
+    const dx = ev.clientX - sx, dy = ev.clientY - sy;
+    if (!moved && Math.hypot(dx, dy) > 6) { moved = true; clearTimeout(lp); svg.classList.add('panning'); }
+    if (moved) { D.vb = { ...v0, x: v0.x - dx * scale, y: v0.y - dy * scale }; applyVB(); }
+  };
+  const up = () => { clearTimeout(lp); cleanup(); if (!moved && D.sel) { D.sel = null; dispatchRender(); } };
+  function cleanup() { svg.classList.remove('panning'); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); }
+  window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+}
+function startOrderGesture(e, item) {
+  e.preventDefault();
+  const id = item.dataset.order, sx = e.clientX, sy = e.clientY; let dragging = false, ghost = null, hover = null, lpFired = false;
+  const lp = setTimeout(() => { if (!dragging) { lpFired = true; cleanup(); openPanel(item); } }, 400);
+  const move = (ev) => {
+    if (!dragging && Math.hypot(ev.clientX - sx, ev.clientY - sy) > 6) {
+      clearTimeout(lp); dragging = true; closePanel();
+      ghost = el(`<div class="dragghost">${esc(ORD[id].cust)}<span>SO-${id}, ${num(ORD[id].dur, 1)} h, ${SKILL[ORD[id].skill]}</span></div>`);
+      document.body.appendChild(ghost); document.body.classList.add('dragging');
+    }
+    if (dragging) {
+      ghost.style.transform = `translate(${ev.clientX + 12}px, ${ev.clientY + 10}px)`;
+      const t = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('[data-drop]');
+      if (t !== hover) { hover?.classList.remove('drop-on'); hover = t; hover?.classList.add('drop-on'); }
+    }
+  };
+  const up = (ev) => {
+    clearTimeout(lp); cleanup();
+    if (lpFired) return;
+    if (!dragging) { D.sel = D.sel === id ? null : id; dispatchRender(); if (D.sel) status(`Selected <b>${esc(ORD[id].cust)}</b>. Queue, map and timeline follow the same selection, right here on the device.`); return; }
+    ghost.remove(); document.body.classList.remove('dragging'); hover?.classList.remove('drop-on');
+    if (!hover) return;
+    const target = hover.dataset.drop;
+    if (target === 'queue') { if (laneOf(id)) { unassign(id); D.sel = id; dispatchRender(); status(`<b>${esc(ORD[id].cust)}</b> is open again.`); trace('Direct', `Unassigned ${esc(ORD[id].cust)}.`); } return; }
+    const tid = target.split(':')[1];
+    const jobs = $$('.job', hover).filter((j) => j.dataset.order !== id);
+    const idx = jobs.filter((j) => { const r = j.getBoundingClientRect(); return r.left + r.width / 2 < ev.clientX; }).length;
+    const prev = laneOf(id); assign(id, tid, idx); D.sel = id; dispatchRender();
+    const s = sched(tid); const st = s.stops.find((x) => x.id === id); const mism = !TECH[tid].skills.includes(ORD[id].skill);
+    status(`${esc(ORD[id].cust)} to <b>${TECH[tid].name.split(' ')[0]}</b>, arrives ${hm(st.arrive)}.${mism ? ` <span style="color:var(--err)">${TECH[tid].name.split(' ')[0]} lacks ${SKILL[ORD[id].skill]} skills.</span>` : ''}${s.overtime > 0.05 ? ` Back at ${hm(s.finish)}, ${num(s.overtime, 1)} h overtime.` : ''}`);
+    trace('Direct', `${esc(ORD[id].cust)} ${prev ? 'moved' : 'assigned'} to ${TECH[tid].name}.`);
+  };
+  function cleanup() { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); }
+  window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+}
+async function publishPlans() {
+  if (D.published) { status('Day plans are already on the technicians’ phones.'); return; }
+  const tot = totals();
+  const ok = await consent({
+    title: 'Publish today’s plans to 3 technicians?',
+    text: 'omadia sends each technician their route and orders, and updates the service orders in the ERP.',
+    items: [`Push message to ${TECHS.map((t) => t.name.split(' ')[0]).join(', ')}`, `${TECHS.reduce((a, t) => a + D.lanes[t.id].length, 0)} ERP service orders get a technician and a time slot`, tot.open ? `${tot.open} open order${tot.open > 1 ? 's stay' : ' stays'} unassigned` : 'No order stays unassigned'],
+    confirm: 'Publish', verb: 'Publishing',
+  });
+  if (!ok) return;
+  D.published = true; const b = $('#d-pub'); if (b) b.textContent = 'Published';
+  status(`Published at ${nowHM()}. Technicians have their plans, the ERP is up to date.`);
+  trace('External effect', `Day plans published to 3 technicians, ERP updated. You confirmed.`);
+}
+async function textCustomer(id) {
+  const tid = laneOf(id); const st = sched(tid).stops.find((s) => s.id === id);
+  const win = `${hm(st.arrive - 0.25)} and ${hm(st.arrive + 0.25)}`;
+  const ok = await consent({ title: `Text ${ORD[id].cust}?`, text: `“Your technician ${TECH[tid].name.split(' ')[0]} arrives today between ${win}.”`, items: ['SMS to the contact stored in the CRM', 'Logged on the service order'], confirm: 'Send SMS', verb: 'Sending' });
+  if (!ok) return;
+  status(`SMS sent to <b>${esc(ORD[id].cust)}</b>: arrival between ${win}.`); trace('External effect', `SMS to ${esc(ORD[id].cust)}, arrival ${win}. You confirmed.`);
+}
+async function sendDayPlan(tid) {
+  const s = sched(tid); const n = s.stops.length;
+  const ok = await consent({ title: `Send ${TECH[tid].name.split(' ')[0]}’s day plan?`, text: `${n} order${n === 1 ? '' : 's'}, back at the depot around ${hm(s.finish)}.`, items: [`Push message to ${TECH[tid].name}`], confirm: 'Send', verb: 'Sending' });
+  if (!ok) return;
+  status(`Day plan sent to <b>${TECH[tid].name}</b>.`); trace('External effect', `Day plan sent to ${TECH[tid].name}. You confirmed.`);
+}
+
+/* =========================================================================
+   APP 2: Solar quote. Roof editor scene + configurator + live quote.
+   ========================================================================= */
+const COLS = 14, NROWS = 3, SROWS = 5, CW = 44, CH = 40, RX = 84, RY = 40;
+const MODS = {
+  std: { name: 'Standard mono 430 Wp', wp: 430, price: 165, note: 'Best price per kWp', fill: ['#1d2c47', '#253a5e'] },
+  black: { name: 'Full black 445 Wp', wp: 445, price: 189, note: 'Calm look, slightly more output', fill: ['#14161b', '#1d2027'] },
+  bif: { name: 'Glass-glass bifacial 460 Wp', wp: 460, price: 214, note: '+5 % yield from rear side, 30-year warranty', fill: ['#1c3350', '#284a6e'] },
+};
+const BATT = { none: { name: 'None', kwh: 0, price: 0, boost: 0 }, b10: { name: '10 kWh', kwh: 10, price: 6900, boost: 0.12 }, b15: { name: '15 kWh', kwh: 15, price: 9400, boost: 0.16 } };
+const OBST = { 's-1-3': 'chimney', 's-2-9': 'skylight', 's-2-10': 'skylight', 'n-1-11': 'vent' };
+const CONS = 38000;
+const MONTH = [0.03, 0.05, 0.08, 0.11, 0.13, 0.135, 0.135, 0.12, 0.09, 0.06, 0.03, 0.02];
+const CONS_M = [1.12, 1.05, 1.0, 0.95, 0.92, 0.9, 0.9, 0.92, 0.96, 1.02, 1.1, 1.16];
+let P;
+const key = (f, r, c) => `${f}-${r}-${c}`;
+function isMargin(f, r, c) { return c === 0 || c === COLS - 1 || (f === 'n' && r === 0) || (f === 's' && r === SROWS - 1); }
+function blocked(k) { const [f, r, c] = k.split('-'); return OBST[k] || (P.margin && isMargin(f, +r, +c) ? 'margin' : null); }
+function solarReset() {
+  P = { panels: new Set(), module: 'std', battery: 'b10', wallbox: false, margin: true, discount: false, tool: 'paint', sent: false };
+  for (let r = 0; r < 4; r++) for (let c = 1; c < COLS - 1; c++) { const k = key('s', r, c); if (!OBST[k]) P.panels.add(k); }
+}
+function calc() {
+  const m = MODS[P.module]; let ns = 0, nn = 0;
+  for (const k of P.panels) (k[0] === 's' ? ns++ : nn++);
+  const n = ns + nn, kwp = n * m.wp / 1000;
+  const yieldK = (ns * m.wp / 1000 * 980 + nn * m.wp / 1000 * 640) * (P.module === 'bif' ? 1.05 : 1);
+  const ratio = 0.55 + BATT[P.battery].boost + (P.wallbox ? 0.03 : 0);
+  const self = Math.min(yieldK * ratio, CONS * 0.8), exp = yieldK - self;
+  const save = self * 0.29 + exp * 0.078;
+  const inv = !n ? null : kwp <= 10 ? ['Hybrid inverter 10 kW', 2400] : kwp <= 15 ? ['Hybrid inverter 15 kW', 3100] : kwp <= 25 ? ['Hybrid inverter 25 kW', 3900] : ['Hybrid inverter 30 kW', 4700];
+  const lines = [];
+  if (n) {
+    lines.push([`PV module, ${m.name}`, n, m.price]);
+    lines.push(['Mounting system, per module', n, 85]);
+    lines.push([inv[0], 1, inv[1]]);
+  }
+  if (BATT[P.battery].kwh) lines.push([`Battery storage ${BATT[P.battery].name}`, 1, BATT[P.battery].price]);
+  if (P.wallbox) lines.push(['Wallbox 11 kW, load management', 1, 1150]);
+  if (n) { lines.push(['Installation and commissioning', 1, 2800]); lines.push(['Scaffolding', 1, 950]); }
+  const sub = lines.reduce((a, [, q, u]) => a + q * u, 0);
+  const disc = P.discount ? sub * 0.05 : 0; const net = sub - disc;
+  return { n, ns, nn, kwp, yieldK, self, exp, save, lines, sub, disc, net, vat: net * 0.19, gross: net * 1.19, payback: save > 0 && n ? net / save : null, co2: yieldK * 0.38 / 1000, selfShare: yieldK ? self / yieldK : 0 };
+}
+function solarBuild(cv) {
+  cv.innerHTML = `<div class="app solar">
+    <section class="pane apphead">
+      <div class="title"><b>Solar quote, Müller GmbH</b><span>Hallenstraße 12, Kronau. Logistics hall, 38,000 kWh per year. Roof from the site visit on 23 Nov</span></div>
+      <div class="grow"></div>
+      <span class="gen-note">Generated for you at ${nowHM()}</span>
+      <button class="btn ghost" data-pin="solar">${S.pinned.solar ? 'Pinned' : 'Pin as tool'}</button>
+      <button class="btn primary" id="s-send">${P.sent ? 'Quote sent' : 'Send quote'}</button>
+    </section>
+    <div class="smain">
+      <section class="pane roof" data-ctx="roof">
+        <div class="pane-h"><h3>Roof layout</h3>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div class="seg" id="s-tool"><button data-tool="paint">Paint</button><button data-tool="erase">Erase</button></div>
+            <button class="btn sm" id="s-fill">Fill south face</button><button class="btn sm ghost" id="s-clear">Clear</button></div></div>
+        <div class="roofwrap" data-toolzone><svg id="s-roof" viewBox="0 0 784 420" preserveAspectRatio="xMidYMid meet"></svg></div>
+        <div class="xr"><b>Lumen</b> roof.editor, <b>scene</b> primitive, 112 cells<br>paint and erase run on this device<br>invariant: no panel on obstacles or margin<br>source: Drive photos, measured by omadia</div>
+      </section>
+      <div class="sbottom">
+        <section class="pane" data-ctx="chart">
+          <div class="pane-h"><h3>Yield and demand per month</h3><span class="sub" id="s-chart-sub"></span></div>
+          <div class="chartwrap"><svg id="s-chart" viewBox="0 0 520 190" preserveAspectRatio="none"></svg></div>
+          <div class="xr tr"><b>chart primitive</b><br>wired to roof.editor.yield</div>
+        </section>
+        <section class="pane" data-ctx="quote">
+          <div class="pane-h"><h3>Quote Q-2026-0412</h3><span class="sub">prices from the ERP list 2026-11</span></div>
+          <div class="pane-b"><table class="q" id="s-quote"></table></div>
+          <div class="xr tr"><b>table primitive</b><br>writeData: CRM offer, asks you first</div>
+        </section>
+      </div>
+      <section class="pane config" data-ctx="config">
+        <div class="metrics" id="s-metrics"></div>
+        <div class="pane-b"><div class="cfg">
+          <div class="row"><label class="h">Modules</label><div class="mods" id="s-mods">${Object.entries(MODS).map(([k, m]) => `<button class="mod" data-mod="${k}" data-ctx="module"><b>${m.name}</b><span class="p mono">€${m.price}</span><span>${m.note}</span></button>`).join('')}</div></div>
+          <div class="row"><label class="h">Battery storage</label><div class="seg" id="s-batt">${Object.entries(BATT).map(([k, b]) => `<button data-batt="${k}">${b.name}</button>`).join('')}</div></div>
+          <div class="row inline"><div class="lbl"><b style="font-size:13px;font-weight:500">Wallbox 11 kW</b><span>for the delivery vans</span></div><button class="toggle" id="s-wb" aria-label="Wallbox"></button></div>
+          <div class="row inline"><div class="lbl"><b style="font-size:13px;font-weight:500">Fire-safety margin</b><span>keep 50 cm free along the edges</span></div><button class="toggle" id="s-margin" aria-label="Fire-safety margin"></button></div>
+        </div></div>
+        <div class="xr"><b>form primitives</b> choice, toggle<br>wired: module, battery, wallbox to price and yield</div>
+      </section>
+    </div>
+  </div>`;
+  drawRoofBase();
+  solarRender(true);
+  $('#s-tool', cv).onclick = (e) => { const b = e.target.closest('[data-tool]'); if (b) { P.tool = b.dataset.tool; solarRender(); } };
+  $('#s-fill', cv).onclick = () => { fillFace('s'); trace('Direct', 'Filled the south face.'); };
+  $('#s-clear', cv).onclick = () => { P.panels.clear(); solarRender(); status('Roof cleared. Paint panels where you want them.'); };
+  $('#s-mods', cv).onclick = (e) => { const b = e.target.closest('[data-mod]'); if (b) { P.module = b.dataset.mod; solarRender(); flash($('#s-metrics')); } };
+  $('#s-batt', cv).onclick = (e) => { const b = e.target.closest('[data-batt]'); if (b) { P.battery = b.dataset.batt; solarRender(); flash($('#s-metrics')); } };
+  $('#s-wb', cv).onclick = () => { P.wallbox = !P.wallbox; solarRender(); flash($('#s-quote')); };
+  $('#s-margin', cv).onclick = () => setMargin(!P.margin);
+  $('[data-pin="solar"]', cv).onclick = () => pin('solar');
+  $('#s-send', cv).onclick = sendQuote;
+  wireRoofPointer($('#s-roof', cv));
+}
+function drawRoofBase() {
+  const svg = $('#s-roof');
+  const W = COLS * CW, H = (NROWS + SROWS) * CH, ridge = RY + NROWS * CH;
+  svg.innerHTML = `
+  <defs>
+    <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="rgba(0,0,0,0.12)"/><line x1="0" y1="0" x2="0" y2="6" stroke="rgba(214,180,104,0.35)" stroke-width="1.5"/></pattern>
+    <pattern id="cellsP" width="11" height="9.5" patternUnits="userSpaceOnUse"><path d="M11 0H0V9.5" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="0.8"/></pattern>
+    ${Object.entries(MODS).map(([k, m]) => `<linearGradient id="pg-${k}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${m.fill[1]}"/><stop offset="1" stop-color="${m.fill[0]}"/></linearGradient>`).join('')}
+    <linearGradient id="roofS" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4b515c"/><stop offset="1" stop-color="#3f444e"/></linearGradient>
+    <linearGradient id="roofN" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#30343c"/><stop offset="1" stop-color="#383d46"/></linearGradient>
+  </defs>
+  <rect x="0" y="0" width="784" height="420" fill="#1f2621"/>
+  <g fill="#26332a">${[[30, 60, 26], [40, 330, 34], [760, 90, 30], [748, 380, 26], [20, 200, 18]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g>
+  <rect x="${RX - 20}" y="${RY + H + 6}" width="${W + 40}" height="40" fill="#2b2e33"/>
+  ${[0, 1, 2, 3, 4, 5].map((i) => `<rect x="${RX + 30 + i * 96}" y="${RY + H + 18}" width="52" height="3" fill="rgba(255,255,255,0.25)"/>`).join('')}
+  <rect x="${RX - 4}" y="${RY - 4}" width="${W + 8}" height="${H + 8}" rx="2" fill="#1a1c20"/>
+  <rect x="${RX}" y="${RY}" width="${W}" height="${NROWS * CH}" fill="url(#roofN)"/>
+  <rect x="${RX}" y="${ridge}" width="${W}" height="${SROWS * CH}" fill="url(#roofS)"/>
+  <line x1="${RX}" y1="${ridge}" x2="${RX + W}" y2="${ridge}" stroke="rgba(255,255,255,0.22)" stroke-width="2"/>
+  <g id="s-cells"></g>
+  <g font-family="Geist, sans-serif" font-size="11" fill="#B6B9C3" pointer-events="none">
+    <text x="${RX + 6}" y="${RY - 10}">North face, 640 kWh per kWp</text>
+    <text x="${RX + W - 6}" y="${RY - 10}" text-anchor="end">Ridge 8.4 m</text>
+  </g>
+  <g transform="translate(${RX + W + 34},${RY + 22})" pointer-events="none"><circle r="15" fill="#23262F" stroke="rgba(255,255,255,0.15)"/><path d="M0 -10 L5 4 L0 1 L-5 4 Z" fill="#EEEFF3"/><text y="28" text-anchor="middle" font-family="Geist, sans-serif" font-size="11" fill="#888B95">N</text></g>
+  <g transform="translate(${RX},${RY + H + 52})" pointer-events="none"><rect width="100" height="3" fill="#B6B9C3"/><text x="106" y="5" font-family="Geist, sans-serif" font-size="11" fill="#888B95">5 m</text></g>
+  <text x="${RX + W - 6}" y="${ridge + SROWS * CH - 8}" text-anchor="end" font-family="Geist, sans-serif" font-size="11" fill="#EEEFF3" opacity="0.75" pointer-events="none">South face, 980 kWh per kWp</text>`;
+}
+function solarRender(first) {
+  if (!$('#s-cells')) return;
+  const ridge = RY + NROWS * CH; const g = $('#s-cells'); const m = P.module;
+  let html = '';
+  for (const [f, rows, y0] of [['n', NROWS, RY], ['s', SROWS, ridge]]) {
+    for (let r = 0; r < rows; r++) for (let c = 0; c < COLS; c++) {
+      const k = key(f, r, c); const x = RX + c * CW, y = y0 + r * CH; const b = blocked(k);
+      html += `<g class="cell" data-cell="${k}">`;
+      if (b === 'margin') html += `<rect x="${x}" y="${y}" width="${CW}" height="${CH}" fill="url(#hatch)"/>`;
+      if (OBST[k] === 'chimney') html += `<rect x="${x + 8}" y="${y + 6}" width="${CW - 16}" height="${CH - 12}" fill="#5c4239" stroke="#3a2a24"/><rect x="${x + 13}" y="${y + 11}" width="${CW - 26}" height="${CH - 22}" fill="#2a1f1b"/>`;
+      if (OBST[k] === 'skylight') html += `<rect x="${x + 3}" y="${y + 5}" width="${CW - 6}" height="${CH - 10}" fill="#5f8494" stroke="#8fb3c2" stroke-width="0.8" opacity="0.85"/>`;
+      if (OBST[k] === 'vent') html += `<circle cx="${x + CW / 2}" cy="${y + CH / 2}" r="9" fill="#55595f" stroke="#2a2c30"/>`;
+      if (P.panels.has(k)) html += `<rect x="${x + 2}" y="${y + 2}" width="${CW - 4}" height="${CH - 4}" rx="1.5" fill="url(#pg-${m})" stroke="${m === 'black' ? '#2b2e35' : '#8aa1c2'}" stroke-width="0.8"/><rect x="${x + 2}" y="${y + 2}" width="${CW - 4}" height="${CH - 4}" fill="url(#cellsP)"/><path d="M${x + 4} ${y + 4} l10 0 l-8 8 z" fill="rgba(255,255,255,0.10)"/>`;
+      html += `<rect class="hov" x="${x + 1}" y="${y + 1}" width="${CW - 2}" height="${CH - 2}" fill="transparent" stroke="rgba(255,255,255,0.05)" stroke-width="0.6"/></g>`;
+    }
+  }
+  g.innerHTML = html;
+  $$('#s-tool button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === P.tool)));
+  $$('#s-mods [data-mod]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mod === P.module)));
+  $$('#s-batt [data-batt]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.batt === P.battery)));
+  $('#s-wb').setAttribute('aria-pressed', String(P.wallbox));
+  $('#s-margin').setAttribute('aria-pressed', String(P.margin));
+  const c = calc();
+  $('#s-metrics').innerHTML = `
+    <div class="metric"><div class="v">${num(c.kwp, 1)}<small>kWp</small></div><div class="l">${c.n} modules${c.nn ? `, ${c.nn} on the north face` : ''}</div></div>
+    <div class="metric"><div class="v">${num(c.yieldK)}<small>kWh</small></div><div class="l">yield per year</div></div>
+    <div class="metric"><div class="v">${Math.round(c.selfShare * 100)}<small>%</small></div><div class="l">used on site</div></div>
+    <div class="metric"><div class="v">${num(c.co2, 1)}<small>t</small></div><div class="l">CO₂ avoided per year</div></div>
+    <div class="metric"><div class="v">${eur(c.net)}</div><div class="l">net price</div></div>
+    <div class="metric"><div class="v" style="color:${c.payback && c.payback < 9 ? 'var(--ok)' : 'var(--t1)'}">${c.payback ? num(c.payback, 1) : 'n/a'}<small>${c.payback ? 'years' : ''}</small></div><div class="l">payback</div></div>`;
+  $('#s-quote').innerHTML = `<thead><tr><th>Item</th><th class="n">Qty</th><th class="n">Unit</th><th class="n">Total</th></tr></thead><tbody>
+    ${c.lines.map(([t, q, u]) => `<tr><td>${esc(t)}</td><td class="n">${q}</td><td class="n">${eur(u)}</td><td class="n">${eur(q * u)}</td></tr>`).join('') || '<tr><td colspan="4" style="color:var(--t3)">Paint panels on the roof to build the quote.</td></tr>'}
+    ${c.disc ? `<tr class="disc"><td>Volume discount 5 %</td><td class="n"></td><td class="n"></td><td class="n">−${eur(c.disc)}</td></tr>` : ''}
+    <tr class="sum first"><td>Net</td><td></td><td></td><td class="n">${eur(c.net)}</td></tr>
+    <tr class="sum"><td style="color:var(--t3);font-weight:400">VAT 19 %</td><td></td><td></td><td class="n" style="color:var(--t3);font-weight:400">${eur(c.vat)}</td></tr>
+    <tr class="sum"><td>Total</td><td></td><td></td><td class="n">${eur(c.gross)}</td></tr></tbody>`;
+  renderChart(c);
+  const sig = [c.n, P.module, P.battery, P.wallbox, P.discount].join('|');
+  if (!first && P.sig !== sig) { flash($('#s-quote')); }
+  P.sig = sig;
+}
+function renderChart(c) {
+  const svg = $('#s-chart'); if (!svg) return;
+  const prod = MONTH.map((f) => c.yieldK * f / MONTH.reduce((a, b) => a + b, 0));
+  const dem = CONS_M.map((f) => CONS / 12 * f);
+  const max = Math.max(...prod, ...dem) * 1.12; const W = 520, H = 190, base = 168, top = 10, bw = 26, gap = (W - 20 - 12 * bw) / 11;
+  const y = (v) => base - (v / max) * (base - top);
+  const L = 'JFMAMJJASOND';
+  let s = `<line x1="10" x2="${W - 10}" y1="${base}" y2="${base}" stroke="rgba(255,255,255,0.08)"/>`;
+  prod.forEach((v, i) => { const x = 10 + i * (bw + gap); s += `<rect x="${x}" y="${y(v)}" width="${bw}" height="${base - y(v)}" rx="3" fill="var(--accent)" opacity="0.85"/><text x="${x + bw / 2}" y="${base + 16}" text-anchor="middle" font-family="Geist Mono, monospace" font-size="10.5" fill="#888B95">${L[i]}</text>`; });
+  s += `<polyline points="${dem.map((v, i) => `${10 + i * (bw + gap) + bw / 2},${y(v)}`).join(' ')}" fill="none" stroke="#B6B9C3" stroke-width="1.5" stroke-dasharray="4 4"/>`;
+  svg.innerHTML = s;
+  $('#s-chart-sub').innerHTML = `<span style="color:var(--accent)">■</span> yield &nbsp; <span style="color:var(--t2)">- - -</span> demand`;
+}
+function wireRoofPointer(svg) {
+  let mode = null, touched = new Set(), warned = false;
+  const apply = (k) => {
+    if (touched.has(k)) return; touched.add(k);
+    const b = blocked(k);
+    if (mode === 'add') {
+      if (b) { if (!warned) { warned = true; status(`Not there: ${b === 'margin' ? 'the fire-safety margin stays free' : 'that is the ' + b}. The roof Lumen checks this on every stroke.`); } const cell = $(`[data-cell="${k}"] .hov`); if (cell) { cell.setAttribute('stroke', 'var(--err-edge)'); cell.setAttribute('stroke-width', '2'); } return; }
+      P.panels.add(k);
+    } else P.panels.delete(k);
+    solarRender();
+  };
+  svg.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    const cell = e.target.closest('[data-cell]'); if (!cell) return;
+    e.preventDefault(); svg.setPointerCapture(e.pointerId);
+    const k = cell.dataset.cell; touched = new Set(); warned = false;
+    mode = P.tool === 'erase' ? 'del' : P.panels.has(k) ? 'del' : 'add';
+    apply(k);
+  });
+  svg.addEventListener('pointermove', (e) => {
+    if (!mode) return;
+    const c = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-cell]'); if (c) apply(c.dataset.cell);
+  });
+  const end = () => { if (mode && touched.size) { const c = calc(); status(`${c.n} modules, <b>${num(c.kwp, 1)} kWp</b>, ${eur(c.net)} net. Yield, price and quote followed every cell.`); } mode = null; };
+  svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
+}
+function fillFace(f) {
+  const rows = f === 's' ? SROWS : NROWS; let added = 0;
+  for (let r = 0; r < rows; r++) for (let c = 0; c < COLS; c++) { const k = key(f, r, c); if (!blocked(k) && !P.panels.has(k)) { P.panels.add(k); added++; } }
+  solarRender(); flash($('#s-metrics'));
+  const c = calc(); status(added ? `Added ${added} modules on the ${f === 's' ? 'south' : 'north'} face. Now <b>${num(c.kwp, 1)} kWp</b>.` : `The ${f === 's' ? 'south' : 'north'} face is already full.`);
+}
+function setMargin(on) {
+  P.margin = on;
+  if (on) for (const k of [...P.panels]) if (blocked(k)) P.panels.delete(k);
+  solarRender(); status(on ? 'Fire-safety margin restored. Modules on the edge were removed.' : 'Margin released. Edge cells can take modules now, check the local fire code first.');
+}
+async function sendQuote() {
+  if (P.sent) { status('The quote is already with Müller GmbH.'); return; }
+  const c = calc(); if (!c.n) { status('Paint at least one module before sending the quote.'); return; }
+  const ok = await consent({
+    title: 'Send quote Q-2026-0412 to Müller GmbH?',
+    text: `${c.n} modules, ${num(c.kwp, 1)} kWp, ${eur(c.gross)} including VAT. omadia writes the PDF from this canvas.`,
+    items: ['Email with PDF to Anna Müller, purchasing', 'Offer created in the CRM, follow-up in 7 days', `${c.n} modules reserved in the ERP for 14 days`],
+    confirm: 'Send quote', verb: 'Sending',
+  });
+  if (!ok) return;
+  P.sent = true; const b = $('#s-send'); if (b) b.textContent = 'Quote sent';
+  status(`Quote sent at ${nowHM()}. Offer in the CRM, ${c.n} modules reserved.`); trace('External effect', `Quote Q-2026-0412 sent to Müller GmbH, ${eur(c.gross)}. You confirmed.`);
+}
+
+/* =========================================================================
+   APP 3: Lobby kiosk (embeds the existing kiosk Lumen mockup)
+   ========================================================================= */
+function kioskBuild(cv) {
+  cv.innerHTML = `<div class="app kiosk">
+    <section class="pane apphead">
+      <div class="title"><b>Lobby kiosk, AURA launch</b><span>Touch screen in the entrance hall. Brand colours inside the Lumen, omadia chrome stays Lume</span></div>
+      <div class="grow"></div>
+      <button class="btn ghost" data-pin="kiosk">${S.pinned.kiosk ? 'Pinned' : 'Pin as tool'}</button>
+      <a class="btn" href="kiosk-lumen-aura.html" target="_blank" rel="noopener">Open full screen</a>
+      <button class="btn primary" id="k-push">Push to lobby screen</button>
+    </section>
+    <section class="pane" data-ctx="kioskpane">
+      <iframe class="kframe" src="kiosk-lumen-aura.html" title="Kiosk Lumen preview" loading="lazy"></iframe>
+      <div class="xr tr"><b>Lumen</b> kiosk.aura, colorMode brand<br>cadence: static layout, 1 Hz clock, GPU motion<br>runs on a thin kiosk client, gas-bounded</div>
+    </section>
+  </div>`;
+  $('[data-pin="kiosk"]', cv).onclick = () => pin('kiosk');
+  $('#k-push', cv).onclick = pushKiosk;
+}
+async function pushKiosk() {
+  const ok = await consent({ title: 'Show this on the lobby screen?', text: 'The kiosk client in the entrance hall switches to this Lumen right away.', items: ['Lobby screen, entrance hall', 'Visitors can use it at once'], confirm: 'Push to screen', verb: 'Pushing' });
+  if (!ok) return;
+  status('The lobby screen shows the AURA kiosk now.'); trace('External effect', 'AURA kiosk pushed to the lobby screen. You confirmed.');
+}
+
+const APPS = {
+  dispatch: { build: dispatchBuild, reset: (preset) => { if (!preset || !D) dispatchReset(); }, manifest: '2 Lumens, 9 primitives and 3 wires' },
+  solar: { build: solarBuild, reset: (preset) => { if (!preset || !P) solarReset(); }, manifest: '1 Lumen, 14 primitives and 4 wires' },
+  kiosk: { build: kioskBuild, manifest: '1 Lumen in brand colours' },
+};
+
+/* =========================================================================
+   Context-invoke: action panel (affordances, suggestions, beam)
+   ========================================================================= */
+function ctxSpec(ctx) {
+  const [kind, id] = ctx.split(':');
+  const first = (tid) => TECH[tid].name.split(' ')[0];
+  if (kind === 'order') {
+    const o = ORD[id]; const tid = laneOf(id);
+    const direct = [{ label: D.sel === id ? 'Deselect' : 'Select', run: () => { D.sel = D.sel === id ? null : id; dispatchRender(); } }];
+    if (tid) direct.push({ label: 'Unassign', run: () => { unassign(id); dispatchRender(); status(`<b>${esc(o.cust)}</b> is open again.`); } });
+    direct.push({ label: 'Copy order number', run: () => { navigator.clipboard?.writeText('SO-' + id).catch(() => {}); status(`Copied <b>SO-${id}</b>.`); } });
+    const sugg = [];
+    const b = bestFit(id, tid || undefined);
+    if (!tid && b) sugg.push({ label: `Assign to ${first(b.tid)}, best fit`, run: () => { assign(id, b.tid, b.idx); D.sel = id; dispatchRender(); const st = sched(b.tid).stops.find((s) => s.id === id); status(`${esc(o.cust)} goes to <b>${first(b.tid)}</b>, arrives ${hm(st.arrive)}. Skills match, least extra driving.`); } });
+    if (tid && b) sugg.push({ label: `Move to ${first(b.tid)}`, run: () => { assign(id, b.tid, b.idx); D.sel = id; dispatchRender(); status(`${esc(o.cust)} moved to <b>${first(b.tid)}</b>.`); } });
+    if (tid) sugg.push({ label: 'Text the customer the arrival window', ext: true, run: () => textCustomer(id) });
+    return { title: o.cust, sub: `SO-${id}, ${o.task}`, direct, sugg, prompt: 'Why is this escalated?' };
+  }
+  if (kind === 'lane') {
+    const s = sched(id); const last = D.lanes[id][D.lanes[id].length - 1];
+    const sugg = [{ label: `Optimise ${first(id)}’s route`, run: () => { const sv = optimise(id); dispatchRender(); status(sv > 0.5 ? `${first(id)} drives <b>${num(sv)} km</b> less, back at ${hm(sched(id).finish)}.` : `${first(id)}’s route is already optimal.`); } }];
+    if (last) { const b = bestFit(last, id); if (b) sugg.push({ label: `Hand ${ORD[last].cust} over to ${first(b.tid)}`, run: () => { assign(last, b.tid, b.idx); dispatchRender(); status(`${esc(ORD[last].cust)} handed over to <b>${first(b.tid)}</b>. ${first(id)} is back at ${hm(sched(id).finish)}.`); } }); }
+    if (s.stops.length) sugg.push({ label: `Send the day plan to ${first(id)}`, ext: true, run: () => sendDayPlan(id) });
+    return { title: TECH[id].name, sub: `${s.stops.length} orders, back at ${hm(s.finish)}${s.overtime > 0.05 ? `, ${num(s.overtime, 1)} h overtime` : ''}`,
+      direct: [{ label: D.collapsed[id] ? 'Expand lane' : 'Collapse lane', run: () => { D.collapsed[id] = !D.collapsed[id]; dispatchRender(); } }, { label: 'Show only this route on the map', run: () => { D.focus = id; dispatchRender(); } }], sugg, prompt: `What if ${first(id)} starts at 06:30?` };
+  }
+  if (kind === 'map' || kind === 'queue' || kind === 'timeline') {
+    const sugg = [{ label: 'Assign all open orders', run: () => { const d = assignAllOpen(); dispatchRender(); status(d.length ? `Assigned ${d.length}: ${esc(d.join(', '))}.` : 'Nothing open, or no technician has the skills.'); } },
+      { label: 'Optimise all routes', run: () => $('#d-opt').click() }];
+    const direct = kind === 'map' ? [{ label: 'Zoom in', run: () => zoomMap(0.8) }, { label: 'Zoom out', run: () => zoomMap(1.25) }, { label: 'Fit to region', run: fitMap }]
+      : kind === 'queue' ? [{ label: 'Sort by priority', run: () => { D.sort = 'prio'; dispatchRender(); } }, { label: 'Sort by duration', run: () => { D.sort = 'dur'; dispatchRender(); } }, { label: 'Sort by town', run: () => { D.sort = 'town'; dispatchRender(); } }]
+      : TECHS.map((t) => ({ label: `${D.collapsed[t.id] ? 'Expand' : 'Collapse'} ${t.name.split(' ')[0]}`, run: () => { D.collapsed[t.id] = !D.collapsed[t.id]; dispatchRender(); } }));
+    return { title: { map: 'Region north', queue: 'Open orders', timeline: 'Day timeline' }[kind], sub: kind === 'map' ? 'map Lumen' : kind === 'queue' ? `${D.queue.length} open` : '3 technicians', direct, sugg, prompt: kind === 'map' ? 'Add live traffic for the B12' : 'Plan tomorrow with the same team' };
+  }
+  if (kind === 'kpis') {
+    const t = totals();
+    return { title: 'Today’s figures', sub: `${t.open} open, ${num(t.km)} km, ${num(t.ot, 1)} h overtime`, direct: [{ label: 'Copy figures', run: () => { navigator.clipboard?.writeText(`${t.open} open, ${num(t.km)} km, ${num(t.ot, 1)} h overtime`).catch(() => {}); status('Figures copied.'); } }],
+      sugg: [{ label: 'Rebalance to remove overtime', run: () => { const m = rebalance(); dispatchRender(); status(m.length ? `Rebalanced: ${esc(m.join(', '))}. Overtime now ${num(totals().ot, 1)} h.` : 'No overtime to remove, or no technician with the right skills has room.'); } },
+        { label: 'Assign all open orders', run: () => { const d = assignAllOpen(); dispatchRender(); status(d.length ? `Assigned ${d.length}: ${esc(d.join(', '))}.` : 'Nothing open.'); } }], prompt: 'Compare with last Tuesday' };
+  }
+  if (kind === 'roof') {
+    return { title: 'Roof layout', sub: `${calc().n} modules placed`, direct: [{ label: 'Paint tool', run: () => { P.tool = 'paint'; solarRender(); } }, { label: 'Erase tool', run: () => { P.tool = 'erase'; solarRender(); } }, { label: 'Clear roof', run: () => { P.panels.clear(); solarRender(); } }],
+      sugg: [{ label: 'Fill the south face', run: () => fillFace('s') }, { label: 'Add the north face too, lower yield', run: () => fillFace('n') },
+        { label: 'Clear the north face', run: () => { for (const k of [...P.panels]) if (k[0] === 'n') P.panels.delete(k); solarRender(); status('North face cleared.'); } },
+        { label: P.margin ? 'Release the fire-safety margin' : 'Restore the fire-safety margin', run: () => setMargin(!P.margin) }], prompt: 'Can we route around the skylights?' };
+  }
+  if (kind === 'module' || kind === 'config') {
+    return { title: 'Configuration', sub: `${MODS[P.module].name}, battery ${BATT[P.battery].name}`, direct: Object.entries(MODS).map(([k, m]) => ({ label: m.name, run: () => { P.module = k; solarRender(); } })),
+      sugg: [{ label: 'Size the battery to the evening load', run: () => { P.battery = 'b15'; solarRender(); flash($('#s-metrics')); status('Battery set to <b>15 kWh</b>, sized from the hall’s evening load in the CRM report.'); } },
+        { label: 'Cheapest price per kWp', run: () => { P.module = 'std'; solarRender(); status('Switched to the standard module, lowest price per kWp.'); } }], prompt: 'Which module ages best?' };
+  }
+  if (kind === 'quote') {
+    return { title: 'Quote Q-2026-0412', sub: `${eur(calc().net)} net`, direct: [{ label: 'Copy as text', run: () => { const c = calc(); navigator.clipboard?.writeText(c.lines.map(([t, q, u]) => `${t}\t${q}\t${eur(q * u)}`).join('\n')).catch(() => {}); status('Quote copied as text.'); } }],
+      sugg: [{ label: P.discount ? 'Remove the volume discount' : 'Apply 5 % volume discount', run: () => { P.discount = !P.discount; solarRender(); status(P.discount ? 'Volume discount applied.' : 'Discount removed.'); } },
+        { label: 'Send quote to Müller GmbH', ext: true, run: sendQuote }], prompt: 'Add a maintenance contract for 5 years' };
+  }
+  if (kind === 'chart') return { title: 'Yield and demand', sub: 'per month', direct: [], sugg: [{ label: 'Size the battery to the evening load', run: () => { P.battery = 'b15'; solarRender(); status('Battery set to <b>15 kWh</b>.'); } }], prompt: 'Explain the summer surplus' };
+  if (kind === 'kioskpane') return { title: 'Lobby kiosk', sub: 'kiosk Lumen', direct: [{ label: 'Open full screen', run: () => window.open('kiosk-lumen-aura.html', '_blank', 'noopener') }], sugg: [{ label: 'Push to lobby screen', ext: true, run: pushKiosk }], prompt: 'Add a German version' };
+  if (kind === 'tool') return { title: META[id].short, sub: `pinned ${S.pinned[id]}`, direct: [{ label: 'Open', run: () => openTool(id) }, { label: 'Unpin', run: () => { delete S.pinned[id]; renderTools(); $$(`[data-pin="${id}"]`).forEach((b) => { b.textContent = 'Pin as tool'; }); status(`Unpinned <b>${esc(META[id].short)}</b>.`); } }], sugg: [], prompt: 'Share this tool with my team' };
+  if (kind === 'tools') return { title: 'Your tools', sub: `${Object.keys(S.pinned).length} pinned`, direct: [], sugg: Object.keys(REQUESTS).filter((k) => !S.pinned[k]).map((k) => ({ label: `Generate ${META[k].short}`, run: () => generate(k) })), prompt: 'Make me a tool for weekly reporting' };
+  return null;
+}
+let panelTarget = null;
+function openPanel(target, at) {
+  if (!target) return;
+  const spec = ctxSpec(target.dataset.ctx); if (!spec) return;
+  closePanel(); closeCmdk();
+  panelTarget = target; target.classList.add('ctx-target');
+  const p = el(`<div id="panel" role="dialog" aria-label="Actions for ${esc(spec.title)}">
+    <div class="ph"><b>${esc(spec.title)}</b><span>${esc(spec.sub || '')}</span></div>
+    ${spec.direct.length ? `<div class="zone"><div class="eyebrow">Direct <em>on this device</em></div>${spec.direct.map((a, i) => `<button class="act" data-d="${i}"><span>${esc(a.label)}</span></button>`).join('')}</div>` : ''}
+    ${spec.sugg.length ? `<div class="zone"><div class="eyebrow">Suggested by omadia <em>prepared with this view</em></div>${spec.sugg.map((a, i) => `<button class="act" data-s="${i}"><span>${esc(a.label)}</span><span class="fx${a.ext ? ' ext' : ''}">${a.ext ? 'asks first' : ''}</span></button>`).join('')}</div>` : ''}
+    <form class="beam" autocomplete="off"><input placeholder="Beam omadia about this…" aria-label="Beam omadia about this" /><button class="btn primary sm" type="submit">Beam</button></form>
+    <button class="bhint" type="button">Try: “${esc(spec.prompt)}”</button>
+  </div>`);
+  document.body.appendChild(p);
+  const r = target.getBoundingClientRect(), pw = p.offsetWidth, ph = p.offsetHeight, vw = innerWidth, vh = innerHeight;
+  let x = r.right + 12; if (x + pw > vw - 8) x = r.left - pw - 12; if (x < 8) x = Math.min(Math.max(8, (at?.x ?? r.left) + 12), vw - pw - 8);
+  let y = Math.min(Math.max(8, r.top), vh - ph - 8);
+  if (r.width > vw * 0.45 && at) { x = Math.min(at.x + 14, vw - pw - 8); y = Math.min(Math.max(8, at.y - 20), vh - ph - 8); }
+  p.style.left = x + 'px'; p.style.top = y + 'px';
+  p.addEventListener('click', (e) => {
+    const d = e.target.closest('[data-d]'), s = e.target.closest('[data-s]');
+    if (d) { closePanel(); spec.direct[+d.dataset.d].run(); trace('Direct', `${esc(spec.title)}: ${esc(spec.direct[+d.dataset.d].label)}.`); }
+    if (s) { const a = spec.sugg[+s.dataset.s]; closePanel(); if (!a.ext) trace('Suggestion', `${esc(spec.title)}: ${esc(a.label)}.`); a.run(); }
+  });
+  const inp = $('input', p);
+  $('.bhint', p).onclick = () => { inp.value = spec.prompt; inp.focus(); };
+  $('form', p).addEventListener('submit', (e) => { e.preventDefault(); beam(target, spec, inp.value.trim() || spec.prompt); });
+}
+function closePanel() { $('#panel')?.remove(); panelTarget?.classList.remove('ctx-target'); panelTarget = null; }
+async function beam(target, spec, text) {
+  closePanel();
+  trace('Beam', `<b>${esc(spec.title)}</b>: “${esc(text)}”`);
+  const words = text.toLowerCase().split(/\W+/).filter((w) => w.length > 3);
+  const match = spec.sugg.find((s) => words.some((w) => s.label.toLowerCase().includes(w)));
+  target.classList.add('beaming');
+  const r = target.getBoundingClientRect();
+  const chip = el(`<div class="beamchip">omadia is on it: “${esc(text.length > 46 ? text.slice(0, 44) + '…' : text)}”</div>`);
+  chip.style.left = Math.min(r.left, innerWidth - 380) + 'px'; chip.style.top = Math.max(50, r.top - 36) + 'px';
+  document.body.appendChild(chip);
+  await wait(1600);
+  target.classList.remove('beaming'); chip.remove();
+  if (match) { match.run(); return; }
+  status(`Beam to <b>${esc(spec.title)}</b> received. The real product patches this element now. In the mockup, the suggested actions are the scripted part.`);
+}
+document.addEventListener('contextmenu', (e) => {
+  const t = e.target.closest('[data-ctx]'); if (!t || !booted) return;
+  e.preventDefault(); openPanel(t, { x: e.clientX, y: e.clientY });
+});
+// long-press (400 ms, <= 6 px) on everything else with a context; tool zones never context-invoke
+document.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0 || !booted) return;
+  if (e.target.closest('[data-order], #d-map, [data-toolzone], button, input, a, #panel, #cmdk, #modal')) return;
+  const t = e.target.closest('[data-ctx]'); if (!t) return;
+  const sx = e.clientX, sy = e.clientY;
+  const lp = setTimeout(() => { done(); openPanel(t, { x: sx, y: sy }); }, 400);
+  const mv = (ev) => { if (Math.hypot(ev.clientX - sx, ev.clientY - sy) > 6) done(); };
+  function done() { clearTimeout(lp); window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', done); }
+  window.addEventListener('pointermove', mv); window.addEventListener('pointerup', done);
+});
+document.addEventListener('pointerdown', (e) => { if ($('#panel') && !e.target.closest('#panel')) closePanel(); }, true);
+
+/* =========================================================================
+   Consent for external effects
+   ========================================================================= */
+function consent({ title, text, items, confirm, verb }) {
+  return new Promise((resolve) => {
+    closePanel();
+    const scrim = el('<div class="scrim"></div>');
+    const m = el(`<div id="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+      <div class="eyebrow">External effect, needs your OK</div><h2>${esc(title)}</h2><p>${esc(text)}</p>
+      <ul>${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>
+      <div class="foot"><button class="btn ghost" data-no>Cancel</button><button class="btn primary" data-yes>${esc(confirm)}</button></div></div>`);
+    document.body.append(scrim, m);
+    $('[data-yes]', m).focus();
+    const close = (v) => { scrim.remove(); m.remove(); document.removeEventListener('keydown', key, true); resolve(v); };
+    const key = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(false); } };
+    document.addEventListener('keydown', key, true);
+    scrim.onclick = () => close(false);
+    $('[data-no]', m).onclick = () => close(false);
+    $('[data-yes]', m).onclick = async (e) => {
+      const b = e.currentTarget; b.disabled = true; $('[data-no]', m).disabled = true;
+      for (let i = 0; i < 6; i++) { b.textContent = verb + '.'.repeat((i % 3) + 1); await wait(220); }
+      close(true);
+    };
+  });
+}
+
+/* =========================================================================
+   Command layer (Cmd/Ctrl+K)
+   ========================================================================= */
+const CMDS = () => [
+  ...Object.entries(REQUESTS).map(([k, r]) => ({ label: r.text, hint: S.built[k] ? 'open' : S.pinned[k] ? 'tool' : 'generate', run: () => (S.built[k] ? switchTo(k) : generate(k, r.text)) })),
+  { label: 'Make it warmer', hint: 'palette Atelier', run: () => setPalette('atelier', 'Make it warmer') },
+  { label: 'Make it cooler', hint: 'palette Petrol', run: () => setPalette('petrol', 'Make it cooler') },
+  { label: 'Back to Lagoon', hint: 'default palette', run: () => setPalette('lagoon', 'Back to Lagoon') },
+  { label: 'Show what this canvas is made of', hint: 'X-ray', run: () => toggleXray() },
+  { label: 'Open the Trace', hint: 'history', run: () => toggleTrace(true) },
+  { label: 'Go to Home', hint: 'space', run: () => switchTo('home') },
+  { label: 'Replay the boot', hint: 'thin client', run: () => location.reload() },
+];
+let cmdSel = 0;
+function openCmdk() {
+  if ($('#cmdk')) return; closePanel();
+  const scrim = el('<div class="scrim" id="cmdk-scrim" style="background:rgba(10,24,30,.35)"></div>');
+  const box = el('<div id="cmdk" role="dialog" aria-label="Command layer"><input placeholder="Ask omadia or run a command" aria-label="Ask omadia or run a command" /><ul></ul></div>');
+  document.body.append(scrim, box);
+  const inp = $('input', box); inp.focus();
+  const list = () => { const q = inp.value.toLowerCase(); return CMDS().filter((c) => !q || c.label.toLowerCase().includes(q) || c.hint.includes(q)); };
+  const draw = () => { const l = list(); cmdSel = Math.min(cmdSel, Math.max(0, l.length - 1));
+    $('ul', box).innerHTML = l.map((c, i) => `<li class="${i === cmdSel ? 'on' : ''}" data-i="${i}">${esc(c.label)}<span>${c.hint}</span></li>`).join('') || `<li class="on">Ask: “${esc(inp.value)}”<span>enter</span></li>`; };
+  draw();
+  inp.addEventListener('input', () => { cmdSel = 0; draw(); });
+  inp.addEventListener('keydown', (e) => {
+    const l = list();
+    if (e.key === 'ArrowDown') { cmdSel = Math.min(cmdSel + 1, l.length - 1); draw(); e.preventDefault(); }
+    if (e.key === 'ArrowUp') { cmdSel = Math.max(cmdSel - 1, 0); draw(); e.preventDefault(); }
+    if (e.key === 'Enter') { e.preventDefault(); const c = l[cmdSel]; const v = inp.value; closeCmdk(); if (c) c.run(); else { const r = route(v); if (r) submitPrompt(v); else status('This mockup scripts the requests listed in the command layer.'); } }
+  });
+  $('ul', box).addEventListener('click', (e) => { const li = e.target.closest('[data-i]'); if (li) { const c = list()[+li.dataset.i]; closeCmdk(); c.run(); } });
+  scrim.onclick = closeCmdk;
+}
+function closeCmdk() { $('#cmdk')?.remove(); $('#cmdk-scrim')?.remove(); }
+$('#btn-cmdk').onclick = openCmdk;
+document.addEventListener('keydown', (e) => {
+  if (!booted) return;
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); $('#cmdk') ? closeCmdk() : openCmdk(); }
+  if (e.key === 'Escape') { closePanel(); closeCmdk(); closeGuide(); }
+});
+
+/* =========================================================================
+   X-ray
+   ========================================================================= */
+const XBAR = {
+  home: '<b>Home</b> is the only screen the thin client runs. There is no start menu and no installed application: each tool below the prompt is a generated application, stored as data.',
+  dispatch: '<b>This application did not exist a minute ago.</b> 2 Lumens (map, schedule), 9 primitives, 3 wires. Data comes through omadia core from the ERP, HR and Maps plugins. Dragging, panning and selecting run on this device without a server round trip. Writing back asks you first.',
+  solar: '<b>A roof editor, a configurator and a quote, generated from one site-visit report.</b> 1 Lumen with 112 paintable cells, 14 primitives, 4 wires into yield, price and quote. CRM, Drive and ERP plugins deliver the data. Sending writes to CRM and ERP, after your OK.',
+  kiosk: '<b>The same runtime drives a public kiosk.</b> The Lumen picks brand colours for its own content, omadia chrome stays Lume. A gas budget stops a faulty Lumen cleanly, so an always-on screen never freezes.',
+};
+function renderXbar() { $('#xbar').innerHTML = XBAR[S.space] || ''; }
+function toggleXray() {
+  S.xray = !S.xray; document.body.classList.toggle('xray', S.xray);
+  $('#btn-xray').setAttribute('aria-pressed', String(S.xray)); renderXbar();
+  if (S.xray) trace('View', 'X-ray on.');
+}
+$('#btn-xray').onclick = toggleXray;
+addEventListener('resize', () => { if (D && S.space === 'dispatch') renderCallout(); closePanel(); });
+
+/* go */
+const params = new URLSearchParams(location.search);
+if (params.has('noboot')) { bootSkip = true; finishBoot(); } else boot();
+})();
+</script>
+</body>
+</html>
