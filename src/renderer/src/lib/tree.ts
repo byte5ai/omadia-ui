@@ -85,7 +85,7 @@ export function settleLoading(tree: unknown): unknown {
   return out;
 }
 
-/** The first node still waiting for content: where omadia works next. */
+/** The first node still waiting for content: where idaria works next. */
 export function firstLoadingId(tree: unknown): string | undefined {
   return findNode(
     tree,
@@ -103,7 +103,7 @@ export function rootToolbar(tree: unknown): Node | undefined {
   );
 }
 
-/** omadia's questions back (canvas_publish_choice) arrive as a `choice` the
+/** idaria's questions back (canvas_publish_choice) arrive as a `choice` the
  *  core appends with the id `choice_<8 hex>`. They steer how the view gets
  *  built, so they are asked beside the canvas, not inside it. */
 export const isQuestion = (n: Node): boolean =>
@@ -111,7 +111,7 @@ export const isQuestion = (n: Node): boolean =>
   typeof n.id === "string" &&
   /^choice_[0-9a-f]{8}$/.test(n.id);
 
-/** The question omadia is waiting on: the newest one not yet answered. */
+/** The question idaria is waiting on: the newest one not yet answered. */
 export function openQuestion(
   tree: unknown,
   answered: readonly string[] = [],
@@ -123,7 +123,7 @@ export function openQuestion(
   return open;
 }
 
-/** The tree as the canvas shows it: without omadia's questions. */
+/** The tree as the canvas shows it: without idaria's questions. */
 export function withoutQuestions(tree: unknown): unknown {
   if (!isNode(tree)) return tree;
   let changed = false;

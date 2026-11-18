@@ -102,7 +102,7 @@ export function App(): ReactElement {
       sessionStore.set((s) => ({ ...s, phase: "connect" }));
       return;
     }
-    const info = await window.omadia
+    const info = await window.idaria
       .authSession(server.wsUrl)
       .then((i) => i)
       .catch(() => ({ valid: false, unknown: true }));
@@ -112,7 +112,7 @@ export function App(): ReactElement {
       );
       return;
     }
-    const providers = await window.omadia
+    const providers = await window.idaria
       .authDiscover(server.wsUrl)
       .then((d) => d)
       .catch(() => null);
@@ -144,8 +144,8 @@ export function App(): ReactElement {
   // boot
   useEffect(() => {
     void loadSettings().then(() => checkServer());
-    const offMsg = window.omadia.onServerMessage(handleServerMessage);
-    const offStatus = window.omadia.onStatus(handleStatus);
+    const offMsg = window.idaria.onServerMessage(handleServerMessage);
+    const offStatus = window.idaria.onStatus(handleStatus);
     return () => {
       offMsg();
       offStatus();
@@ -162,7 +162,7 @@ export function App(): ReactElement {
           : "";
         if (next.state === "unauthenticated" || next.state === "forbidden") {
           flushLocal();
-          void window.omadia.disconnectAll();
+          void window.idaria.disconnectAll();
           void checkServer();
           return;
         }
@@ -171,7 +171,7 @@ export function App(): ReactElement {
             id: "conn-lost",
             severity: "warning",
             title: `Verbindung zu ${host} unterbrochen`,
-            body: "omadia verbindet neu.",
+            body: "idaria verbindet neu.",
           });
         }
         if (next.state === "ready") dismiss("conn-lost");
@@ -189,7 +189,7 @@ export function App(): ReactElement {
   const switchServer = useCallback(() => {
     flushLocal();
     stopPersistence();
-    void window.omadia.disconnectAll();
+    void window.idaria.disconnectAll();
     resetCanvases();
     resetWorkspace();
     setConnectError(undefined);
@@ -201,7 +201,7 @@ export function App(): ReactElement {
     flushLocal();
     stopPersistence();
     if (server)
-      await window.omadia
+      await window.idaria
         .authLogout(server.wsUrl)
         .then(() => undefined)
         .catch(() => undefined);
@@ -333,7 +333,7 @@ function Shell({
   const palette = usePresence(overlay.kind === "command", PALETTE_EXIT_MS);
   const sidebar = useStore(workspaceStore, (s) => s.sidebar);
   const devLog = useStore(sessionStore, (s) => s.settings?.devTurnLog ?? false);
-  const platform = window.omadia.platform;
+  const platform = window.idaria.platform;
   return (
     <div
       className={`shell${sidebar ? "" : " no-sidebar"}${platform === "darwin" ? " mac" : ""}`}
@@ -428,7 +428,7 @@ function useAppCommands(active: boolean): void {
           break;
       }
     };
-    const offMenu = window.omadia.onMenuCommand(run);
+    const offMenu = window.idaria.onMenuCommand(run);
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === "Escape" && workspaceStore.get().overlay.kind !== "none") {
         closeOverlay();

@@ -1,5 +1,5 @@
 /**
- * omadia's voice arrives as streamed text. Some model providers echo their
+ * idaria's voice arrives as streamed text. Some model providers echo their
  * tool-call markup into it; that is protocol noise, never meant for people.
  */
 export function cleanProse(raw: string): string {
@@ -19,5 +19,5 @@ export function cleanProse(raw: string): string {
     .trim();
 }
 
-/** A voice line that ends in a question means omadia is waiting for you. */
+/** A voice line that ends in a question means idaria is waiting for you. */
 export const isQuestion = (prose: string): boolean => /\?\s*$/.test(prose);

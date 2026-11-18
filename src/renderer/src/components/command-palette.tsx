@@ -35,7 +35,7 @@ import {
   workspaceStore,
 } from "../state/workspace";
 import { Icon, type IconName } from "./icons";
-import { OmadiaMark } from "./logo";
+import { IdariaMark } from "./logo";
 
 interface Entry {
   id: string;
@@ -104,7 +104,7 @@ export function CommandPalette({
           id: "ask-here",
           group: "Aktion",
           label: q,
-          hint: "Frag omadia",
+          hint: "Frag idaria",
           mark: true,
           run: () => ask("here"),
         });
@@ -352,7 +352,7 @@ export function CommandPalette({
             />
           </span>
           <label htmlFor="palette-q" className="sr-only">
-            Frag omadia
+            Frag idaria
           </label>
           <input
             id="palette-q"
@@ -392,7 +392,7 @@ export function CommandPalette({
                   onClick={() => e.run()}
                 >
                   {e.mark ? (
-                    <OmadiaMark size={14} />
+                    <IdariaMark size={14} />
                   ) : e.icon ? (
                     <Icon name={e.icon} />
                   ) : (

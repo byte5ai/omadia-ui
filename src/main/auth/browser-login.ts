@@ -52,7 +52,7 @@ export async function acquireSessionCookie(
   const win = new BrowserWindow({
     width: 480,
     height: 680,
-    title: "Bei omadia anmelden",
+    title: "Bei idaria anmelden",
     ...(parent ? { parent } : {}),
     webPreferences: {
       partition: "persist:omadia-auth",

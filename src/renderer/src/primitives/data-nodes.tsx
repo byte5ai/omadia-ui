@@ -285,7 +285,7 @@ export function TableNode({ node }: { node: Node }): ReactElement {
                     </td>
                   ) : null}
                   <td className="row-more">
-                    {/* details, omadia's suggestions and a question for
+                    {/* details, idaria's suggestions and a question for
                         this row — the same panel as a right click */}
                     <button
                       type="button"

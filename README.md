@@ -1,13 +1,13 @@
-# omadia UI 2
+# idaria UI 2
 
-The desktop surface for omadia, rebuilt from scratch on the design
+The desktop surface for idaria, rebuilt from scratch on the design
 **"Licht als Interface"** (claude.ai design canvas "omadia UI").
 Electron, React 19, strict TypeScript. It speaks the same
 `omadia-canvas-protocol/1.0` as the old `omadia-ui` and needs no change in
-omadia core.
+idaria core.
 
 > What stands in the light has the attention. There is no accent colour:
-> emphasis is light, colour is status. The dot is omadia.
+> emphasis is light, colour is status. The dot is idaria.
 
 ## Quickstart
 
@@ -39,7 +39,7 @@ npm test
 | Layer | Where | What |
 |---|---|---|
 | Main | `src/main` | settings, encrypted session vault, discovery + LAN scan, native/OIDC login, one WebSocket per canvas (`canvas/canvas-connection.ts`) |
-| Preload | `src/preload` | the typed `window.omadia` bridge (`src/shared/ipc.ts`) |
+| Preload | `src/preload` | the typed `window.idaria` bridge (`src/shared/ipc.ts`) |
 | Protocol | `src/shared/canvas-core.ts` | the browser-safe part of `@omadia/canvas-core` straight from `../omadia-core` (precompiled validators, reducer, patches, handshake). No vendored copy, no drift. |
 | State | `src/renderer/src/state` | canvases (runtime per slot), desktops + tiling, notifications, session, local + server persistence (`canvas_list`, `desktop_list`) |
 | Primitives | `src/renderer/src/primitives` | all 24 canvas primitives and their traits |
@@ -58,7 +58,7 @@ Regions that are filled rise to surface. When the turn ends, the panel fades in.
 That is the "Werkbank" variant. The "Fokus" variant (`components/canvas-focus.tsx`,
 the default) gathers everything in the middle of the tile: a line icon that
 flows into the next step (`lib/forge-glyphs.ts`, `lib/glyph-player.ts`; the dot
-runs along it), a rotating word for the phase, omadia's latest sentence, and a
+runs along it), a rotating word for the phase, idaria's latest sentence, and a
 bar that only moves forward (`lib/forge-phase.ts`). The light is live
 (`lib/forge-light.ts`, WebGL): a cone from a slit at the top edge, at the
 light's fixed angle, aimed at the middle. By night the air in it glows (fog);
@@ -78,8 +78,8 @@ the choice is kept per device.
 ### The agent dot
 
 `components/agent-dot.tsx` renders exactly one dot. It rests in the logo and
-moves in straight lines to where omadia works: the command field while you
-type, the spot a view is about to appear (glowing while omadia computes), the
+moves in straight lines to where idaria works: the command field while you
+type, the spot a view is about to appear (glowing while idaria computes), the
 node a patch touches, the question it waits on, or the sidebar entry of a
 canvas working in the background. Errors tint it briefly, then it is neutral
 again.
@@ -98,7 +98,7 @@ again.
 
 ## Text and clocks
 
-- The canvas is the answer: omadia's streamed text is not shown. Only errors
+- The canvas is the answer: idaria's streamed text is not shown. Only errors
   appear below the canvas, plus suggested actions as buttons.
 - Time-zone values (`UTC+9:30`, `GMT-3`, `Europe/Berlin`) in a time column, or
   as a card of a zone heading and an empty/time value, render as live clocks.
@@ -108,7 +108,7 @@ again.
 
 The core spawns the Claude CLI with `--tools ''`. In CLI 2.1.x MCP tools
 connect late and are loaded through ToolSearch, which that flag also removes,
-so the model never gets the omadia tools and writes its `canvas_publish_rows`
+so the model never gets the idaria tools and writes its `canvas_publish_rows`
 calls as text. `src/renderer/src/lib/recover-tool-calls.ts` reads those calls
 back on `turn_complete` and fills the containers the skeleton promised (rows
 and KPI `fields`, the same mapping as the server). Remove it once the core

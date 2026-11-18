@@ -93,7 +93,7 @@ export interface SocketStatus {
 }
 
 /** `unreachable`: no server answered at all. `no_discovery`: a server answered,
- *  but none of the discovery paths reached omadia. */
+ *  but none of the discovery paths reached idaria. */
 export type PairingResult =
   | { ok: true; descriptor: PairingDescriptor }
   | { ok: false; reason: "unreachable" | "no_discovery" };
@@ -105,7 +105,7 @@ export interface ConnectRequest {
   canvasSessionId?: string;
 }
 
-export interface OmadiaApi {
+export interface IdariaApi {
   settingsGet(): Promise<AppSettings>;
   settingsSave(patch: Partial<AppSettings>): Promise<AppSettings>;
 

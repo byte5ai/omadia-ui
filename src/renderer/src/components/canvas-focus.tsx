@@ -49,7 +49,7 @@ const clock = (ms: number): string => {
 /**
  * The other way to show a canvas being built: everything gathers in the
  * middle of the tile, under the light. A line icon that turns into the next
- * step, a word for what omadia is doing, its latest sentence, a bar that only
+ * step, a word for what idaria is doing, its latest sentence, a bar that only
  * moves forward. The light falls on them from a slit at the top edge; the
  * further the build, the wider the slit, the more of the middle is lit.
  */
@@ -205,7 +205,7 @@ export function CanvasFocus({
     playerRef.current?.play(PHASE_GLYPHS[phase]);
   }, [phase]);
 
-  // Every sign from omadia runs down the beam as a pulse of light.
+  // Every sign from idaria runs down the beam as a pulse of light.
   const revision = rt?.canvas.lastApply?.revision;
   useEffect(() => {
     forgeLightRef.current?.pulse();
@@ -262,7 +262,7 @@ export function CanvasFocus({
         ? { "aria-hidden": true }
         : {
             "data-pane": slotKey,
-            "aria-label": "omadia baut den Canvas",
+            "aria-label": "idaria baut den Canvas",
             "aria-busy": true,
           })}
       onMouseDown={() => focusPane(slotKey)}
@@ -308,7 +308,7 @@ export function CanvasFocus({
         </div>
       </div>
       <p className="sr-only" role="status">
-        omadia baut die Ansicht: {PHASE_LABEL[phase]}
+        idaria baut die Ansicht: {PHASE_LABEL[phase]}
       </p>
     </section>
   );

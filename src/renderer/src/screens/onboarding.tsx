@@ -15,7 +15,7 @@ interface ConnectProps {
   onCancel?: () => void;
 }
 
-/** Arrive: type an address or pick a server omadia found in your network. */
+/** Arrive: type an address or pick a server idaria found in your network. */
 export function ConnectScreen({
   initial = "",
   error: initialError,
@@ -29,17 +29,17 @@ export function ConnectScreen({
   const [setupHelp, setSetupHelp] = useState(false);
 
   useEffect(() => {
-    const off = window.omadia.onPairingFound((s) =>
+    const off = window.idaria.onPairingFound((s) =>
       setFound((list) =>
         list.some((x) => x.address === s.address && x.port === s.port)
           ? list
           : [...list, s],
       ),
     );
-    void window.omadia.pairingScanStart();
+    void window.idaria.pairingScanStart();
     return () => {
       off();
-      void window.omadia.pairingScanStop();
+      void window.idaria.pairingScanStop();
     };
   }, []);
 
@@ -48,7 +48,7 @@ export function ConnectScreen({
     setBusy(true);
     setError(undefined);
     setSetupHelp(false);
-    const result = await window.omadia
+    const result = await window.idaria
       .pairingDiscover(input)
       .then((r) => r)
       .catch(() => ({ ok: false as const, reason: "unreachable" as const }));
@@ -63,7 +63,7 @@ export function ConnectScreen({
       );
       return;
     }
-    setError("Unter dieser Adresse antwortet kein omadia.");
+    setError("Unter dieser Adresse antwortet kein idaria.");
     setSetupHelp(true);
   };
 
@@ -77,7 +77,7 @@ export function ConnectScreen({
         }}
       >
         <Logo size={26} withDot wordmark={false} />
-        <h1 className="arrive-title">Mit omadia verbinden</h1>
+        <h1 className="arrive-title">Mit idaria verbinden</h1>
         <div className="field">
           <label htmlFor="server-address">Server-Adresse</label>
           <input
@@ -85,7 +85,7 @@ export function ConnectScreen({
             className={`input${error ? " invalid" : ""}`}
             value={address}
             onChange={(e) => setAddress(e.target.value)}
-            placeholder="https://omadia.firma.de"
+            placeholder="https://idaria.firma.de"
             autoFocus
             spellCheck={false}
           />
@@ -124,7 +124,7 @@ export function ConnectScreen({
             className="btn primary"
             disabled={busy || !address.trim()}
           >
-            {busy ? "Suche omadia …" : "Verbinden"}
+            {busy ? "Suche idaria …" : "Verbinden"}
           </button>
         </div>
       </form>
@@ -132,7 +132,7 @@ export function ConnectScreen({
   );
 }
 
-/** Reachable server, no omadia behind the address: what the server needs. */
+/** Reachable server, no idaria behind the address: what the server needs. */
 function PairingSetupHelp(): ReactElement {
   return (
     <div className="setup-help">
@@ -143,7 +143,7 @@ function PairingSetupHelp(): ReactElement {
           Orchestrator.
         </li>
         <li>
-          Leite diese Pfade unter dieser Adresse direkt an die omadia-Middleware
+          Leite diese Pfade unter dieser Adresse direkt an die idaria-Middleware
           weiter, nicht an die Admin-Oberfläche:
           <ul>
             <li>
@@ -193,7 +193,7 @@ export function SignInScreen({
     if (!password) return;
     setBusy(true);
     setError(undefined);
-    const result = await window.omadia
+    const result = await window.idaria
       .authLogin(wsUrl, password.id, email, secret)
       .then((r) => r)
       .catch(() => ({ ok: false as const, error: "unreachable" as const }));
@@ -213,7 +213,7 @@ export function SignInScreen({
 
   const loginBrowser = async (providerId?: string): Promise<void> => {
     setWaiting(true);
-    const result = await window.omadia
+    const result = await window.idaria
       .authLoginBrowser(wsUrl, providerId)
       .then((r) => r)
       .catch(() => ({ ok: false as const, error: "cancelled" as const }));
@@ -241,7 +241,7 @@ export function SignInScreen({
             <button
               type="button"
               className="btn ghost sm"
-              onClick={() => void window.omadia.authCancelBrowser()}
+              onClick={() => void window.idaria.authCancelBrowser()}
             >
               Abbrechen
             </button>

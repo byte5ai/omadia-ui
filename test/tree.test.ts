@@ -26,7 +26,7 @@ describe("tree helpers", () => {
     expect(deriveTitle(tree)).toBe("Team-Auslastung");
   });
 
-  it("finds where omadia works next", () => {
+  it("finds where idaria works next", () => {
     expect(firstLoadingId(tree)).toBe("t");
   });
 

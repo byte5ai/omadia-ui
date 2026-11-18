@@ -2,7 +2,7 @@
   "name": "@omadia/ui-2",
   "version": "0.1.0",
   "private": true,
-  "description": "omadia UI 2: Licht als Interface. Electron host for the omadia canvas protocol.",
+  "description": "idaria UI 2: Licht als Interface. Electron host for the idaria canvas protocol.",
   "author": "byte5 GmbH <info@omadia.ai>",
   "type": "module",
   "main": "out/main/index.js",

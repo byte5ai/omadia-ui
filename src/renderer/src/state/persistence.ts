@@ -224,7 +224,7 @@ function pushToServer(): void {
       },
     ];
   });
-  window.omadia.send(slot, {
+  window.idaria.send(slot, {
     type: "canvas_list_put",
     canvases: canvases.slice(0, 50),
   });
@@ -249,7 +249,7 @@ function pushToServer(): void {
         : [];
     })
     .slice(0, 24);
-  window.omadia.send(slot, { type: "desktop_list_put", desktops });
+  window.idaria.send(slot, { type: "desktop_list_put", desktops });
 }
 
 function schedulePush(urgent: boolean): void {
@@ -324,14 +324,14 @@ export function startPersistence(): void {
     onCanvasesChanged((urgent) => schedulePush(urgent)),
     onSocketStatus((slotKey, next) => {
       if (next.state === "ready" && !serverListSeen) {
-        window.omadia.send(slotKey, { type: "canvas_list_get" });
+        window.idaria.send(slotKey, { type: "canvas_list_get" });
       }
     }),
     onRawMessage((slotKey, msg) => {
       if (msg.type === "canvas_list" && Array.isArray(msg.canvases)) {
         mergeCanvasList(msg.canvases as WireCanvas[]);
         serverListSeen = true;
-        window.omadia.send(slotKey, { type: "desktop_list_get" });
+        window.idaria.send(slotKey, { type: "desktop_list_get" });
       }
       if (msg.type === "desktop_list" && Array.isArray(msg.desktops)) {
         mergeDesktopList(msg.desktops as WireDesktop[]);

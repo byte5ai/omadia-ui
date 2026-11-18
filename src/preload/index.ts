@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 
-import { IPC, type OmadiaApi } from "../shared/ipc";
+import { type IdariaApi, IPC } from "../shared/ipc";
 
 const listen = <A extends unknown[]>(
   channel: string,
@@ -12,7 +12,7 @@ const listen = <A extends unknown[]>(
   return () => ipcRenderer.removeListener(channel, handler);
 };
 
-const api: OmadiaApi = {
+const api: IdariaApi = {
   settingsGet: () => ipcRenderer.invoke(IPC.settingsGet),
   settingsSave: (patch) => ipcRenderer.invoke(IPC.settingsSave, patch),
 
@@ -42,4 +42,4 @@ const api: OmadiaApi = {
   platform: process.platform,
 };
 
-contextBridge.exposeInMainWorld("omadia", api);
+contextBridge.exposeInMainWorld("idaria", api);

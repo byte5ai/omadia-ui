@@ -2,10 +2,10 @@ import { type ReactElement, useEffect, useRef } from "react";
 
 import { arr, type Node, str } from "../lib/tree";
 import { answerQuestion } from "../state/canvases";
-import { OmadiaMark } from "./logo";
+import { IdariaMark } from "./logo";
 
 /**
- * omadia's question back, asked over its own canvas only: the rest of the
+ * idaria's question back, asked over its own canvas only: the rest of the
  * workspace stays usable, and the ask bar below stays open for a free answer.
  * It lives in the canvas state, so it is still there when you come back.
  */
@@ -44,7 +44,7 @@ export function QuestionModal({
             data-dot-anchor={`pane:${slotKey}:question`}
             data-dot-size={5}
           >
-            <OmadiaMark size={16} />
+            <IdariaMark size={16} />
           </span>
           <h3 id={titleId} className="question-title">
             {label}

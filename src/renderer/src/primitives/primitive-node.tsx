@@ -96,7 +96,7 @@ export function PrimitiveNode({ node }: { node: Node }): ReactElement | null {
 export function Skeleton({ lines = 3 }: { lines?: number }): ReactElement {
   const widths = ["90%", "70%", "80%", "60%", "75%"];
   return (
-    <div className="p-skeleton" aria-label="omadia lädt hier" role="status">
+    <div className="p-skeleton" aria-label="idaria lädt hier" role="status">
       {Array.from({ length: lines }, (_, i) => (
         <div
           key={i}

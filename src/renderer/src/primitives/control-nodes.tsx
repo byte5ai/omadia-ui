@@ -28,7 +28,7 @@ const withPayload = (
   };
 };
 
-/** One main action per surface; after sending, omadia takes over and the
+/** One main action per surface; after sending, idaria takes over and the
  *  button goes quiet. */
 export function ButtonNode({ node }: { node: Node }): ReactElement {
   const ctx = useRender();

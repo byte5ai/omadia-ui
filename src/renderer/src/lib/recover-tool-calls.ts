@@ -3,7 +3,7 @@ import { arr, isNode, type Node } from "./tree";
 
 /**
  * Workaround for omadia-core's claude-cli provider: it spawns the CLI with
- * `--tools ''`, which also switches off ToolSearch, so the omadia MCP tools
+ * `--tools ''`, which also switches off ToolSearch, so the idaria MCP tools
  * (still "pending" at start) never reach the model. The model then writes
  * the canvas_publish_rows call it meant to make into its text. Until the core
  * is fixed we read those calls back and put the rows where they were meant

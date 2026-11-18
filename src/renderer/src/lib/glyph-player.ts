@@ -3,7 +3,7 @@ import { glyph, type GlyphName, type GlyphPoint, morph } from "./forge-glyphs";
 /**
  * Plays a sequence of glyphs on a small canvas: each one flows into the next,
  * and the pen (the agent dot's anchor) keeps running along the line, so the
- * icon is never still while omadia works.
+ * icon is never still while idaria works.
  */
 
 export interface GlyphPlayer {

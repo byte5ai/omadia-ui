@@ -1,8 +1,8 @@
 /// <reference types="vite/client" />
-import type { OmadiaApi } from "../../shared/ipc";
+import type { IdariaApi } from "../../shared/ipc";
 
 declare global {
   interface Window {
-    omadia: OmadiaApi;
+    idaria: IdariaApi;
   }
 }

@@ -1,7 +1,7 @@
 import { type Block, guessLayout, signatureOf } from "./forge-layout";
 
 /**
- * While omadia builds a new canvas there is no panel yet, only the ground.
+ * While idaria builds a new canvas there is no panel yet, only the ground.
  * The dot travels in straight lines and draws the outline of each region the
  * view will have: a quiet guess first, then the real layout once the tree
  * arrives. What is filled rises into the light; nothing else moves.
@@ -10,7 +10,7 @@ import { type Block, guessLayout, signatureOf } from "./forge-layout";
 export interface ForgeFeed {
   /** the real layout; empty until the first snapshot */
   blocks: Block[];
-  /** the node omadia works on */
+  /** the node idaria works on */
   focusId?: string;
   changed: readonly string[];
   changedAt: number;
@@ -183,7 +183,7 @@ export function startForge(
       todo.drawDur = clamp((2 * (r.w + r.h)) / 1.2, 700, 2200) / pace();
       return { kind: "outline", live: todo, t0: now, dur: todo.drawDur };
     }
-    // All drawn, omadia still at work: the dot rounds the region it works
+    // All drawn, idaria still at work: the dot rounds the region it works
     // on, and a guess gives way to the next one after a round.
     if (!draft.real && draft.rounds > 0 && !opts.reduced) {
       draft.leaveAt = now;
@@ -325,7 +325,7 @@ export function startForge(
       : 1;
     for (const l of draft.items) if (l.drawAt) drawItem(c, l, now, fade);
     if (!pen) return;
-    // the pen's light; the dot itself is omadia's own
+    // the pen's light; the dot itself is idaria's own
     const halo = c.createRadialGradient(pen.x, pen.y, 0, pen.x, pen.y, 28);
     halo.addColorStop(0, rgba(palette.light, 0.16));
     halo.addColorStop(1, rgba(palette.light, 0));

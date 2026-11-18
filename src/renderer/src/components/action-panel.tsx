@@ -17,7 +17,7 @@ import {
 } from "../state/canvases";
 import { closeOverlay } from "../state/workspace";
 import { Icon } from "./icons";
-import { OmadiaMark } from "./logo";
+import { IdariaMark } from "./logo";
 
 interface Props {
   slotKey: string;
@@ -27,7 +27,7 @@ interface Props {
   y: number;
 }
 
-/** Right click on a row: direct actions, omadia's suggestions, and a beam
+/** Right click on a row: direct actions, idaria's suggestions, and a beam
  *  field. Opening is instant; a request only starts when you send. */
 export function ActionPanel({
   slotKey,
@@ -159,7 +159,7 @@ export function ActionPanel({
         {suggestions.length ? (
           <>
             <div className="menu-sep" />
-            <p className="menu-heading">Vorschläge von omadia</p>
+            <p className="menu-heading">Vorschläge von idaria</p>
             {suggestions.map((s) => (
               <button
                 key={s.id}
@@ -180,7 +180,7 @@ export function ActionPanel({
                     );
                 }}
               >
-                <OmadiaMark size={14} />
+                <IdariaMark size={14} />
                 <span className="grow">{s.label}</span>
               </button>
             ))}
@@ -195,12 +195,12 @@ export function ActionPanel({
         >
           <label className="beam-field">
             <span className="beam" aria-hidden="true" />
-            <span className="sr-only">Frag omadia zu dieser Zeile</span>
+            <span className="sr-only">Frag idaria zu dieser Zeile</span>
             <input
               autoFocus
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Frag omadia zu dieser Zeile"
+              placeholder="Frag idaria zu dieser Zeile"
               onKeyDown={(e) => e.key === "Escape" && closeOverlay()}
             />
             <button

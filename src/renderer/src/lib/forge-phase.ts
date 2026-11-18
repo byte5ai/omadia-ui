@@ -76,7 +76,7 @@ export function progressOf(
   }
 }
 
-/** The newest finished sentence of omadia's voice, for the line below. */
+/** The newest finished sentence of idaria's voice, for the line below. */
 export function latestSentence(prose: string): string {
   const text = prose
     .replace(/\{[^{}]*\}/g, " ")

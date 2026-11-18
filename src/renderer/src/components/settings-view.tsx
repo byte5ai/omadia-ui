@@ -75,7 +75,7 @@ export function SettingsView({
               </button>
             ))}
           </div>
-          {window.omadia.platform === "darwin" ? (
+          {window.idaria.platform === "darwin" ? (
             <label className="choice-row">
               <button
                 type="button"

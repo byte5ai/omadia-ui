@@ -52,7 +52,7 @@ import {
 import { CanvasFocus } from "./canvas-focus";
 import { CanvasForge } from "./canvas-forge";
 import { Icon } from "./icons";
-import { OmadiaMark } from "./logo";
+import { IdariaMark } from "./logo";
 import { QuestionModal } from "./question-modal";
 
 interface PaneProps {
@@ -316,7 +316,7 @@ function socketLabel(state: string): string {
   }
 }
 
-/** omadia's voice below the canvas: errors, and its suggestions. */
+/** idaria's voice below the canvas: errors, and its suggestions. */
 function Voice({
   slotKey,
   tree,
@@ -348,7 +348,7 @@ function Voice({
       </div>
     );
   }
-  // The canvas is the answer. omadia only speaks in text when something
+  // The canvas is the answer. idaria only speaks in text when something
   // failed; its suggestions stay, as actions without commentary.
   if (suggestions.length === 0) return null;
   return (
@@ -358,9 +358,9 @@ function Voice({
         data-dot-anchor={`pane:${slotKey}:voice`}
         data-dot-size={5}
       >
-        <OmadiaMark size={16} />
+        <IdariaMark size={16} />
       </span>
-      <p className="voice-text dim">Vorschläge von omadia</p>
+      <p className="voice-text dim">Vorschläge von idaria</p>
       {suggestions.length ? (
         <div className="voice-actions">
           {suggestions.map((s, i) => (
@@ -392,7 +392,7 @@ function Voice({
 
 function errorText(message: string): string {
   if (/orchestrator unavailable|503/i.test(message))
-    return "omadia ist gerade nicht erreichbar: kein Sprachmodell verbunden";
+    return "idaria ist gerade nicht erreichbar: kein Sprachmodell verbunden";
   if (/rate-limited/i.test(message))
     return "Zu schnell hintereinander. Gleich noch einmal.";
   if (/session check unavailable/i.test(message))
@@ -441,15 +441,15 @@ function AskBar({
     >
       <label className="beam-field">
         <span className="beam" aria-hidden="true" />
-        <span className="sr-only">Frag omadia zu diesem Canvas</span>
+        <span className="sr-only">Frag idaria zu diesem Canvas</span>
         <input
           ref={ref}
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={
             selection
-              ? `Frag omadia zu ${selection.keys.length === 1 ? "dieser Auswahl" : `${selection.keys.length} Zeilen`}`
-              : "Frag omadia zu diesem Canvas"
+              ? `Frag idaria zu ${selection.keys.length === 1 ? "dieser Auswahl" : `${selection.keys.length} Zeilen`}`
+              : "Frag idaria zu diesem Canvas"
           }
           disabled={busy}
         />
@@ -491,7 +491,7 @@ function describeSelection(
     .join("; ");
 }
 
-/** An empty canvas: describe the view, omadia builds it from your data. */
+/** An empty canvas: describe the view, idaria builds it from your data. */
 function ColdStart({ slotKey }: { slotKey: string }): ReactElement {
   const [text, setText] = useState("");
   const recent = useStore(canvasStore, (s) => s.order);
@@ -506,7 +506,7 @@ function ColdStart({ slotKey }: { slotKey: string }): ReactElement {
       <div className="cold-inner">
         <h1 className="t-display">Was brauchst du?</h1>
         <p className="cold-lead">
-          Beschreib die Ansicht. omadia baut sie aus deinen Daten und zeigt dir,
+          Beschreib die Ansicht. idaria baut sie aus deinen Daten und zeigt dir,
           woher jede Zahl kommt.
         </p>
         <form
@@ -517,7 +517,7 @@ function ColdStart({ slotKey }: { slotKey: string }): ReactElement {
           }}
         >
           <label htmlFor={`cold-${slotKey}`} className="sr-only">
-            Anfrage an omadia
+            Anfrage an idaria
           </label>
           <span
             className="dot-anchor-inline"

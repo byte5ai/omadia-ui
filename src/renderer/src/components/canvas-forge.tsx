@@ -10,7 +10,7 @@ import { LightCone } from "./light-cone";
 
 /**
  * A canvas that does not exist yet has no panel. The tile stays ground; the
- * dot draws the outline of the view as omadia builds it.
+ * dot draws the outline of the view as idaria builds it.
  */
 export function CanvasForge({ slotKey }: { slotKey: string }): ReactElement {
   const rt = useStore(canvasStore, (s) => s.runtime[slotKey]);
@@ -57,7 +57,7 @@ export function CanvasForge({ slotKey }: { slotKey: string }): ReactElement {
     <section
       className="forge"
       data-pane={slotKey}
-      aria-label="omadia baut den Canvas"
+      aria-label="idaria baut den Canvas"
       aria-busy="true"
       onMouseDown={() => focusPane(slotKey)}
     >
@@ -80,7 +80,7 @@ export function CanvasForge({ slotKey }: { slotKey: string }): ReactElement {
         </button>
       </header>
       <p className="sr-only" role="status">
-        omadia baut die Ansicht
+        idaria baut die Ansicht
       </p>
     </section>
   );

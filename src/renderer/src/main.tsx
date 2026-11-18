@@ -13,7 +13,7 @@ import { App } from "./app";
 // Until the settings are in: the first screen stands on the vibrancy view too.
 document.documentElement.classList.toggle(
   "vibrant",
-  window.omadia.platform === "darwin",
+  window.idaria.platform === "darwin",
 );
 
 createRoot(document.getElementById("root") as HTMLElement).render(

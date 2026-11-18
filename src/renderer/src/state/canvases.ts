@@ -39,7 +39,7 @@ export interface CanvasMeta {
   color: number;
   createdAt: number;
   updatedAt: number;
-  /** ids of omadia's questions you answered (or talked past) */
+  /** ids of idaria's questions you answered (or talked past) */
   answered?: string[];
   /** the world of light the canvas stands in, from its first request */
   light?: LightWorld;
@@ -53,7 +53,7 @@ export interface CanvasMeta {
 export const lightWorldOf = (meta: CanvasMeta): LightWorld =>
   meta.light ?? classifyPrompt(meta.title === "Neuer Canvas" ? "" : meta.title);
 
-/** What omadia is doing on this canvas (the agent dot reads this). */
+/** What idaria is doing on this canvas (the agent dot reads this). */
 export type Activity = "idle" | "thinking" | "working";
 
 export interface TurnLogEntry {
@@ -264,7 +264,7 @@ export async function ensureConnected(slotKey: string): Promise<void> {
   const rt = runtimeOf(slotKey);
   if (rt.connected) return;
   patchRuntime(slotKey, (r) => ({ ...r, connected: true }));
-  await window.omadia
+  await window.idaria
     .connect({
       slotKey,
       wsUrl: server.wsUrl,
@@ -282,7 +282,7 @@ export async function ensureConnected(slotKey: string): Promise<void> {
 
 export async function disconnect(slotKey: string): Promise<void> {
   patchRuntime(slotKey, (rt) => ({ ...rt, connected: false }));
-  await window.omadia
+  await window.idaria
     .disconnect(slotKey)
     .then(() => undefined)
     .catch(() => undefined);
@@ -304,7 +304,7 @@ export function deleteCanvas(slotKey: string): void {
 // ── sending ──
 
 function send(slotKey: string, message: Record<string, unknown>): void {
-  window.omadia.send(slotKey, message);
+  window.idaria.send(slotKey, message);
 }
 
 const hasServerTree = (rt: CanvasRuntime): boolean =>
@@ -377,7 +377,7 @@ function markAnswered(slotKey: string, questionId: string): void {
   patchMeta(slotKey, { answered: [...answered, questionId].slice(-20) });
 }
 
-/** Your pick for omadia's question goes back as the choice's action. */
+/** Your pick for idaria's question goes back as the choice's action. */
 export function answerQuestion(
   slotKey: string,
   question: Node,
@@ -617,7 +617,7 @@ export function handleServerMessage(slotKey: string, raw: unknown): void {
         ? { action: msg.action as { type: string } }
         : {}),
     });
-    window.omadia.send(slotKey, { type: "notification_ack", id: msg.id });
+    window.idaria.send(slotKey, { type: "notification_ack", id: msg.id });
     return;
   }
   if (msg.type === "canvas_list" || msg.type === "desktop_list") return;
@@ -748,7 +748,7 @@ export function handleServerMessage(slotKey: string, raw: unknown): void {
   }
   if (resync) {
     log(slotKey, "T1", "resync");
-    window.omadia.resync(slotKey);
+    window.idaria.resync(slotKey);
   }
 }
 

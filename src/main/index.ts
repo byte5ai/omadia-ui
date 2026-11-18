@@ -38,7 +38,7 @@ import { createSettingsStore } from "./settings-store";
 // omadia-desktop (the server supervisor in omadia-core) calls itself
 // "omadia" too; keep our profile in a folder of its own.
 app.setPath("userData", join(app.getPath("appData"), "omadia-ui-2"));
-app.setName("omadia UI");
+app.setName("idaria UI");
 
 const userData = app.getPath("userData");
 const settings = createSettingsStore(userData);
@@ -81,7 +81,7 @@ function createWindow(): void {
     minWidth: 960,
     minHeight: 600,
     show: false,
-    title: "omadia",
+    title: "idaria",
     backgroundColor: backgroundFor(settings.get()),
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     trafficLightPosition: { x: 18, y: 18 },

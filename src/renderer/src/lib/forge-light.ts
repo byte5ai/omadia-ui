@@ -2,7 +2,7 @@
  * The light over a canvas being built. It falls from a slit at the top edge,
  * at the angle the light always has here, onto the middle of the tile. The
  * further the build, the wider the slit opens and the more of the middle
- * stands in the light. Every sign from omadia sends a pulse down the beam.
+ * stands in the light. Every sign from idaria sends a pulse down the beam.
  * Fog, pulses, day and night come from @omadia/light; this only decides
  * where the light falls and how far it is open.
  */
@@ -42,7 +42,7 @@ export function coneFor(
 export interface ForgeLight {
   /** where the light falls, in pane px, and how far the build is */
   aim(target: { x: number; y: number }, progress: number): void;
-  /** a sign from omadia: a pulse of light runs down the beam */
+  /** a sign from idaria: a pulse of light runs down the beam */
   pulse(): void;
   /**
    * The turn is over. A fast pulse runs down the beam and the panel shows

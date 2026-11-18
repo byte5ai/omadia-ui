@@ -12,10 +12,10 @@ import {
 } from "../state/workspace";
 
 /**
- * The dot is omadia. There is always exactly one. It rests in the logo and
- * travels in straight lines to wherever omadia is working: the start of your
+ * The dot is idaria. There is always exactly one. It rests in the logo and
+ * travels in straight lines to wherever idaria is working: the start of your
  * sentence while you type, the place a view is about to appear, the cell it
- * is checking, the question it is waiting on. A soft glow only while omadia
+ * is checking, the question it is waiting on. A soft glow only while idaria
  * computes; colour only as status, and only for a moment. With the agent
  * activity turned off it never leaves the logo.
  */
@@ -75,7 +75,7 @@ function pickTarget(c: CanvasesState, w: WorkspaceState, now: number): Target {
   return { key: `pane:${slot}:center`, glow: pending, ...withTone };
 }
 
-/** A canvas where omadia waits on your answer: the focused one first. */
+/** A canvas where idaria waits on your answer: the focused one first. */
 function waitingSlot(
   c: CanvasesState,
   focused: string | undefined,

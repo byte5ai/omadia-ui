@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 
 interface LogoProps {
   size?: number;
-  /** the dot anchor key; the agent dot rests here when omadia is idle */
+  /** the dot anchor key; the agent dot rests here when idaria is idle */
   anchor?: string;
   /** draw the dot statically (wordmark use, onboarding) */
   withDot?: boolean;
@@ -10,9 +10,9 @@ interface LogoProps {
 }
 
 /**
- * The omadia aperture. The dot is not part of the drawing in the app: it is
- * the agent dot, which leaves the logo whenever omadia works somewhere.
- * An empty aperture therefore always means: omadia is on its way.
+ * The idaria aperture. The dot is not part of the drawing in the app: it is
+ * the agent dot, which leaves the logo whenever idaria works somewhere.
+ * An empty aperture therefore always means: idaria is on its way.
  */
 export function Logo({
   size = 18,
@@ -53,13 +53,13 @@ export function Logo({
           />
         ) : null}
       </span>
-      {wordmark ? <span className="logo-word">omadia</span> : null}
+      {wordmark ? <span className="logo-word">idaria</span> : null}
     </span>
   );
 }
 
-/** The mark that suggestions carry: omadia's sign, not the working dot. */
-export function OmadiaMark({ size = 14 }: { size?: number }): ReactElement {
+/** The mark that suggestions carry: idaria's sign, not the working dot. */
+export function IdariaMark({ size = 14 }: { size?: number }): ReactElement {
   return (
     <svg
       aria-hidden="true"

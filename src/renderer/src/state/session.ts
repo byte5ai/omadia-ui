@@ -32,7 +32,7 @@ export const sessionStore = createStore<SessionState>({
 export const activeServer = (): ServerEntry | null => sessionStore.get().server;
 
 export async function loadSettings(): Promise<AppSettings> {
-  const settings = await window.omadia
+  const settings = await window.idaria
     .settingsGet()
     .then((s) => s)
     .catch(() => null);
@@ -55,7 +55,7 @@ export async function loadSettings(): Promise<AppSettings> {
 export async function saveSettings(
   patch: Partial<AppSettings>,
 ): Promise<AppSettings> {
-  const next = await window.omadia
+  const next = await window.idaria
     .settingsSave(patch)
     .then((s) => s)
     .catch(() => ({
@@ -81,7 +81,7 @@ export function applyAppearance(settings: AppSettings): void {
   root.dataset.temp = String(settings.temperature);
   root.classList.toggle(
     "vibrant",
-    window.omadia.platform === "darwin" && settings.translucent,
+    window.idaria.platform === "darwin" && settings.translucent,
   );
 }
 

@@ -80,7 +80,7 @@ const stillFor = (seen: string[]): number => {
 };
 
 describe("forge engine", () => {
-  it("keeps the dot moving while omadia thinks without a snapshot", () => {
+  it("keeps the dot moving while idaria thinks without a snapshot", () => {
     const seen = track(40);
     expect(new Set(seen).size).toBeGreaterThan(20);
     expect(stillFor(seen)).toBeLessThan(2);

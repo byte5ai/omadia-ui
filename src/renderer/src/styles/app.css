@@ -524,7 +524,7 @@
   user-select: text;
 }
 
-/* omadia's question back: over its own canvas only, the rest stays lit */
+/* idaria's question back: over its own canvas only, the rest stays lit */
 .question-layer {
   position: absolute;
   inset: 0;
@@ -629,7 +629,7 @@
   margin: -22px 0 0 -14px;
 }
 
-/* omadia's voice */
+/* idaria's voice */
 .voice {
   display: flex;
   align-items: flex-start;

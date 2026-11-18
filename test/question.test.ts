@@ -31,7 +31,7 @@ const tree = {
   ],
 };
 
-describe("omadia's questions back", () => {
+describe("idaria's questions back", () => {
   it("tells a question from a form choice", () => {
     expect(isQuestion(question)).toBe(true);
     expect(isQuestion({ type: "choice", id: "filter" })).toBe(false);

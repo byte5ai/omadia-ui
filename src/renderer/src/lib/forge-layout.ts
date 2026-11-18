@@ -2,7 +2,7 @@ import { childrenOf, isNode, isQuestion, type Node, str } from "./tree";
 
 /**
  * The forge draws a canvas before it exists: first as guesses, then as the
- * blueprint of the tree omadia is filling. A block is one drawable region in
+ * blueprint of the tree idaria is filling. A block is one drawable region in
  * a unit box (0..1 on both axes); the engine scales it to the stage.
  */
 
