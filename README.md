@@ -49,6 +49,11 @@ Omadia UI is the next layer — a desktop application where the agent
   [`docs/interactivity-concept.md`](docs/interactivity-concept.md) +
   [`docs/lumens-spec.md`](docs/lumens-spec.md).
 
+**See it:** the [clickable agentic desktop mockup](https://byte5ai.github.io/omadia-ui/mockups/agentic-desktop.html)
+shows omadia UI as the whole desktop of a thin client, generating a dispatch
+planner, a solar quote editor and a lobby kiosk on request. What to try is in
+[`docs/mockups/README.md`](docs/mockups/README.md).
+
 ## ⚡ Quickstart
 
 **Download:** grab the installer for your OS from the
@@ -93,6 +98,7 @@ refactor).
 | [`docs/lumens-spec.md`](docs/lumens-spec.md) | **Lumens** — normative definition: LX, `scene`, events/touch, capabilities, ports/wires, presets (`omadia-canvas-protocol/1.1` draft) |
 | [`docs/visual-spec.md`](docs/visual-spec.md) | Lume material system — tokens, rules, composition idioms (v0.5) |
 | [`docs/protocol/1.0.md`](docs/protocol/1.0.md) | Protocol specification + machine-validatable JSON Schemas |
+| [`docs/mockups/`](docs/mockups/README.md) | Clickable mockups, above all the [agentic desktop](https://byte5ai.github.io/omadia-ui/mockups/agentic-desktop.html), published on the docs site |
 | [`docs/walkthroughs.md`](docs/walkthroughs.md) | Use-case walkthroughs — multi-source comparison + editor micro-task |
 | [`docs/tech-stack.md`](docs/tech-stack.md) | Tech-stack decision for the host app (Electron), with reasoning |
 | [`app/`](app/) | The host application — Electron, strict TypeScript, vitest |

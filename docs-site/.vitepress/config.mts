@@ -48,6 +48,9 @@ export default defineConfig({
       { text: 'Latest spec', link: '/latest/', activeMatch: '^/latest/' },
       { text: 'Versions', items: versions },
       { text: 'History', link: '/history' },
+      // Mockups are static files in public/mockups, not VitePress pages: target
+      // _blank makes VitePress do a full navigation instead of SPA routing.
+      { text: 'Mockup', link: '/mockups/agentic-desktop.html', target: '_blank', rel: 'noreferrer' },
       { text: 'GitHub', link: 'https://github.com/byte5ai/omadia-ui' },
     ],
     sidebar: [
