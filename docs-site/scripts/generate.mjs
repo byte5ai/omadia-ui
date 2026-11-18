@@ -71,15 +71,10 @@ function fixLinks(md) {
       (_m, file) => `<a href="${BASE}previews/${file}" target="_blank" rel="noreferrer"><code>${file}</code></a>`,
     )
     // Reference mockups (docs/mockups/*.html) are served from /mockups/, same reasoning.
-    // A trailing #fragment (deep link into a mockup) is kept. Archived spec
-    // versions still name the retired kiosk mockup; its kiosk Lumen now lives
-    // in the agentic desktop's kiosk Space, so those links go there.
+    // A trailing #fragment (deep link into a mockup) is kept.
     .replace(
       /\[`\.?\/?mockups\/([^`\/#]+\.html)(?:#[^`]*)?`\]\(\.?\/?mockups\/[^)#]+\.html(#[^)]*)?\)/g,
-      (_m, file, hash = '') => {
-        if (file === 'kiosk-lumen-aura.html') [file, hash] = ['agentic-desktop.html', '#kiosk'];
-        return `<a href="${BASE}mockups/${file}${hash}" target="_blank" rel="noreferrer"><code>mockups/${file}${hash}</code></a>`;
-      },
+      (_m, file, hash = '') => `<a href="${BASE}mockups/${file}${hash}" target="_blank" rel="noreferrer"><code>mockups/${file}${hash}</code></a>`,
     );
 }
 
