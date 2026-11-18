@@ -10,6 +10,7 @@ node_modules/
 .vitepress/versions.json
 .vitepress/theme/lume-tokens.css
 public/previews/
+public/mockups/
 history.md
 latest/
 # all reconstructed version snapshots (v0.1 … v0.6 …) — globbed so this list
