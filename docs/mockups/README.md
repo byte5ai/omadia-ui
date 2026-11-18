@@ -67,6 +67,13 @@ guide (press `?`) or in the command layer, clears it.
 - Lume material, palettes and condensation:
   [`visual-spec.md`](../visual-spec.md), with §4.13 for Lumens.
 
-The earlier standalone kiosk mockup (`kiosk-lumen-aura.html`) is retired. Its
-kiosk Lumen lives on in the lobby kiosk Space, and links to the old file in
-archived spec versions on the docs site point there.
+## Kiosk Lumen, AURA
+
+[`kiosk-lumen-aura.html`](kiosk-lumen-aura.html), live at
+<https://byte5ai.github.io/omadia-ui/mockups/kiosk-lumen-aura.html>
+
+A single kiosk Lumen on its own, full screen, as the reference for
+[`visual-spec.md`](../visual-spec.md) §4.13. Tap the feature chips; the
+cadence overlay (bottom right) shows which regions are static, reactive or
+tick. The lobby kiosk Space of the agentic desktop shows a kiosk Lumen of the
+same kind inside the desktop.

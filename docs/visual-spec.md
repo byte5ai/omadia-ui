@@ -1331,9 +1331,12 @@ glassmorphism stays out). The only blur is the transient condensation (§3.5).
 **Cadence is per-region (§ render-cadence in the concept).** `static` and
 `reactive` regions cost ~0 % CPU at rest; only a `{tick}` region animates — a
 kiosk Lumen is mostly static beautiful surface with a few lit, moving accents.
-A reference kiosk Lumen lives in the lobby kiosk Space of the agentic desktop
-mockup, [`./mockups/agentic-desktop.html#kiosk`](./mockups/agentic-desktop.html#kiosk);
-its X-ray view tags every region with its cadence.
+A reference mockup lives at
+[`./mockups/kiosk-lumen-aura.html`](./mockups/kiosk-lumen-aura.html). The
+lobby kiosk Space of the agentic desktop mockup,
+[`./mockups/agentic-desktop.html#kiosk`](./mockups/agentic-desktop.html#kiosk),
+shows a kiosk Lumen inside the desktop; its X-ray view tags every region with
+its cadence.
 
 **Touch-first.** Lumen hit-targets honour the 44 pt minimum; the material's
 soft glow/halo affordances replace hover (which is dropped as a requirement) —
