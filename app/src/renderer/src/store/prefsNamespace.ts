@@ -16,6 +16,7 @@ export const ACTIVE_INSTANCE_KEY = 'omadia.ui-prefs.active-instance';
 export const NAMESPACED_BASE_KEYS = [
   'omadia.ui-prefs.canvases',
   'omadia.ui-prefs.desktops',
+  'omadia.ui-prefs.board',
   'omadia.ui-prefs.notifications',
 ] as const;
 

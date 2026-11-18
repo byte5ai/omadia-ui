@@ -9,7 +9,8 @@
   "scripts": {
     "sync:schema": "node ../scripts/sync-canvas-schema.mjs",
     "gen:validator": "npm run sync:schema && tsx tools/gen-validator/genValidator.ts",
-    "predev": "npm run gen:validator",
+    "gc": "node tools/gc-app-instances.mjs",
+    "predev": "npm run gc && npm run gen:validator",
     "dev": "electron-vite dev",
     "prebuild": "npm run gen:validator",
     "build": "electron-vite build",
