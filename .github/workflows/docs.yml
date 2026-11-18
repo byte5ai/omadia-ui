@@ -12,6 +12,7 @@ on:
     branches: [main]
     paths:
       - 'docs/visual-spec.md'
+      - 'docs/mockups/**'
       - 'docs-site/**'
       - '.github/workflows/docs.yml'
   workflow_dispatch:

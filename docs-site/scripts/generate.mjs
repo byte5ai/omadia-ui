@@ -11,10 +11,11 @@
  *   latest/index.md, v0.4/index.md … v0.1/index.md   (one page per version)
  *   history.md                                        (versions + commit log)
  *   public/previews/*                                 (companion HTML + svg)
+ *   public/mockups/*                                  (every docs/mockups/*.html)
  *   .vitepress/versions.json                          (nav dropdown source)
  */
 import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -64,10 +65,16 @@ function readSpecAt(commit) {
  * the `/`-rooted href at build time, so it must NOT be hard-coded here.
  */
 function fixLinks(md) {
-  return md.replace(
-    /\[`\.?\/?(visual-spec-preview[^`]*\.html)`\]\(\.\/visual-spec-preview[^)]*\.html\)/g,
-    (_m, file) => `<a href="${BASE}previews/${file}" target="_blank" rel="noreferrer"><code>${file}</code></a>`,
-  );
+  return md
+    .replace(
+      /\[`\.?\/?(visual-spec-preview[^`]*\.html)`\]\(\.\/visual-spec-preview[^)]*\.html\)/g,
+      (_m, file) => `<a href="${BASE}previews/${file}" target="_blank" rel="noreferrer"><code>${file}</code></a>`,
+    )
+    // Reference mockups (docs/mockups/*.html) are served from /mockups/, same reasoning.
+    .replace(
+      /\[`\.?\/?mockups\/([^`\/]+\.html)`\]\(\.?\/?mockups\/[^)]+\.html\)/g,
+      (_m, file) => `<a href="${BASE}mockups/${file}" target="_blank" rel="noreferrer"><code>mockups/${file}</code></a>`,
+    );
 }
 
 /** Insert a version banner right after the document's first H1. */
@@ -98,6 +105,7 @@ function clean() {
   }
   rmSync(join(SITE_DIR, 'history.md'), { force: true });
   rmSync(join(SITE_DIR, 'public', 'previews'), { recursive: true, force: true });
+  rmSync(join(SITE_DIR, 'public', 'mockups'), { recursive: true, force: true });
 }
 
 function writePage(dir, md) {
@@ -131,6 +139,16 @@ function copyPreviews() {
     if (existsSync(src)) { copyFileSync(src, join(dest, p.split('/').pop())); n++; }
   }
   console.log(`generate: copied ${n} companion assets to public/previews/`);
+}
+
+/** Publish every standalone mockup in docs/mockups/ at /mockups/<file>.html. */
+function copyMockups() {
+  const src = join(REPO_ROOT, 'docs', 'mockups');
+  const dest = join(SITE_DIR, 'public', 'mockups');
+  const files = existsSync(src) ? readdirSync(src).filter((f) => f.endsWith('.html')) : [];
+  mkdirSync(dest, { recursive: true });
+  for (const f of files) copyFileSync(join(src, f), join(dest, f));
+  console.log(`generate: copied ${files.length} mockups to public/mockups/`);
 }
 
 function generateHistory() {
@@ -323,6 +341,7 @@ function writeVersionsJson() {
 clean();
 generateVersionPages();
 copyPreviews();
+copyMockups();
 generateHistory();
 generateThemeTokens();
 writeVersionsJson();
