@@ -6,7 +6,6 @@ import type {
   PairingDescriptor,
 } from "../../../shared/ipc";
 import { Icon } from "../components/icons";
-import { LightCone } from "../components/light-cone";
 import { Logo } from "../components/logo";
 
 interface ConnectProps {
@@ -27,6 +26,7 @@ export function ConnectScreen({
   const [found, setFound] = useState<FoundServer[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(initialError);
+  const [setupHelp, setSetupHelp] = useState(false);
 
   useEffect(() => {
     const off = window.omadia.onPairingFound((s) =>
@@ -47,16 +47,24 @@ export function ConnectScreen({
     if (!input.trim()) return;
     setBusy(true);
     setError(undefined);
-    const descriptor = await window.omadia
+    setSetupHelp(false);
+    const result = await window.omadia
       .pairingDiscover(input)
-      .then((d) => d)
-      .catch(() => null);
+      .then((r) => r)
+      .catch(() => ({ ok: false as const, reason: "unreachable" as const }));
     setBusy(false);
-    if (!descriptor) {
-      setError("Unter dieser Adresse antwortet kein omadia.");
+    if (result.ok) {
+      onPaired(result.descriptor, input);
       return;
     }
-    onPaired(descriptor, input);
+    if (result.reason === "unreachable") {
+      setError(
+        "Dieser Server ist nicht erreichbar. Prüfe die Adresse und deine Verbindung.",
+      );
+      return;
+    }
+    setError("Unter dieser Adresse antwortet kein omadia.");
+    setSetupHelp(true);
   };
 
   return (
@@ -83,6 +91,7 @@ export function ConnectScreen({
           />
           {error ? <p className="field-error">{error}</p> : null}
         </div>
+        {setupHelp ? <PairingSetupHelp /> : null}
         {found.length ? (
           <>
             <p className="t-label">
@@ -120,6 +129,40 @@ export function ConnectScreen({
         </div>
       </form>
     </Arrival>
+  );
+}
+
+/** Reachable server, no omadia behind the address: what the server needs. */
+function PairingSetupHelp(): ReactElement {
+  return (
+    <div className="setup-help">
+      <p className="t-label">So wird der Server verbindbar</p>
+      <ol>
+        <li>
+          Installiere im Store die Plugins Omadia UI Channel und Omadia UI
+          Orchestrator.
+        </li>
+        <li>
+          Leite diese Pfade unter dieser Adresse direkt an die omadia-Middleware
+          weiter, nicht an die Admin-Oberfläche:
+          <ul>
+            <li>
+              <code>/.well-known/omadia-ui</code>
+            </li>
+            <li>
+              <code>/omadia-ui/</code> mit aktiviertem WebSocket-Upgrade
+            </li>
+            <li>
+              <code>/api/v1/auth/</code>
+            </li>
+          </ul>
+        </li>
+        <li>
+          Gib den Host-Header der Anfrage an die Middleware weiter, damit sie
+          die richtige Adresse für die Verbindung nennt.
+        </li>
+      </ol>
+    </div>
   );
 }
 
@@ -335,12 +378,7 @@ export function UnreachableScreen({
   );
 }
 
+/** A card in the arrival room; the room itself is `ArrivalStage` in app.tsx. */
 function Arrival({ children }: { children: React.ReactNode }): ReactElement {
-  return (
-    <div className="arrival">
-      <div className="drag-region" />
-      <LightCone />
-      <div className="arrival-inner">{children}</div>
-    </div>
-  );
+  return <div className="arrival-inner">{children}</div>;
 }

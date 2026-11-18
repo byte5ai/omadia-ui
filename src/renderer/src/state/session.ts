@@ -42,6 +42,7 @@ export async function loadSettings(): Promise<AppSettings> {
     mode: "system" as ColorMode,
     temperature: 4500 as LightTemperature,
     translucent: true,
+    showAgentActivity: true,
     devTurnLog: false,
   };
   const server =

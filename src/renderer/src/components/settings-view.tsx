@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import type { ColorMode, LightTemperature } from "../../../shared/ipc";
 import { useStore } from "../lib/create-store";
 import { canvasStore } from "../state/canvases";
+import { effectsStore, setEffects } from "../state/effects";
 import { saveSettings, sessionStore, temperatureLabel } from "../state/session";
 import {
   activeDesktop,
@@ -36,6 +37,7 @@ export function SettingsView({
 }: Props): ReactElement {
   const session = useStore(sessionStore, (s) => s);
   const settings = session.settings;
+  const effects = useStore(effectsStore, (s) => s);
   return (
     <div className="overlay-scrim" onMouseDown={closeOverlay}>
       <section
@@ -89,6 +91,30 @@ export function SettingsView({
               Durchscheinendes Fenster
             </label>
           ) : null}
+          <label className="choice-row">
+            <button
+              type="button"
+              role="switch"
+              className="switch"
+              aria-checked={settings?.showAgentActivity ?? true}
+              onClick={() =>
+                void saveSettings({
+                  showAgentActivity: !(settings?.showAgentActivity ?? true),
+                })
+              }
+            />
+            Show agent activity
+          </label>
+          <label className="choice-row">
+            <button
+              type="button"
+              role="switch"
+              className="switch"
+              aria-checked={effects}
+              onClick={() => setEffects(!effects)}
+            />
+            Bewegtes Licht und Staub auf diesem Gerät
+          </label>
         </div>
 
         <div className="settings-group">
@@ -115,8 +141,9 @@ export function SettingsView({
             ))}
           </div>
           <p className="t-small">
-            Färbt nur das Licht: Kegel, Auswahl, Fokus. Text und Status bleiben
-            gleich.
+            Färbt nur das Licht im Raum: Kegel, Auswahl, Fokus. Jeder Canvas
+            nimmt die Lichtwelt seiner Anfrage: Entscheider warm, Developer
+            kühl, alles andere neutral. Text und Status bleiben gleich.
           </p>
         </div>
 

@@ -27,10 +27,12 @@ import {
   phaseOf,
   progressOf,
 } from "../lib/forge-phase";
+import { clearReveal, revealPanel } from "../lib/forge-reveal";
 import { type GlyphPlayer, startGlyphs } from "../lib/glyph-player";
 import { cleanProse } from "../lib/prose";
 import { withoutQuestions } from "../lib/tree";
 import { abort, canvasStore } from "../state/canvases";
+import { effectsStore } from "../state/effects";
 import { focusPane } from "../state/workspace";
 import { LightCone } from "./light-cone";
 
@@ -51,7 +53,14 @@ const clock = (ms: number): string => {
  * moves forward. The light falls on them from a slit at the top edge; the
  * further the build, the wider the slit, the more of the middle is lit.
  */
-export function CanvasFocus({ slotKey }: { slotKey: string }): ReactElement {
+export function CanvasFocus({
+  slotKey,
+  leaving = false,
+}: {
+  slotKey: string;
+  /** The turn is over and the panel arrives under this light. */
+  leaving?: boolean;
+}): ReactElement {
   const rt = useStore(canvasStore, (s) => s.runtime[slotKey]);
   const paneRef = useRef<HTMLElement>(null);
   const lightRef = useRef<HTMLCanvasElement>(null);
@@ -66,6 +75,10 @@ export function CanvasFocus({ slotKey }: { slotKey: string }): ReactElement {
   const progressRef = useRef(0);
   const [hasLight, setHasLight] = useState(true);
   const [reduced] = useState(reducedMotion);
+  // Without effects the light stands still and carries no dust.
+  const effects = useStore(effectsStore, (s) => s);
+  // The light opens over the arriving panel; without motion it is just there.
+  const revealing = leaving && hasLight && effects && !reduced;
   const [now, setNow] = useState(() => Date.now());
   const [startedAt] = useState(now);
 
@@ -115,8 +128,14 @@ export function CanvasFocus({ slotKey }: { slotKey: string }): ReactElement {
     const canvas = lightRef.current;
     if (!canvas) return;
     const light = startForgeLight(canvas, {
-      reduced,
-      onCone: (cone) => {
+      reduced: reduced || !effects,
+      dust: effects && !reduced,
+      onCone: (cone, width, height, reveal) => {
+        if (reveal !== null)
+          revealPanel(paneRef.current, cone, reveal, {
+            width,
+            height,
+          });
         const pane = paneRef.current?.getBoundingClientRect();
         const text = textRef.current?.getBoundingClientRect();
         const glyph = glyphRef.current?.getBoundingClientRect();
@@ -152,11 +171,18 @@ export function CanvasFocus({ slotKey }: { slotKey: string }): ReactElement {
     });
     forgeLightRef.current = light;
     if (!light) setHasLight(false);
+    const focus = paneRef.current;
     return () => {
       light?.destroy();
       forgeLightRef.current = null;
+      // Gone before the light had opened all the way: the panel stands whole.
+      clearReveal(focus);
     };
-  }, [reduced]);
+  }, [reduced, effects]);
+
+  useEffect(() => {
+    if (leaving) forgeLightRef.current?.leave();
+  }, [leaving]);
 
   useEffect(() => {
     const canvas = glyphRef.current;
@@ -231,14 +257,19 @@ export function CanvasFocus({ slotKey }: { slotKey: string }): ReactElement {
   return (
     <section
       ref={paneRef}
-      className={`focus${reduced ? " still" : ""}${hasLight ? "" : " no-light"}`}
-      data-pane={slotKey}
-      aria-label="omadia baut den Canvas"
-      aria-busy="true"
+      className={`focus${reduced ? " still" : ""}${hasLight ? "" : " no-light"}${leaving ? " leaving" : ""}${revealing ? " revealing" : ""}`}
+      {...(leaving
+        ? { "aria-hidden": true }
+        : {
+            "data-pane": slotKey,
+            "aria-label": "omadia baut den Canvas",
+            "aria-busy": true,
+          })}
       onMouseDown={() => focusPane(slotKey)}
     >
       {hasLight ? (
         <>
+          <div className="focus-ground" aria-hidden="true" />
           <canvas ref={lightRef} className="focus-light" aria-hidden="true" />
           <span ref={slitRef} className="focus-slit" aria-hidden="true" />
         </>
@@ -261,7 +292,9 @@ export function CanvasFocus({ slotKey }: { slotKey: string }): ReactElement {
           <span
             ref={anchorRef}
             className="forge-pen"
-            data-dot-anchor={`pane:${slotKey}:center`}
+            {...(leaving
+              ? {}
+              : { "data-dot-anchor": `pane:${slotKey}:center` })}
             data-dot-size={5}
           />
         </div>

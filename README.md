@@ -45,6 +45,7 @@ npm test
 | Primitives | `src/renderer/src/primitives` | all 24 canvas primitives and their traits |
 | Chrome | `src/renderer/src/components`, `screens` | sidebar, panes, ⌘K command, action panel, library, settings, notifications, arrival screens, agent dot |
 | Design tokens | `src/renderer/src/styles/tokens.css` | night and day room, light temperature (2700/4500/6500 K) |
+| Light | `@omadia/light` (`../omadia-plugins/omadia-ui-support/packages/light`, linked) | cone, fog and dust in one WebGL context; used by the arrival room (`components/arrival-room.tsx`) and the build light (`lib/forge-light.ts`). Rebuild it (`npm run build` there, or `npm run dev` to watch) after changing it. Per device switch in Settings and ⌘K (`state/effects.ts`). |
 
 ### Building a new canvas
 
@@ -67,7 +68,10 @@ and soft at its end.
 A theme switch blends the medium over 400 ms; the cone stays. The slit opens with the progress;
 text and icon are material in the half-dark and turn to ink only where the
 cone falls on them (a lit copy, masked to the cone). Every streamed sentence,
-snapshot and patch sends a pulse down the beam. Without WebGL the still cone
+snapshot and patch sends a pulse down the beam, and the pulse stirs the dust in
+the air as it passes. When the turn ends, the light stays over the arriving
+panel for a moment (`.pane-slot` stacks both): the slit opens all the way, a
+gust carries the dust up and out, and the light fades. Without WebGL the still cone
 stays and everything is lit. ⌘K "Aufbau-Animation: …" switches the two;
 the choice is kept per device.
 

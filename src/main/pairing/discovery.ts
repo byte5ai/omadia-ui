@@ -2,6 +2,7 @@ import type {
   AuthProvider,
   PairingAuth,
   PairingDescriptor,
+  PairingResult,
 } from "../../shared/ipc";
 
 /**
@@ -19,11 +20,15 @@ const INFO_PATH = "/omadia-ui/info";
 const isWs = (v: string): boolean => /^wss?:\/\/\S+$/.test(v);
 const isHttp = (v: string): boolean => /^https?:\/\/\S+$/.test(v);
 
-const fetchJson = async (url: string): Promise<Record<string, unknown>> => {
+const fetchJson = async (
+  url: string,
+  onResponse: () => void,
+): Promise<Record<string, unknown>> => {
   const res = await fetch(url, {
     signal: AbortSignal.timeout(TIMEOUT_MS),
     redirect: "manual",
   });
+  onResponse();
   if (!res.ok) throw new Error(`${url} answered ${res.status}`);
   return (await res.json()) as Record<string, unknown>;
 };
@@ -143,27 +148,45 @@ function parseInfo(
   };
 }
 
-async function probeOrigin(origin: string): Promise<PairingDescriptor | null> {
-  const wellKnown = await fetchJson(`${origin}${WELL_KNOWN_PATH}`)
-    .then((body) => parseWellKnown(body))
-    .catch(() => null);
-  if (wellKnown) return wellKnown;
-  return await fetchJson(`${origin}${INFO_PATH}`)
-    .then((body) => parseInfo(origin, body))
-    .catch(() => null);
+interface Probe {
+  descriptor: PairingDescriptor | null;
+  /** any HTTP response counts, also a 404 or a redirect to a login page */
+  answered: boolean;
 }
 
-export async function discoverPairing(
-  input: string,
-): Promise<PairingDescriptor | null> {
+async function probeOrigin(origin: string): Promise<Probe> {
+  let answered = false;
+  const onResponse = (): void => {
+    answered = true;
+  };
+  const wellKnown = await fetchJson(`${origin}${WELL_KNOWN_PATH}`, onResponse)
+    .then((body) => parseWellKnown(body))
+    .catch(() => null);
+  const descriptor =
+    wellKnown ??
+    (await fetchJson(`${origin}${INFO_PATH}`, onResponse)
+      .then((body) => parseInfo(origin, body))
+      .catch(() => null));
+  return { descriptor, answered };
+}
+
+export async function discoverPairing(input: string): Promise<PairingResult> {
   const v = input.trim();
-  if (!v) return null;
   if (isCanvasTransportUrl(v)) {
-    return { wsUrl: v, protocolVersion: "1.0", auth: { mode: "unknown" } };
+    return {
+      ok: true,
+      descriptor: {
+        wsUrl: v,
+        protocolVersion: "1.0",
+        auth: { mode: "unknown" },
+      },
+    };
   }
+  let answered = false;
   for (const origin of candidateOrigins(v)) {
-    const descriptor = await probeOrigin(origin);
-    if (descriptor) return descriptor;
+    const probe = await probeOrigin(origin);
+    if (probe.descriptor) return { ok: true, descriptor: probe.descriptor };
+    answered ||= probe.answered;
   }
-  return null;
+  return { ok: false, reason: answered ? "no_discovery" : "unreachable" };
 }

@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@omadia/canvas-core": "file:../omadia-plugins/omadia-ui-support/packages/canvas-core",
+    "@omadia/light": "file:../omadia-plugins/omadia-ui-support/packages/light",
     "ajv": "^8.20.0",
     "bonjour-service": "^1.4.4",
     "react": "^19.2.7",

@@ -9,6 +9,7 @@ const DEFAULTS: AppSettings = {
   mode: "system",
   temperature: 4500,
   translucent: true,
+  showAgentActivity: true,
   devTurnLog: false,
 };
 
@@ -44,6 +45,7 @@ function sanitize(raw: unknown): AppSettings {
     temperature:
       o.temperature === 2700 || o.temperature === 6500 ? o.temperature : 4500,
     translucent: o.translucent !== false,
+    showAgentActivity: o.showAgentActivity !== false,
     devTurnLog: o.devTurnLog === true,
   };
 }

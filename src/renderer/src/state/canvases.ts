@@ -8,6 +8,7 @@ import {
 } from "../../../shared/canvas-core";
 import type { SocketStatus } from "../../../shared/ipc";
 import { createStore } from "../lib/create-store";
+import { classifyPrompt, type LightWorld } from "../lib/light-world";
 import { recoverPublishedRows } from "../lib/recover-tool-calls";
 import {
   deriveTitle,
@@ -40,7 +41,17 @@ export interface CanvasMeta {
   updatedAt: number;
   /** ids of omadia's questions you answered (or talked past) */
   answered?: string[];
+  /** the world of light the canvas stands in, from its first request */
+  light?: LightWorld;
 }
+
+/**
+ * The world of light of a canvas. Set from its first request; a canvas from
+ * before that (or synced from another device, which carries no world) is
+ * read from its title.
+ */
+export const lightWorldOf = (meta: CanvasMeta): LightWorld =>
+  meta.light ?? classifyPrompt(meta.title === "Neuer Canvas" ? "" : meta.title);
 
 /** What omadia is doing on this canvas (the agent dot reads this). */
 export type Activity = "idle" | "thinking" | "working";
@@ -228,7 +239,11 @@ export function openLocalTree(
   prose = "",
   prompt?: string,
 ): string | null {
-  const slotKey = createCanvas({ title, titleLocked: true });
+  const slotKey = createCanvas({
+    title,
+    titleLocked: true,
+    light: classifyPrompt(prompt ?? title),
+  });
   if (!materialize(slotKey, tree)) {
     deleteCanvas(slotKey);
     return null;
@@ -333,6 +348,10 @@ export async function sendPrompt(
     patchMeta(slotKey, {
       title: trimmed.length > 48 ? `${trimmed.slice(0, 47)}…` : trimmed,
     });
+  }
+  // The first request decides the light; refining it later keeps the world.
+  if (meta && !meta.light && runtimeOf(slotKey).forging) {
+    patchMeta(slotKey, { light: classifyPrompt(trimmed) });
   }
   log(slotKey, "T1", `turn ${trimmed.slice(0, 40)}`);
   whenReady(slotKey, () =>

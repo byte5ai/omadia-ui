@@ -423,6 +423,20 @@
 }
 
 /* ── pane ── */
+/* The place of one pane in its tile. Its children stack in one cell, so the
+   build light can lie over the arriving panel while it leaves. */
+.pane-slot {
+  position: relative;
+  display: grid;
+  /* One cell exactly the slot's size, whatever its children hold. */
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+.pane-slot > * {
+  grid-area: 1 / 1;
+}
 .pane {
   position: relative;
   display: flex;
@@ -1261,12 +1275,42 @@
   background: var(--ground);
   overflow: hidden;
 }
-.light-cone {
+.light-cone,
+.arrival-light {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
+}
+.arrival-light {
+  display: block;
+}
+/* Entering the workspace: the room lies over it, its ground gives way at
+   once, the light opens and fades with the dust (ARRIVAL_EXIT_MS). */
+.arrival.leaving {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  transition: background-color 360ms var(--ease-light);
+}
+.arrival.leaving,
+.vibrant .arrival.leaving,
+:root[data-mode="day"].vibrant .arrival.leaving {
+  background-color: transparent;
+}
+.arrival.leaving > .arrival-light,
+.arrival.leaving > .light-cone {
+  opacity: 0;
+  transition: opacity 1400ms cubic-bezier(0.4, 0, 0.6, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .arrival.leaving,
+  .arrival.leaving > .arrival-light,
+  .arrival.leaving > .light-cone {
+    transition-duration: 1ms;
+  }
 }
 .arrival-inner {
   position: relative;
@@ -1423,7 +1467,52 @@
   border-radius: 12px;
   animation: forge-in 420ms ease;
 }
-/* The light: fog in a cone from a slit at the top edge (lib/forge-light). */
+/* The turn has ended: the panel arrives under the light (FOCUS_EXIT_MS).
+   A fast pulse sweeps it in from the top, then the light opens over all of
+   it; where the light has not been yet, the ground of the build stays. The
+   words go at once; the light fades as it opens. */
+.focus.leaving {
+  z-index: 1;
+  pointer-events: none;
+  animation: none;
+}
+/* The opening light reveals the panel (a mask from canvas-focus.tsx), so it
+   does not fade in on its own: not under the light, and not once the light
+   has gone either (`data-revealed` stays on the panel). */
+.pane-slot:has(> .focus.revealing) > .pane.arrived,
+.pane.arrived[data-revealed] {
+  animation: none;
+}
+.focus.leaving .focus-light {
+  opacity: 0;
+  transition: opacity 1700ms cubic-bezier(0.4, 0, 0.6, 1) 450ms;
+}
+/* Without the sweep (no motion, no WebGL) the ground simply gives way. */
+.focus.leaving:not(.revealing) .focus-ground {
+  opacity: 0;
+  transition: opacity 360ms var(--ease-light);
+}
+.focus.leaving :is(.forge-head, .focus-core, .focus-slit) {
+  opacity: 0;
+  transition: opacity 240ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .focus.leaving .focus-light,
+  .focus.leaving:not(.revealing) .focus-ground,
+  .focus.leaving :is(.forge-head, .focus-core, .focus-slit) {
+    transition-duration: 1ms;
+    transition-delay: 0ms;
+  }
+}
+/* The ground of the build, under the light; masked away as the light
+   reveals the panel. */
+.focus-ground {
+  position: absolute;
+  inset: 0;
+  background: var(--ground);
+}
+/* The light: fog in a cone from a slit at the top edge (lib/forge-light).
+   The canvas only adds light to the ground under it. */
 .focus-light {
   position: absolute;
   inset: 0;

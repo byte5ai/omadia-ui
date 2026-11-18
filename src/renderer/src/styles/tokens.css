@@ -72,18 +72,31 @@
   --tint-5: #8f7a45;
 }
 
-/* Light temperature only tints the light: cone, selection edge, focus. */
-:root[data-temp="2700"] {
+/* Light temperature only tints the light: cone, selection edge, focus.
+   The room takes the user's; a canvas carries the one of its world on its
+   slot (lib/light-world), so it overrides whatever the room has. */
+:root[data-temp="2700"],
+[data-temp="2700"] {
   --light: #ffe3c2;
 }
-:root[data-temp="6500"] {
+[data-temp="4500"] {
+  --light: #f3efe6;
+}
+:root[data-temp="6500"],
+[data-temp="6500"] {
   --light: #e3ecff;
 }
+:root[data-mode="day"] [data-temp="4500"] {
+  --light: #ffffff;
+  --cone-patch: #fffcf6;
+}
 /* By day the patch is only lightly tinted; the temperature is never status. */
-:root[data-mode="day"][data-temp="2700"] {
+:root[data-mode="day"][data-temp="2700"],
+:root[data-mode="day"] [data-temp="2700"] {
   --cone-patch: #fff0dd;
 }
-:root[data-mode="day"][data-temp="6500"] {
+:root[data-mode="day"][data-temp="6500"],
+:root[data-mode="day"] [data-temp="6500"] {
   --cone-patch: #f4f8ff;
 }
 

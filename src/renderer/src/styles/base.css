@@ -281,6 +281,26 @@ textarea.input {
   font-size: 13px;
   color: var(--blocked);
 }
+.setup-help {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--meta);
+}
+.setup-help ol,
+.setup-help ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+}
+.setup-help ul {
+  margin-top: 4px;
+}
+.setup-help code {
+  font-family: var(--mono);
+  color: var(--text);
+}
 .field-help {
   font-size: 13px;
   color: var(--meta);

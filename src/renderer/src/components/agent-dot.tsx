@@ -3,6 +3,7 @@ import { type ReactElement, useEffect, useRef, useState } from "react";
 import { useStore } from "../lib/create-store";
 import { openQuestion } from "../lib/tree";
 import { type CanvasesState, canvasStore } from "../state/canvases";
+import { sessionStore } from "../state/session";
 import {
   activeDesktop,
   leaves,
@@ -15,7 +16,8 @@ import {
  * travels in straight lines to wherever omadia is working: the start of your
  * sentence while you type, the place a view is about to appear, the cell it
  * is checking, the question it is waiting on. A soft glow only while omadia
- * computes; colour only as status, and only for a moment.
+ * computes; colour only as status, and only for a moment. With the agent
+ * activity turned off it never leaves the logo.
  */
 
 interface Target {
@@ -25,6 +27,7 @@ interface Target {
 }
 
 const FLASH_MS = 1400;
+const AT_REST: Target = { key: "logo", glow: false };
 
 function pickTarget(c: CanvasesState, w: WorkspaceState, now: number): Target {
   if (w.overlay.kind === "command") return { key: "command", glow: false };
@@ -120,8 +123,12 @@ interface Point {
 export function AgentDot(): ReactElement {
   const canvases = useStore(canvasStore, (s) => s);
   const workspace = useStore(workspaceStore, (s) => s);
+  const active = useStore(
+    sessionStore,
+    (s) => s.settings?.showAgentActivity ?? true,
+  );
   const [now, setNow] = useState(() => Date.now());
-  const target = pickTarget(canvases, workspace, now);
+  const target = active ? pickTarget(canvases, workspace, now) : AT_REST;
   const dotRef = useRef<HTMLDivElement>(null);
   const last = useRef<Point | null>(null);
   const lastKey = useRef<string>("");
@@ -194,6 +201,8 @@ export function AgentDot(): ReactElement {
         ref={dotRef}
         className={`agent-dot${target.glow ? " glow" : ""}${target.tone ? ` tone-${target.tone}` : ""}`}
         aria-hidden="true"
+        // Resting without a logo would strand it wherever it last was.
+        hidden={!active && !workspace.sidebar}
       />
     </>
   );

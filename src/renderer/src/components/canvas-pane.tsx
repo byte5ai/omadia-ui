@@ -7,6 +7,7 @@ import {
 } from "react";
 
 import { useStore } from "../lib/create-store";
+import { WORLD_TEMPERATURE } from "../lib/light-world";
 import {
   arr,
   collectSuggestions,
@@ -16,6 +17,7 @@ import {
   openQuestion,
   withoutQuestions,
 } from "../lib/tree";
+import { usePresence } from "../lib/use-presence";
 import { cellText } from "../primitives/data-nodes";
 import {
   Children,
@@ -33,6 +35,7 @@ import {
   back,
   canvasStore,
   createCanvas,
+  lightWorldOf,
   patchMeta,
   refresh,
   sendAction,
@@ -110,15 +113,15 @@ export function CanvasPane({
     setWasForging(forging);
     if (!forging) setArrived(true);
   }
+  // The focus light stays over the arriving panel for a moment and blows
+  // its dust out; the slot keeps it in place so it is the same light.
+  const exit = usePresence(forging, FOCUS_EXIT_MS);
+  const focusLight = forgeStyle === "focus" && (forging || exit.closing);
   if (!meta || !rt) return null;
-  if (forging) {
-    // Keyed: another canvas in this pane starts its own clock and progress.
-    return forgeStyle === "focus" ? (
-      <CanvasFocus key={slotKey} slotKey={slotKey} />
-    ) : (
-      <CanvasForge key={slotKey} slotKey={slotKey} />
-    );
-  }
+  // Keyed: another canvas in this pane starts its own clock and progress.
+  const forge = focusLight ? (
+    <CanvasFocus key={slotKey} slotKey={slotKey} leaving={!forging} />
+  ) : null;
   const hasTree = isNode(tree);
   const offline =
     rt.status.state !== "ready" &&
@@ -130,7 +133,7 @@ export function CanvasPane({
     splitPane(slotKey, dir, next);
   };
 
-  return (
+  const pane = (
     <section
       className={`pane${focused && !single ? " focused" : ""}${arrived ? " arrived" : ""}`}
       data-pane={slotKey}
@@ -284,7 +287,21 @@ export function CanvasPane({
       {hasTree || busy ? <AskBar slotKey={slotKey} busy={busy} /> : null}
     </section>
   );
+  // One shape for both, so the focus light stays mounted when the panel comes.
+  return (
+    <div
+      className="pane-slot"
+      data-temp={WORLD_TEMPERATURE[lightWorldOf(meta)]}
+    >
+      {forge ??
+        (forging ? <CanvasForge key={slotKey} slotKey={slotKey} /> : null)}
+      {forging ? null : pane}
+    </div>
+  );
 }
+
+/** Keep in step with the leaving motion of `.focus.leaving` in app.css. */
+const FOCUS_EXIT_MS = 2300;
 
 function socketLabel(state: string): string {
   switch (state) {

@@ -8,13 +8,21 @@ import {
   utilisationTree,
 } from "../lib/dev-fixtures";
 import {
+  LIGHT_WORLDS,
+  WORLD_LABEL,
+  WORLD_TEMPERATURE,
+} from "../lib/light-world";
+import {
   canvasStore,
   createCanvas,
+  lightWorldOf,
   openLocalTree,
+  patchMeta,
   refresh,
   sendPrompt,
 } from "../state/canvases";
 import { simulateBuild } from "../state/dev-build";
+import { effectsStore, setEffects } from "../state/effects";
 import { forgeStyleStore, toggleForgeStyle } from "../state/forge-style";
 import { saveSettings, sessionStore } from "../state/session";
 import {
@@ -55,10 +63,12 @@ export function CommandPalette({
   const desktop = useStore(workspaceStore, (s) => activeDesktop(s));
   const focused = desktop?.focused;
   const focusedEmpty = focused ? runtime[focused]?.canvas.tree == null : true;
+  const focusedMeta = focused ? metas[focused] : undefined;
 
   useEffect(() => inputRef.current?.focus(), []);
 
   const forgeStyle = useStore(forgeStyleStore, (s) => s);
+  const effects = useStore(effectsStore, (s) => s);
   const entries = useMemo<Entry[]>(() => {
     const q = query.trim();
     const out: Entry[] = [];
@@ -194,6 +204,22 @@ export function CommandPalette({
         icon: "sun",
         run: () => openOverlay({ kind: "settings" }),
       },
+      // The request picked the canvas's light; this sets it by hand.
+      ...(focusedMeta
+        ? LIGHT_WORLDS.filter((w) => w !== lightWorldOf(focusedMeta)).map(
+            (world): Entry => ({
+              id: `light-${world}`,
+              group: "Befehl",
+              label: `Lichtwelt: ${WORLD_LABEL[world]} (${WORLD_TEMPERATURE[world]} K)`,
+              hint: `für ${focusedMeta.title}`,
+              icon: "sun",
+              run: () => {
+                closeOverlay();
+                patchMeta(focusedMeta.slotKey, { light: world });
+              },
+            }),
+          )
+        : []),
       {
         id: "forge-style",
         group: "Befehl",
@@ -205,6 +231,18 @@ export function CommandPalette({
         run: () => {
           closeOverlay();
           toggleForgeStyle();
+        },
+      },
+      {
+        id: "effects",
+        group: "Befehl",
+        label: effects
+          ? "Licht und Staub: still stellen"
+          : "Licht und Staub: bewegen",
+        icon: "sun",
+        run: () => {
+          closeOverlay();
+          setEffects(!effects);
         },
       },
     ];
@@ -283,8 +321,10 @@ export function CommandPalette({
     metas,
     focused,
     focusedEmpty,
+    focusedMeta,
     settings?.temperature,
     forgeStyle,
+    effects,
   ]);
 
   useEffect(() => setIndex(0), [query]);

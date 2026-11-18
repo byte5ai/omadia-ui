@@ -53,6 +53,7 @@ export interface AppSettings {
   mode: ColorMode;
   temperature: LightTemperature;
   translucent: boolean;
+  showAgentActivity: boolean;
   devTurnLog: boolean;
 }
 
@@ -91,6 +92,12 @@ export interface SocketStatus {
   sessionExpiresAt?: number;
 }
 
+/** `unreachable`: no server answered at all. `no_discovery`: a server answered,
+ *  but none of the discovery paths reached omadia. */
+export type PairingResult =
+  | { ok: true; descriptor: PairingDescriptor }
+  | { ok: false; reason: "unreachable" | "no_discovery" };
+
 export interface ConnectRequest {
   slotKey: string;
   wsUrl: string;
@@ -102,7 +109,7 @@ export interface OmadiaApi {
   settingsGet(): Promise<AppSettings>;
   settingsSave(patch: Partial<AppSettings>): Promise<AppSettings>;
 
-  pairingDiscover(input: string): Promise<PairingDescriptor | null>;
+  pairingDiscover(input: string): Promise<PairingResult>;
   pairingScanStart(): Promise<void>;
   pairingScanStop(): Promise<void>;
   onPairingFound(cb: (server: FoundServer) => void): () => void;

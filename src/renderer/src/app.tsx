@@ -1,8 +1,15 @@
-import { type ReactElement, useCallback, useEffect, useState } from "react";
+import {
+  type ReactElement,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 
 import type { AuthDiscovery, PairingDescriptor } from "../../shared/ipc";
 import { ActionPanel } from "./components/action-panel";
 import { AgentDot } from "./components/agent-dot";
+import { type ArrivalMood, ArrivalRoom } from "./components/arrival-room";
 import { CommandPalette } from "./components/command-palette";
 import { LibraryView } from "./components/library-view";
 import { Banners, BellPanel, Toasts } from "./components/notifications-view";
@@ -35,7 +42,12 @@ import {
   startPersistence,
   stopPersistence,
 } from "./state/persistence";
-import { loadSettings, saveSettings, sessionStore } from "./state/session";
+import {
+  loadSettings,
+  type Phase,
+  saveSettings,
+  sessionStore,
+} from "./state/session";
 import {
   activeDesktop,
   closeOverlay,
@@ -219,44 +231,95 @@ export function App(): ReactElement {
 
   useAppCommands(session.phase === "ready");
 
-  switch (session.phase) {
-    case "booting":
-      return <div className="arrival" />;
-    case "connect":
-      return (
-        <ConnectScreen
-          initial={session.server ? hostOf(session.server.wsUrl) : ""}
-          {...(connectError ? { error: connectError } : {})}
-          onPaired={(d, input) => void onPaired(d, input)}
-          {...(session.server ? { onCancel: () => void checkServer() } : {})}
-        />
-      );
-    case "sign-in":
-      return (
-        <SignInScreen
-          host={hostOf(session.server?.wsUrl ?? "")}
-          wsUrl={session.server?.wsUrl ?? ""}
-          discovery={discovery}
-          onSignedIn={(email) => enterWorkspace(email)}
-          onBack={switchServer}
-        />
-      );
-    case "unreachable":
-      return (
-        <UnreachableScreen
-          host={hostOf(session.server?.wsUrl ?? "")}
-          {...(session.unreachableSince
-            ? { since: session.unreachableSince }
-            : {})}
-          onRetry={() => void checkServer()}
-          onSwitch={switchServer}
-        />
-      );
-    default:
-      return (
+  const ready = session.phase === "ready";
+  // The last screen before the workspace, kept while the room leaves.
+  const [arrival, setArrival] = useState<Phase>(session.phase);
+  if (!ready && session.phase !== arrival) setArrival(session.phase);
+  const stage = usePresence(!ready, ARRIVAL_EXIT_MS);
+  // Straight from booting into the workspace: no arrival to leave.
+  const keepStage = !ready || (stage.mounted && arrival !== "booting");
+
+  return (
+    <>
+      {ready ? (
         <Shell onSwitchServer={switchServer} onSignOut={() => void signOut()} />
-      );
+      ) : null}
+      {keepStage ? (
+        <ArrivalStage
+          scene={arrival}
+          mood={arrival === "unreachable" ? "waiting" : "open"}
+          leaving={ready}
+        >
+          {arrivalScreen()}
+        </ArrivalStage>
+      ) : null}
+    </>
+  );
+
+  function arrivalScreen(): ReactElement | null {
+    switch (session.phase) {
+      case "connect":
+        return (
+          <ConnectScreen
+            initial={session.server ? hostOf(session.server.wsUrl) : ""}
+            {...(connectError ? { error: connectError } : {})}
+            onPaired={(d, input) => void onPaired(d, input)}
+            {...(session.server ? { onCancel: () => void checkServer() } : {})}
+          />
+        );
+      case "sign-in":
+        return (
+          <SignInScreen
+            host={hostOf(session.server?.wsUrl ?? "")}
+            wsUrl={session.server?.wsUrl ?? ""}
+            discovery={discovery}
+            onSignedIn={(email) => enterWorkspace(email)}
+            onBack={switchServer}
+          />
+        );
+      case "unreachable":
+        return (
+          <UnreachableScreen
+            host={hostOf(session.server?.wsUrl ?? "")}
+            {...(session.unreachableSince
+              ? { since: session.unreachableSince }
+              : {})}
+            onRetry={() => void checkServer()}
+            onSwitch={switchServer}
+          />
+        );
+      default:
+        return null;
+    }
   }
+}
+
+/** Keep in step with the leaving motion of `.arrival` in app.css. */
+const ARRIVAL_EXIT_MS = 1400;
+
+/**
+ * The room the arrival screens share. It stays mounted from screen to screen,
+ * so the light and the dust carry over; entering the workspace it lies over
+ * it for a moment and opens, then fades.
+ */
+function ArrivalStage({
+  scene,
+  mood,
+  leaving,
+  children,
+}: {
+  scene: string;
+  mood: ArrivalMood;
+  leaving: boolean;
+  children: ReactNode;
+}): ReactElement {
+  return (
+    <div className={`arrival${leaving ? " leaving" : ""}`}>
+      {leaving ? null : <div className="drag-region" />}
+      <ArrivalRoom scene={scene} mood={mood} leaving={leaving} />
+      {children}
+    </div>
+  );
 }
 
 function Shell({

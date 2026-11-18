@@ -5,10 +5,11 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, externalizeDepsPlugin } from "electron-vite";
 import { searchForWorkspaceRoot } from "vite";
 
-// @omadia/canvas-core is a file: link to a sibling repo; the dev server only
-// serves files under its allow list, so allow wherever the link points.
-const canvasCore = realpathSync(
-  resolve(import.meta.dirname, "node_modules/@omadia/canvas-core"),
+// @omadia/canvas-core and @omadia/light are file: links to a sibling repo;
+// the dev server only serves files under its allow list, so allow wherever
+// the links point.
+const linked = ["canvas-core", "light"].map((name) =>
+  realpathSync(resolve(import.meta.dirname, `node_modules/@omadia/${name}`)),
 );
 
 export default defineConfig({
@@ -19,7 +20,7 @@ export default defineConfig({
   renderer: {
     plugins: [react()],
     server: {
-      fs: { allow: [searchForWorkspaceRoot(process.cwd()), canvasCore] },
+      fs: { allow: [searchForWorkspaceRoot(process.cwd()), ...linked] },
     },
   },
 });
