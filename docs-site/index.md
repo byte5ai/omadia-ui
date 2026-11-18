@@ -15,6 +15,11 @@ hero:
       text: Version history & authorship
       link: /history
     - theme: alt
+      text: Try the clickable mockup
+      link: /mockups/agentic-desktop.html
+      target: _blank
+      rel: noreferrer
+    - theme: alt
       text: View on GitHub
       link: https://github.com/byte5ai/omadia-ui/blob/main/docs/visual-spec.md
 

@@ -1227,7 +1227,7 @@ shared-canvas hooks; the deltas are additive (a `behavior` tree section, the
 - **Rationale / concept:** [`docs/interactivity-concept.md`](docs/interactivity-concept.md)
 - **Normative definition / spec:** [`docs/lumens-spec.md`](docs/lumens-spec.md)
 - **Lume visual treatment:** [`docs/visual-spec.md`](docs/visual-spec.md) §4.13
-- **Reference mockup:** [`docs/mockups/kiosk-lumen-aura.html`](docs/mockups/kiosk-lumen-aura.html)
+- **Reference mockup:** [`docs/mockups/agentic-desktop.html`](docs/mockups/agentic-desktop.html) ([open it live](https://byte5ai.github.io/omadia-ui/mockups/agentic-desktop.html)), the clickable agentic desktop with three generated applications, including a kiosk Lumen; walkthrough in [`docs/mockups/README.md`](docs/mockups/README.md)
 
 Not a v1 deliverable of this base concept; tracked as its own implementation
 workstream.

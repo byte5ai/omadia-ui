@@ -11,7 +11,11 @@
   Lumens (docs/lumens-spec.md), backed by omadia core and its plugins.
   Material: Lume, dark base, Lagoon palette (docs/visual-spec.md).
   Interaction model: direct manipulation, context-invoke action panel, beam,
-  Cmd/Ctrl+K, Spaces, Trace (CONCEPT.md "Interaction Model").
+  Cmd/Ctrl+K, Spaces, Recent work, Trace (CONCEPT.md "Interaction Model").
+  The lobby kiosk is a brand Lumen with its render cadence visible in X-ray
+  (docs/interactivity-concept.md section 5).
+  Deep links: #dispatch, #solar, #kiosk. ?noboot skips the boot sequence.
+  State persists in localStorage; "Reset demo" (guide or Cmd/Ctrl+K) clears it.
   All data is fictional. All logic is illustrative and runs in this page.
 -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%2303121D%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%276%27 fill=%27%236FC8D6%27/%3E%3C/svg%3E" />
@@ -108,7 +112,7 @@ button{cursor:pointer;background:none;border:none}
   background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--bdb);border-top-color:var(--bdt)}
 
 #stage{position:relative;overflow:hidden}
-.canvas{position:absolute;inset:0;padding:14px 14px 48px;display:none}
+.canvas{position:absolute;inset:0;padding:14px 14px calc(48px + var(--xbar-h,0px));display:none}
 .canvas.on{display:block}
 .canvas.enter-r{animation:enterR .32s var(--ease-s) both}
 .canvas.enter-l{animation:enterL .32s var(--ease-s) both}
@@ -176,6 +180,8 @@ button{cursor:pointer;background:none;border:none}
 
 /* ---------- Home ---------- */
 .home{height:100%;display:grid;grid-template-rows:1fr auto auto;gap:14px;max-width:1080px;margin:0 auto}
+.shelf{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+.shelf:empty{display:none}
 .home-center{position:relative;align-self:center;justify-self:center;width:min(720px,100%);text-align:center;display:flex;flex-direction:column;gap:16px;padding-top:12px}
 .greet{font-family:var(--serif);font-size:30px;font-weight:600;letter-spacing:-.01em}
 .brief{font-family:var(--serif);font-size:17px;line-height:1.6;color:var(--t2);max-width:56ch;margin:0 auto}
@@ -196,18 +202,19 @@ button{cursor:pointer;background:none;border:none}
 .chip span{font-size:11.5px;color:var(--t3)}
 .tools .pane-b{padding:12px 14px;overflow:visible}
 .tool-grid{display:flex;gap:10px;flex-wrap:wrap}
-.tool{width:220px;padding:12px;border-radius:var(--r-md);text-align:left;display:flex;gap:12px;align-items:center;
+.tool{flex:1 1 220px;max-width:340px;min-width:0;padding:12px;border-radius:var(--r-md);text-align:left;display:flex;gap:12px;align-items:center;
   background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--bdb);border-top-color:var(--bdt);box-shadow:0 1px 0 rgba(255,255,255,.06) inset}
 .tool:hover{border-color:var(--accent);box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 0 4px var(--accent-glow-core),0 4px 12px var(--accent-glow)}
 .tool .glyph{width:36px;height:36px;border-radius:var(--r-md);display:grid;place-items:center;color:var(--accent);flex:none;
   background:radial-gradient(circle,var(--accent-subtle) 0%,var(--accent-subtle) 40%,rgba(210,245,250,.18) 80%,transparent 100%)}
 .tool b{display:block;font-size:13px;font-weight:600}
 .tool span{font-size:11.5px;color:var(--t3)}
+.tool .flag{color:var(--warn)}
 .empty{font-size:12.5px;color:var(--t3)}
-.systems{display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--t3);padding:0 4px}
-.systems .sys{display:flex;align-items:center;gap:6px;color:var(--t2)}
-.systems .sys i{width:6px;height:6px;border-radius:50%;background:var(--ok)}
-.systems .host{margin-left:auto}
+.systems{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--t3);padding:0 4px}
+.systems b{color:var(--t2);font-weight:600}
+.state{font-size:12px;color:var(--t3);white-space:nowrap}
+.state.dirty{color:var(--warn)}
 
 /* ---------- Generation overlay ---------- */
 .genlog{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:12;width:min(560px,90%);padding:20px 22px;border-radius:var(--r-lg);
@@ -282,7 +289,9 @@ button{cursor:pointer;background:none;border:none}
 .track{position:relative;height:50px;border-radius:var(--r-md);background:linear-gradient(180deg,var(--sunken-top),var(--sunken-btm));border:1px solid var(--bsb);overflow:hidden}
 .lane.collapsed .track{height:22px}
 .lane.collapsed .job .t2{display:none}
-.track.drop-on{outline:1.5px dashed var(--accent);outline-offset:-1px}
+.dnd .lane .track,.dnd .queue-list{outline:1px dashed var(--accent-glow-strong);outline-offset:-2px}
+.lane.drop-on .track,.dnd .queue-list.drop-on{outline:1.5px solid var(--accent);outline-offset:-1px;box-shadow:0 0 12px var(--accent-glow) inset}
+.lane.drop-on .lane-h{background:var(--accent-subtle)}
 .track .grid{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.04)}
 .track .ot{position:absolute;top:0;bottom:0;right:0;background:repeating-linear-gradient(135deg,rgba(214,180,104,.07) 0 6px,transparent 6px 12px);border-left:1px dashed rgba(214,180,104,.45)}
 .track .ot span{position:absolute;right:6px;top:3px;font-size:10px;color:var(--warn);opacity:.8}
@@ -336,9 +345,78 @@ table.q tr.disc td{color:var(--ok)}
 .chartwrap{flex:1;min-height:0;padding:8px 12px 10px}
 .chartwrap svg{display:block;width:100%;height:100%}
 
-/* Kiosk */
+/* Kiosk: AURA brand Lumen (colorMode brand). Its accent ignores the user palette; omadia chrome stays Lume. */
 .app.kiosk{grid-template-rows:auto minmax(0,1fr)}
-.kframe{flex:1;border:0;width:100%;height:100%;border-radius:0 0 var(--r-lg) var(--r-lg);background:#1B1D24}
+.kstage{flex:1;min-height:0;container-type:size;display:grid;place-items:center;padding:16px}
+.kscreen{width:min(calc(100cqw - 32px),calc((100cqh - 32px) * 16 / 9));aspect-ratio:16/9;border-radius:14px;padding:6px;
+  background:#0b0c10;border:1px solid rgba(255,255,255,.08);box-shadow:0 24px 60px rgba(0,0,0,.55)}
+.kx{--kx-accent:#B9A6FF;--kx-glow:rgba(185,166,255,.32);--kx-core:rgba(236,230,255,.55);--kx-on:#1A1233;
+  position:relative;width:100%;height:100%;container-type:size;border-radius:10px;overflow:hidden;display:grid;grid-template-columns:1.35fr .95fr;
+  background:linear-gradient(180deg,var(--surface-top),var(--surface-btm));color:var(--t1)}
+.kx-hero{position:relative;overflow:hidden}
+.kx-bg{position:absolute;inset:-8%;transform-origin:38% 42%;animation:kenburns 24s var(--ease-s) infinite alternate;
+  background:radial-gradient(58% 50% at 32% 30%,rgba(185,166,255,.5) 0%,transparent 60%),radial-gradient(45% 60% at 78% 78%,rgba(98,72,190,.55) 0%,transparent 62%),
+  radial-gradient(40% 40% at 70% 18%,rgba(236,230,255,.26) 0%,transparent 55%),linear-gradient(150deg,#17122b 0%,#221a40 38%,#120e22 100%)}
+.kx-vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 100% at 35% 40%,transparent 45%,rgba(0,0,0,.45) 100%)}
+.kx-motes{position:absolute;inset:0;pointer-events:none}
+.kx-mote{position:absolute;width:6px;height:6px;border-radius:50%;opacity:0;animation:drift linear infinite;
+  background:radial-gradient(circle,var(--kx-core) 0%,var(--kx-glow) 50%,transparent 70%)}
+.kx-prod{position:absolute;inset:0;display:grid;place-items:center}
+.kx-prod svg{position:relative;width:min(46%,360px);height:auto;filter:drop-shadow(0 30px 60px rgba(0,0,0,.55))}
+.kx-halo{position:absolute;left:50%;top:50%;width:min(52%,420px);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;
+  background:radial-gradient(circle,var(--kx-glow) 0%,transparent 62%);animation:halo 6s ease-in-out infinite}
+.kx-copy{position:absolute;left:5cqw;right:3cqw;bottom:6cqh}
+.kx-eyebrow{font-size:max(9px,1.2cqw);font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--kx-accent)}
+.kx-title{font-size:max(22px,5.4cqw);font-weight:600;letter-spacing:-.02em;line-height:1.02;margin-top:1.2cqh}
+.kx-title span{color:var(--kx-accent)}
+.kx-tag{font-family:var(--serif);font-size:max(12px,1.7cqw);line-height:1.5;color:var(--t2);max-width:30ch;margin-top:1.4cqh}
+.kx-panel{position:relative;display:flex;flex-direction:column;min-height:0;padding:3.2cqh 2.4cqw;gap:2.4cqh;border-left:1px solid var(--bsb)}
+.kx-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.kx-top .r{display:flex;align-items:center;gap:10px}
+.kx-brand{display:flex;align-items:center;gap:8px;font-weight:600;font-size:max(11px,1.35cqw)}
+.kx-brand i{width:max(7px,.9cqw);height:max(7px,.9cqw);border-radius:50%;background:var(--kx-accent);box-shadow:0 0 4px var(--kx-core),0 0 12px var(--kx-glow)}
+.kx-clock{font:450 max(10px,1.2cqw) var(--mono);color:var(--t3);font-variant-numeric:tabular-nums}
+.kx-lang{display:inline-flex;gap:2px;padding:2px;border-radius:var(--r-pill);background:var(--sunken-btm);border:1px solid var(--bsb)}
+.kx-lang button{font-size:max(10px,1.05cqw);font-weight:600;padding:2px 9px;border-radius:var(--r-pill);color:var(--t2)}
+.kx-lang button[aria-pressed="true"]{background:var(--kx-accent);color:var(--kx-on)}
+.kx-lead{font-family:var(--serif);font-size:max(12px,1.6cqw);line-height:1.5;color:var(--t2)}
+.kx-chips{display:grid;grid-template-columns:1fr 1fr;gap:1.2cqh .9cqw}
+.kx-chip{min-height:max(40px,7.4cqh);display:flex;align-items:center;gap:.9cqw;padding:0 1.3cqw;border-radius:var(--r-md);text-align:left;
+  background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--bsb);border-top-color:var(--bst);
+  box-shadow:0 1px 0 rgba(255,255,255,.06) inset;transition:transform .12s var(--ease-s),border-color .12s,box-shadow .18s;-webkit-tap-highlight-color:transparent}
+.kx-chip:hover{border-color:var(--kx-glow)}
+.kx-chip:active{transform:translateY(1px) scale(.99)}
+.kx-chip[aria-pressed="true"]{border-color:var(--kx-accent);box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 0 4px var(--kx-core),0 4px 12px var(--kx-glow)}
+.kx-chip svg{width:max(16px,2.1cqw);height:max(16px,2.1cqw);flex:none;color:var(--kx-accent)}
+.kx-chip b{display:block;font-size:max(11px,1.3cqw);font-weight:600;line-height:1.2}
+.kx-chip span span{font-size:max(9.5px,1.05cqw);color:var(--t3)}
+.kx-detail{flex:1;min-height:0;border-radius:var(--r-md);padding:2.4cqh 1.7cqw;overflow:hidden;
+  background:linear-gradient(180deg,var(--sunken-top),var(--sunken-btm));border:1px solid var(--bsb)}
+.kx-swap{display:flex;flex-direction:column;gap:1.6cqh;height:100%;animation:condense .8s var(--ease-e) both}
+.kx-dh{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.kx-dh h4{font-size:max(13px,1.6cqw);font-weight:600;letter-spacing:-.01em}
+.kx-dh span{font:450 max(10px,1.15cqw) var(--mono);color:var(--kx-accent)}
+.kx-body{font-family:var(--serif);font-size:max(11.5px,1.4cqw);line-height:1.55;color:var(--t2)}
+.kx-specs{margin-top:auto;display:grid;grid-template-columns:1fr 1fr;gap:1.2cqh 1.6cqw}
+.kx-specs dt{font-size:max(8.5px,.95cqw);letter-spacing:.04em;text-transform:uppercase;color:var(--t3)}
+.kx-specs dd{font:450 max(10.5px,1.25cqw) var(--mono);color:var(--t1);font-variant-numeric:tabular-nums}
+@keyframes kenburns{0%{transform:scale(1)}100%{transform:scale(1.14) translate3d(-2.5%,-1.8%,0)}}
+@keyframes halo{0%,100%{opacity:.55;transform:translate(-50%,-50%) scale(.98)}50%{opacity:.85;transform:translate(-50%,-50%) scale(1.04)}}
+@keyframes drift{0%{opacity:0;transform:translate3d(0,12px,0)}12%{opacity:.9}88%{opacity:.7}100%{opacity:0;transform:translate3d(18px,-120px,0)}}
+/* render cadence of the kiosk Lumen, shown only in X-ray */
+body.xray .kx [data-c]{outline:1.5px dashed rgba(150,156,168,.6);outline-offset:-2px}
+body.xray .kx [data-c]:not(.kx-hero){position:relative}
+body.xray .kx [data-c="reactive"]{outline-color:rgba(120,200,255,.75)}
+body.xray .kx [data-c="tick"]{outline-color:var(--kx-accent)}
+body.xray .kx [data-c]::after{content:attr(data-c);position:absolute;top:4px;left:4px;z-index:5;pointer-events:none;font:600 9.5px/1 var(--mono);
+  letter-spacing:.08em;text-transform:uppercase;padding:3px 6px;border-radius:4px;color:#101216;background:rgba(150,156,168,.92)}
+body.xray .kx [data-c="reactive"]::after{background:rgba(120,200,255,.92)}
+body.xray .kx [data-c="tick"]::after{background:var(--kx-accent)}
+#visitor{position:fixed;inset:0;z-index:95;background:#000;animation:fade .25s var(--ease-e) both}
+#visitor .kscreen{width:100%;height:100%;aspect-ratio:auto;padding:0;border:0;border-radius:0}
+#visitor .kx{border-radius:0}
+#visitor .vbar{position:absolute;left:14px;top:12px;z-index:6;display:flex;align-items:center;gap:12px}
+#visitor .vbar span{font-size:12px;color:var(--t3)}
 
 /* ---------- Overlays ---------- */
 .scrim{position:fixed;inset:0;z-index:60;background:rgba(10,24,30,.6);animation:fade .2s var(--ease-e) both}
@@ -358,13 +436,23 @@ table.q tr.disc td{color:var(--ok)}
 #panel .act .fx{font-size:11px;color:var(--t3);white-space:nowrap}
 #panel .act .fx.ext{color:var(--warn)}
 #panel .beam{display:flex;gap:6px;padding:10px 10px 4px}
-#panel .bhint{display:block;padding:0 12px 10px;font-size:11.5px;color:var(--t3);text-align:left}
+#panel .bhints{display:flex;flex-direction:column;align-items:flex-start;padding:0 6px 8px}
+#panel .bhint{display:block;padding:3px 6px;font-size:11.5px;color:var(--t3);text-align:left;border-radius:var(--r-sm)}
 #panel .bhint:hover{color:var(--accent)}
 #panel .beam input{flex:1;height:32px;padding:0 10px;border-radius:var(--r-sm);outline:none;font-size:13px;
   background:linear-gradient(180deg,var(--sunken-top),var(--sunken-btm));border:1px solid var(--bsb)}
 #panel .beam input:focus{border-color:var(--accent);box-shadow:0 0 6px var(--accent-glow-core),0 6px 18px var(--accent-glow-strong)}
 .beamchip{position:fixed;z-index:65;padding:5px 10px;border-radius:var(--r-pill);font-size:12px;pointer-events:none;
   background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--accent);box-shadow:0 0 6px var(--accent-glow-core),0 4px 12px var(--accent-glow)}
+#answer{position:fixed;z-index:70;width:360px;padding:14px 16px;border-radius:var(--r-lg);
+  background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--bdb);border-top-color:var(--bdt);
+  box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 4px 16px rgba(0,0,0,.55),0 18px 40px rgba(0,0,0,.55),0 0 24px var(--accent-glow);animation:pop .2s var(--ease-e) both}
+#answer .eyebrow{display:flex;justify-content:space-between;gap:10px}
+#answer .eyebrow span:last-child{text-transform:none;letter-spacing:0;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#answer .q{font-size:12.5px;color:var(--t3);margin:8px 0 6px}
+#answer p{font-family:var(--serif);font-size:15px;line-height:1.6;color:var(--t1)}
+#answer p b{font-weight:600}
+#answer .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
 #modal{position:fixed;z-index:80;left:50%;top:50%;transform:translate(-50%,-50%);width:min(460px,92vw);border-radius:var(--r-lg);padding:22px;
   background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--bdb);border-top-color:var(--bdt);
   box-shadow:0 4px 16px rgba(0,0,0,.55),0 24px 48px rgba(0,0,0,.65),0 0 32px var(--accent-glow-core),0 0 96px var(--accent-glow);animation:modalIn .2s var(--ease-e) both}
@@ -390,6 +478,8 @@ table.q tr.disc td{color:var(--ok)}
 #trace li .tm{font:450 11px var(--mono);color:var(--t3);padding-top:2px}
 #trace li b.k{display:block;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
 #trace li b:not(.k){color:var(--t1);font-weight:500}
+#trace li .sp{margin-left:6px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--t3)}
+#trace .pane-h{flex-wrap:wrap}
 #guide{position:fixed;z-index:55;right:14px;top:56px;width:350px;padding:16px 18px;border-radius:var(--r-lg);
   background:linear-gradient(180deg,var(--raised-top),var(--raised-btm));border:1px solid var(--bdb);border-top-color:var(--bdt);
   box-shadow:0 4px 16px rgba(0,0,0,.5),0 18px 40px rgba(0,0,0,.5),0 0 24px var(--accent-glow);animation:pop .25s var(--ease-e) both}
@@ -470,30 +560,101 @@ const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const wait = (ms) => new Promise((r) => setTimeout(r, RM ? Math.min(ms, 60) : ms));
 const el = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const clone = (o) => JSON.parse(JSON.stringify(o));
 const hm = (t) => { const m = Math.round(t * 60); return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
 const eur = (n) => '€' + Math.round(n).toLocaleString('en-US');
 const num = (n, d = 0) => n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
-const nowHM = () => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+const pad = (n) => String(n).padStart(2, '0');
+const nowHM = () => { const d = new Date(); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+const nowHMS = () => { const d = new Date(); return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); };
+const plural = (n, w, ws = w + 's') => `${n} ${n === 1 ? w : ws}`;
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const KBD = isMac ? '⌘K' : 'Ctrl K';
 function flash(node, cls = 'patch') {
   if (!node) return;
   node.classList.remove(cls); void node.offsetWidth; node.classList.add(cls);
   node.addEventListener('animationend', () => node.classList.remove(cls), { once: true });
 }
-$('#kbd').textContent = isMac ? '⌘K' : 'Ctrl K';
-setInterval(() => { $('#clock').textContent = nowHM(); }, 1000); $('#clock').textContent = nowHM();
+$('#kbd').textContent = KBD;
+setInterval(() => { $('#clock').textContent = nowHM(); $$('.kx-clock').forEach((c) => { c.textContent = nowHMS(); }); }, 1000);
+$('#clock').textContent = nowHM();
 
 /* =========================================================================
-   Status line + Trace
+   State. One live instance per application kind; closed work waits in
+   Recent work with its full state. Everything persists in localStorage.
    ========================================================================= */
-function status(html) { const s = $('#status'); $('#status-t').innerHTML = html; flash(s); }
-const TRACE = [];
-function trace(kind, text) { TRACE.unshift({ t: nowHM(), kind, text }); if ($('#trace')) renderTrace(); }
+const STORE = 'omadia-agentic-desktop-v2';
+const S = { space: 'home', order: ['home'], live: {}, inst: {}, recent: [], pinned: {}, status: {}, palette: 'lagoon', traceAll: false, xray: false };
+let TRACE = [];
+let D = null, P = null, K = null;
+let persistOn = true, restored = false;
+
+const INSTDEF = {
+  'dispatch-tue': { kind: 'dispatch', label: 'Service day, team north', short: 'Service day', sub: 'Tuesday, 24 November' },
+  'dispatch-wed': { kind: 'dispatch', label: 'Service day, team north', short: 'Service day', sub: 'Wednesday, 25 November' },
+  'solar-0412': { kind: 'solar', label: 'Solar quote, Müller GmbH', short: 'Solar quote', sub: 'Quote Q-2026-0412' },
+  'kiosk-aura': { kind: 'kiosk', label: 'Lobby kiosk, AURA launch', short: 'Lobby kiosk', sub: 'AURA Halo, entrance hall' },
+};
+const REQ_INST = { dispatch: 'dispatch-tue', solar: 'solar-0412', kiosk: 'kiosk-aura' };
+const GLYPHOF = { dispatch: 'route', solar: 'sun', kiosk: 'screen' };
+const liveInst = (kind) => S.inst[S.live[kind]];
+const spaceLabel = (sp) => (sp === 'home' ? 'Home' : liveInst(sp)?.short || sp);
+
+function snapshot(kind) {
+  if (kind === 'dispatch') return clone(D);
+  if (kind === 'solar') return clone({ ...P, panels: [...P.panels] });
+  return clone(K);
+}
+function loadData(kind, data) {
+  if (kind === 'dispatch') D = clone(data);
+  else if (kind === 'solar') { P = clone(data); P.panels = new Set(data.panels); }
+  else K = clone(data);
+}
+let saveT = 0;
+function save() { if (!persistOn) return; clearTimeout(saveT); saveT = setTimeout(saveNow, 80); }
+function saveNow() {
+  if (!persistOn) return;
+  try {
+    for (const kind of Object.keys(S.live)) S.inst[S.live[kind]].data = snapshot(kind);
+    localStorage.setItem(STORE, JSON.stringify({ v: 2, S: { ...S, xray: false }, TRACE }));
+  } catch (e) { /* storage unavailable: the mockup keeps working, only without memory */ }
+}
+function restore() {
+  try {
+    const raw = localStorage.getItem(STORE); if (!raw) return false;
+    const o = JSON.parse(raw); if (!o || o.v !== 2) return false;
+    Object.assign(S, o.S, { xray: false });
+    TRACE = o.TRACE || [];
+    for (const kind of Object.keys(S.live)) loadData(kind, S.inst[S.live[kind]].data);
+    S.order = S.order.filter((k) => k === 'home' || S.live[k]);
+    return true;
+  } catch (e) { return false; }
+}
+function resetDemo() {
+  persistOn = false;
+  try { localStorage.removeItem(STORE); } catch (e) { /* ignore */ }
+  location.href = location.pathname + location.search;
+}
+addEventListener('pagehide', saveNow);
+
+/* =========================================================================
+   Status line (one per Space) + Trace (per Space, or all Spaces)
+   ========================================================================= */
+const defaultStatus = (sp) => (sp === 'home' ? `Ask anything, or press <b>${KBD}</b>.` : 'Ready.');
+function showStatus() { $('#status-t').innerHTML = S.status[S.space] || defaultStatus(S.space); flash($('#status')); }
+function status(html, sp = S.space) { S.status[sp] = html; if (sp === S.space) showStatus(); save(); }
+function trace(kind, text, sp = S.space) {
+  TRACE.unshift({ t: nowHM(), kind, text, sp, spl: spaceLabel(sp) });
+  if (TRACE.length > 150) TRACE.length = 150;
+  renderTrace(); save();
+}
 function renderTrace() {
   const t = $('#trace'); if (!t) return;
-  t.querySelector('ol').innerHTML = TRACE.length ? TRACE.map((e) =>
-    `<li><span class="tm">${e.t}</span><div><b class="k">${esc(e.kind)}</b>${e.text}</div></li>`).join('')
-    : '<li><span class="tm"></span><div>Nothing yet. Prompts, beams, actions and external effects land here.</div></li>';
+  $$('[data-tf]', t).forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.tf === 'all') === S.traceAll)));
+  const list = S.traceAll ? TRACE : TRACE.filter((e) => e.sp === S.space);
+  t.querySelector('ol').innerHTML = list.length ? list.map((e) =>
+    `<li><span class="tm">${e.t}</span><div><b class="k">${esc(e.kind)}${S.traceAll ? `<span class="sp">${esc(e.spl)}</span>` : ''}</b>${e.text}</div></li>`).join('')
+    : `<li><span class="tm"></span><div>Nothing ${S.traceAll ? 'yet' : 'in this Space yet'}. Prompts, beams, answers, actions and external effects land here.</div></li>`;
 }
 function toggleTrace(force) {
   const open = force ?? !$('#trace');
@@ -501,7 +662,9 @@ function toggleTrace(force) {
   if (!open) { $('#trace')?.remove(); return; }
   if ($('#trace')) return;
   closeGuide();
-  document.body.appendChild(el(`<aside id="trace"><div class="pane-h"><h3>Trace</h3><span class="sub">what you asked, what omadia did</span></div><ol></ol></aside>`));
+  document.body.appendChild(el(`<aside id="trace"><div class="pane-h"><h3>Trace</h3>
+    <div class="seg"><button data-tf="space">This Space</button><button data-tf="all">All Spaces</button></div></div><ol></ol></aside>`));
+  $('#trace .seg').onclick = (e) => { const b = e.target.closest('[data-tf]'); if (b) { S.traceAll = b.dataset.tf === 'all'; renderTrace(); save(); } };
   renderTrace();
 }
 $('#btn-trace').onclick = () => toggleTrace();
@@ -509,31 +672,25 @@ $('#btn-trace').onclick = () => toggleTrace();
 /* =========================================================================
    Palette (Lume: one accent slot, three palettes, set conversationally)
    ========================================================================= */
+function applyPalette(p) { document.documentElement.dataset.palette = p; }
 function setPalette(p, said) {
   document.body.classList.add('palette-fade');
-  document.documentElement.dataset.palette = p;
+  S.palette = p; applyPalette(p);
   setTimeout(() => document.body.classList.remove('palette-fade'), 260);
   const name = { lagoon: 'Lagoon', atelier: 'Atelier', petrol: 'Petrol' }[p];
   trace('Preference', `${esc(said)}: palette set to ${name} for this user.`);
-  status(`Palette <b>${name}</b>. Stored as your preference, every canvas follows.`);
+  status(`Palette <b>${name}</b>. Stored as your preference, every canvas follows. Brand content inside a Lumen keeps its own colours.`);
 }
 
 /* =========================================================================
-   Spaces (one canvas per task, persistent)
+   Spaces
    ========================================================================= */
-const S = { space: 'home', order: ['home'], built: {}, pinned: {}, xray: false };
-const META = {
-  home: { label: 'Home' },
-  dispatch: { label: 'Service day, team north', short: 'Service day', glyph: 'route' },
-  solar: { label: 'Solar quote, Müller GmbH', short: 'Solar quote', glyph: 'sun' },
-  kiosk: { label: 'Lobby kiosk, AURA', short: 'Lobby kiosk', glyph: 'screen' },
-};
 function renderSpaces() {
-  const nav = $('#spaces');
-  nav.innerHTML = S.order.map((id) => {
-    const m = META[id]; const active = id === S.space ? ' active' : '';
+  $('#spaces').innerHTML = S.order.map((id) => {
+    const active = id === S.space ? ' active' : '';
     if (id === 'home') return `<button class="space is-home${active}" data-go="home">Home</button>`;
-    return `<div class="space${active}" data-go="${id}" role="button" tabindex="0"><span class="dot"></span>${esc(m.short)}<button class="x" data-close="${id}" title="Close space" aria-label="Close ${esc(m.short)}">×</button></div>`;
+    const I = liveInst(id);
+    return `<div class="space${active}" data-go="${id}" role="button" tabindex="0" title="${esc(I.label)}, ${esc(I.sub)}"><span class="dot"></span>${esc(I.short)}<button class="x" data-close="${id}" title="Close. Your work waits under Recent work." aria-label="Close ${esc(I.short)}">×</button></div>`;
   }).join('');
 }
 $('#spaces').addEventListener('click', (e) => {
@@ -541,10 +698,15 @@ $('#spaces').addEventListener('click', (e) => {
   if (c) { e.stopPropagation(); closeSpace(c.dataset.close); return; }
   const g = e.target.closest('[data-go]'); if (g) switchTo(g.dataset.go);
 });
-function canvasOf(id) { return $(`.canvas[data-space="${id}"]`); }
+const canvasOf = (id) => $(`.canvas[data-space="${id}"]`);
+function ensureCanvas(kind) {
+  let cv = canvasOf(kind);
+  if (!cv) { cv = el(`<section class="canvas" data-space="${kind}"></section>`); $('#stage').insertBefore(cv, $('#status')); }
+  return cv;
+}
 function switchTo(id) {
   if (S.space === id) return;
-  closePanel();
+  closePanel(); closeAnswer();
   const from = canvasOf(S.space), to = canvasOf(id);
   const dir = S.order.indexOf(id) > S.order.indexOf(S.space) ? 'r' : 'l';
   if (from) {
@@ -556,77 +718,149 @@ function switchTo(id) {
   setTimeout(() => {
     to.classList.add('on', dir === 'r' ? 'enter-r' : 'enter-l');
     to.addEventListener('animationend', () => to.classList.remove('enter-r', 'enter-l'), { once: true });
+    if (id === 'dispatch') requestAnimationFrame(renderCallout);
   }, RM ? 0 : 60);
-  renderSpaces(); renderXbar();
+  if (id === 'home') renderHome();
+  renderSpaces(); renderXbar(); showStatus(); renderTrace(); save();
 }
-function openSpace(id) {
-  if (!S.order.includes(id)) S.order.push(id);
-  if (!canvasOf(id)) $('#stage').insertBefore(el(`<section class="canvas" data-space="${id}"></section>`), $('#status'));
-  renderSpaces();
+function stash(kind) {
+  const id = S.live[kind]; if (!id) return null;
+  const I = S.inst[id];
+  I.data = snapshot(kind); I.closedAt = nowHM();
+  delete S.live[kind];
+  S.recent = [id, ...S.recent.filter((x) => x !== id)];
+  return I;
 }
-function closeSpace(id) {
-  if (S.space === id) switchTo('home');
-  S.order = S.order.filter((x) => x !== id);
-  setTimeout(() => canvasOf(id)?.remove(), 360);
-  delete S.built[id];
-  renderSpaces();
-  trace('Space', `Closed <b>${esc(META[id].short)}</b>.${S.pinned[id] ? ' Kept as a tool on Home.' : ''}`);
-  status(S.pinned[id] ? `Closed. <b>${esc(META[id].short)}</b> stays in your tools and reopens instantly.` : `Closed <b>${esc(META[id].short)}</b>. Pin an application to keep it as a tool.`);
+function closeSpace(kind) {
+  const I = liveInst(kind); if (!I) return;
+  if (S.space === kind) switchTo('home');
+  stash(kind);
+  S.order = S.order.filter((x) => x !== kind);
+  const cv = canvasOf(kind); setTimeout(() => cv?.remove(), 360);
+  renderSpaces(); renderHome();
+  trace('Space', `Closed <b>${esc(I.short)}</b>, ${esc(I.sub)}. Kept under Recent work with every change.`, 'home');
+  status(`Closed <b>${esc(I.short)}</b>. It waits under <b>Recent work</b>, exactly as you left it.`, 'home');
 }
+
+/* =========================================================================
+   Opening work: generate (new request), resume (Recent work), tool (pinned)
+   ========================================================================= */
+async function openInst(id, how, promptText) {
+  closePanel(); closeCmdk(); closeAnswer();
+  const def = INSTDEF[id]; const kind = def.kind;
+  if (S.live[kind] === id) { switchTo(kind); return; }
+  let I = S.inst[id]; const fresh = !I;
+  if (fresh) I = S.inst[id] = { id, ...def, data: null, at: nowHM() };
+  const prev = S.live[kind] ? stash(kind) : null;
+  S.recent = S.recent.filter((x) => x !== id);
+  S.live[kind] = id;
+  if (I.data) loadData(kind, I.data); else APPS[kind].init(id);
+  I.origin = fresh ? how : 'resumed'; I.openedAt = nowHM();
+  if (!S.order.includes(kind)) S.order.push(kind);
+  const cv = ensureCanvas(kind);
+  APPS[kind].build(cv);
+  renderHome();
+  if (S.space !== kind) switchTo(kind); else { renderSpaces(); renderXbar(); }
+  const prevNote = prev ? ` ${esc(prev.short)}, ${esc(prev.sub)}, moved to Recent work.` : '';
+  if (I.origin === 'generated') { await runGeneration(kind, id, promptText, prevNote); return; }
+  $$('.pane', cv).forEach((p, i) => setTimeout(() => flash(p, 'condense'), i * 60));
+  if (I.origin === 'resumed') {
+    trace('Resumed', `${esc(I.label)}, ${esc(I.sub)}: reopened as you left it. Nothing regenerated.`, kind);
+    status(`Resumed <b>${esc(I.short)}</b>, ${esc(I.sub)}, as you left it.${prevNote}`, kind);
+  } else {
+    trace('Tool', `Started ${esc(I.label)}, ${esc(I.sub)}, from your pinned tool. Same application on new data, nothing generated.`, kind);
+    status(`Started <b>${esc(I.sub)}</b> from your tool in 0.2 s. Same application, new data.${APPS[kind].after?.() || ''}${prevNote}`, kind);
+  }
+  save();
+}
+function openRequest(kind, promptText) {
+  const id = REQ_INST[kind];
+  if (S.live[kind] === id) { switchTo(kind); return; }
+  openInst(id, 'generated', promptText);
+}
+function toolTarget(kind) {
+  if (kind === 'dispatch' && !S.inst['dispatch-wed']) return { id: 'dispatch-wed', next: true };
+  if (S.live[kind]) return { id: S.live[kind] };
+  const rec = S.recent.find((x) => S.inst[x]?.kind === kind);
+  return rec ? { id: rec } : { id: REQ_INST[kind], next: true };
+}
+function toolHint(kind) {
+  const t = toolTarget(kind);
+  if (kind === 'dispatch' && t.id === 'dispatch-wed' && t.next) return 'Starts Wednesday’s plan';
+  if (t.next) return 'Starts with today’s data';
+  return S.live[kind] ? 'Open now' : 'Opens your latest work';
+}
+function openTool(kind) { const t = toolTarget(kind); openInst(t.id, 'tool'); }
 
 /* =========================================================================
    Boot: the thin client only starts the shell
    ========================================================================= */
-let bootSkip = false;
+let bootSkip = false, booted = false;
 async function boot() {
   const log = $('#bootlog');
+  const n = S.order.length - 1;
   const lines = [
     'omadia thin client   Linux 6.8   4 GB RAM   no local applications',
     '<b>[  ok  ]</b> network            wired, 1 Gbit/s',
     '<b>[  ok  ]</b> display            3840 x 2160 at 60 Hz, touch',
     '<b>[  ok  ]</b> device identity    key loaded from secure element',
     '<b>[  ok  ]</b> omadia core        connected, 34 plugins, tenant byte5-demo',
-    '<b>[  ok  ]</b> session            Lea Sommer, Operations and Sales',
+    `<b>[  ok  ]</b> session            Lea Sommer, ${restored && n ? plural(n, 'Space') + ' restored' : 'Operations and Sales'}`,
     '<b>[  ok  ]</b> starting omadia UI shell',
   ];
   for (const l of lines) { if (bootSkip) break; log.innerHTML += l + '\n'; await wait(230); }
   if (!bootSkip) { $('#bootarc').classList.add('on'); $('#bootmark').classList.add('on'); await wait(1100); }
   finishBoot();
 }
-let booted = false;
 function finishBoot() {
   if (booted) return; booted = true;
   const b = $('#boot'); b.classList.add('done'); setTimeout(() => b.remove(), 500);
   $('#shell').removeAttribute('aria-hidden');
-  buildHome(); renderSpaces();
-  $$('#cv-home .pane, #cv-home .home-center').forEach((p, i) => setTimeout(() => flash(p, 'condense'), i * 90));
-  status('Canvas ready. Ask anything, or press <b>' + (isMac ? '⌘K' : 'Ctrl K') + '</b>.');
-  setTimeout(() => { if (!sessionStorage.getItem('omadia-guide-seen')) openGuide(); }, 700);
+  buildHome();
+  const want = S.space; S.space = 'home';
+  const kinds = S.order.filter((k) => k !== 'home');
+  for (const kind of kinds) {
+    const I = liveInst(kind); I.origin = 'restored'; I.openedAt = nowHM();
+    APPS[kind].build(ensureCanvas(kind));
+    S.status[kind] = `Restored <b>${esc(I.short)}</b>, ${esc(I.sub)}, after the restart. Everything is as you left it.`;
+  }
+  renderSpaces();
+  if (want !== 'home' && S.live[want]) switchTo(want);
+  else $$('#cv-home .pane, #cv-home .home-center').forEach((p, i) => setTimeout(() => flash(p, 'condense'), i * 90));
+  if (restored && (kinds.length || S.recent.length)) {
+    S.status.home = `Welcome back. ${kinds.length ? plural(kinds.length, 'Space') + ' and ' : ''}your Recent work are as you left them.`;
+    trace('Session', `Restored after the restart: ${plural(kinds.length, 'open Space')}, ${plural(S.recent.length, 'item')} in Recent work.`, 'home');
+  }
+  showStatus();
+  handleHash();
 }
 $('#boot').addEventListener('click', () => { bootSkip = true; finishBoot(); });
 document.addEventListener('keydown', (e) => { if (!booted && (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter')) { bootSkip = true; finishBoot(); } }, true);
+function handleHash() { const h = location.hash.slice(1); if (REQ_INST[h]) openRequest(h); }
+addEventListener('hashchange', () => { if (booted) handleHash(); });
 
 /* =========================================================================
-   Guide card (for the person looking at the mockup)
+   Guide card (for the person looking at the mockup). Opens on "?" only.
    ========================================================================= */
 function openGuide() {
   if ($('#guide')) return;
   toggleTrace(false);
-  sessionStorage.setItem('omadia-guide-seen', '1');
   document.body.appendChild(el(`<aside id="guide">
-    <div class="eyebrow">Clickable mockup</div>
-    <p>This screen is the whole desktop. The thin client boots straight into omadia UI. Every application you open here is generated for the task and works on live data through omadia core and its plugins.</p>
+    <div class="eyebrow">Clickable mockup, fictional data</div>
+    <p>This screen is the whole desktop. The thin client boots straight into omadia UI. Every application here is generated for the task and works on live data through omadia core and its plugins.</p>
     <ol>
       <li><b>Pick a request</b> on Home and watch the application assemble.</li>
       <li><b>Work in it:</b> drag orders onto technicians, paint panels on the roof.</li>
-      <li><b>Right-click or long-press</b> anything for actions and the beam.</li>
-      <li><b>${isMac ? '⌘K' : 'Ctrl K'}</b> for commands. Try “make it warmer”.</li>
+      <li><b>Right-click or long-press</b> anything for actions and questions.</li>
+      <li><b>Close a Space</b> with ×. Your work waits under Recent work, also after a reload.</li>
+      <li><b>${KBD}</b> for commands. Try “make it warmer”.</li>
       <li><b>X-ray</b> shows what each canvas is made of.</li>
     </ol>
-    <div class="foot"><button class="btn ghost sm" id="g-replay">Replay boot</button><button class="btn primary sm" id="g-ok">Start</button></div>
+    <div class="foot"><span><button class="btn ghost sm" id="g-replay">Replay boot</button><button class="btn ghost sm" id="g-reset">Reset demo</button></span><button class="btn primary sm" id="g-ok">Got it</button></div>
   </aside>`));
   $('#g-ok').onclick = closeGuide;
-  $('#g-replay').onclick = () => location.reload();
+  $('#g-replay').onclick = () => { saveNow(); location.reload(); };
+  $('#g-reset').onclick = resetDemo;
 }
 function closeGuide() { $('#guide')?.remove(); }
 $('#btn-guide').onclick = () => ($('#guide') ? closeGuide() : openGuide());
@@ -640,53 +874,59 @@ const GLYPH = {
   screen: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
 };
 const REQUESTS = {
-  dispatch: { text: 'Plan today’s service routes for team north. Two escalations came in overnight.', area: 'Operations', note: 'ERP orders, HR calendars, maps' },
+  dispatch: { text: 'Plan today’s service routes for team north. Two orders were escalated overnight.', area: 'Operations', note: 'ERP orders, HR calendars, maps' },
   solar: { text: 'Draft a solar quote for Müller GmbH from yesterday’s site visit.', area: 'Sales', note: 'CRM, site photos, ERP price list' },
   kiosk: { text: 'Show the lobby kiosk for the AURA launch.', area: 'Marketing', note: 'brand assets, kiosk screen' },
 };
+function chipNote(kind) {
+  const id = REQ_INST[kind];
+  if (S.live[kind] === id) return 'Open now';
+  if (S.inst[id]) return `Resumes your work from ${S.inst[id].closedAt || S.inst[id].at}`;
+  return REQUESTS[kind].note;
+}
 function buildHome() {
   const cv = $('#cv-home');
   cv.innerHTML = `<div class="home">
     <div class="home-center">
       <div class="greet">Good morning, Lea.</div>
-      <p class="brief">Two service escalations came in overnight for team north, and the site visit at Müller GmbH is ready to be quoted.</p>
+      <p class="brief">Two service orders for team north were escalated overnight, and Bäckerei Hansen still has no technician. The site visit at Müller GmbH is ready to be quoted.</p>
       <form class="cold" id="cold" autocomplete="off">
         <input id="cold-in" aria-label="What do you want to get done?" placeholder="What do you want to get done?" />
         <button class="go" aria-label="Send" type="submit"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
       </form>
       <div class="cold-hint" id="cold-hint"></div>
-      <div class="sugg">
-        ${Object.entries(REQUESTS).map(([k, r]) => `<button class="chip" data-req="${k}"><span class="eyebrow">${r.area}</span><b>${esc(r.text)}</b><span>${r.note}</span></button>`).join('')}
-      </div>
+      <div class="sugg" id="sugg"></div>
     </div>
-    <section class="pane tools" data-ctx="tools">
-      <div class="pane-h"><h3>Your tools</h3><span class="sub">applications you generated and pinned</span></div>
-      <div class="pane-b"><div class="tool-grid" id="tool-grid"></div></div>
-      <div class="xr tr"><b>Presets</b><br>A pinned application is stored as data.<br>Reopening instantiates it, no regeneration.</div>
-    </section>
-    <div class="systems">
-      <span class="eyebrow">Connected through omadia core</span>
-      ${['ERP', 'CRM', 'HR', 'Maps', 'Drive', 'Mail', 'Mobile push'].map((s) => `<span class="sys"><i></i>${s}</span>`).join('')}
-      <span>and 27 more plugins</span>
-      <span class="host">Host: omadia thin client, no local applications</span>
-    </div>
+    <div class="shelf" id="shelf"></div>
+    <div class="systems"><span>Connected through omadia core: ERP, CRM, HR, Maps, Drive, Mail, Mobile push and 27 more plugins.</span><span>Clickable mockup, fictional data. Press <b>?</b> for a short guide.</span></div>
   </div>`;
-  renderTools();
+  renderHome();
   $('#cold').addEventListener('submit', (e) => { e.preventDefault(); submitPrompt($('#cold-in').value); });
   cv.addEventListener('click', (e) => {
-    const c = e.target.closest('[data-req]'); if (c) typeAndRun(c.dataset.req);
-    const t = e.target.closest('[data-tool]'); if (t) openTool(t.dataset.tool);
+    const c = e.target.closest('[data-req]'); if (c) return typeAndRun(c.dataset.req);
+    const t = e.target.closest('[data-tool]'); if (t) return openTool(t.dataset.tool);
+    const r = e.target.closest('[data-recent]'); if (r) return openInst(r.dataset.recent, 'resume');
   });
 }
-function renderTools() {
-  const g = $('#tool-grid'); if (!g) return;
-  const ids = Object.keys(S.pinned);
-  g.innerHTML = ids.length ? ids.map((id) => `<button class="tool" data-tool="${id}" data-ctx="tool:${id}"><span class="glyph">${GLYPH[META[id].glyph]}</span><span><b>${esc(META[id].short)}</b><span>Pinned ${S.pinned[id]}. Opens instantly.</span></span></button>`).join('')
-    : '<div class="empty">Nothing pinned yet. Generate an application, then pin it. It stays live with your data and opens instantly next time.</div>';
+function renderHome() {
+  const sugg = $('#sugg'); if (!sugg) return;
+  sugg.innerHTML = Object.entries(REQUESTS).map(([k, r]) => `<button class="chip" data-req="${k}"><span class="eyebrow">${r.area}</span><b>${esc(r.text)}</b><span>${esc(chipNote(k))}</span></button>`).join('');
+  const pins = Object.keys(S.pinned);
+  const rec = S.recent.filter((id) => S.inst[id]);
+  $('#shelf').innerHTML = (pins.length ? `<section class="pane tools" data-ctx="tools">
+      <div class="pane-h"><h3>Your tools</h3><span class="sub">pinned by you, only you see them</span></div>
+      <div class="pane-b"><div class="tool-grid">${pins.map((k) => `<button class="tool" data-tool="${k}" data-ctx="tool:${k}"><span class="glyph">${GLYPH[GLYPHOF[k]]}</span><span><b>${esc(INSTDEF[REQ_INST[k]].short)}</b><span>${toolHint(k)}${S.pinned[k].shared ? `. Shared with ${esc(AUD[k][0])}` : ''}</span></span></button>`).join('')}</div></div>
+      <div class="xr tr"><b>Presets</b> in your profile<br>a pinned application is stored as data<br>opening it instantiates it on new data</div>
+    </section>` : '')
+    + (rec.length ? `<section class="pane tools" data-ctx="recent">
+      <div class="pane-h"><h3>Recent work</h3><span class="sub">closed Spaces, kept with every change</span></div>
+      <div class="pane-b"><div class="tool-grid">${rec.map((id) => { const I = S.inst[id]; const b = APPS[I.kind].badge(I.data); return `<button class="tool" data-recent="${id}" data-ctx="recent:${id}"><span class="glyph">${GLYPH[GLYPHOF[I.kind]]}</span><span><b>${esc(I.short)}</b><span>${esc(I.sub)}. <span class="${b.warn ? 'flag' : ''}">${esc(b.text)}</span></span></span></button>`; }).join('')}</div></div>
+      <div class="xr tr"><b>Instances</b> with their full state<br>reopening restores, nothing regenerates</div>
+    </section>` : '');
 }
 async function typeAndRun(kind) {
-  const inp = $('#cold-in'); if (!inp) return generate(kind);
-  if (S.built[kind]) return switchTo(kind);
+  const inp = $('#cold-in');
+  if (!inp || S.inst[REQ_INST[kind]]) return openRequest(kind);
   const text = REQUESTS[kind].text; inp.value = ''; inp.focus();
   for (let i = 0; i < text.length; i += 2) { inp.value = text.slice(0, i + 2); await wait(14); }
   await wait(160);
@@ -694,7 +934,7 @@ async function typeAndRun(kind) {
 }
 function route(text) {
   const t = text.toLowerCase();
-  if (/route|service|technician|dispatch|escalation|team north|einsatz|tour/.test(t)) return 'dispatch';
+  if (/route|service|technician|dispatch|escalat|team north|einsatz|tour/.test(t)) return 'dispatch';
   if (/solar|quote|pv|roof|müller|mueller|angebot/.test(t)) return 'solar';
   if (/kiosk|lobby|aura/.test(t)) return 'kiosk';
   if (/warm/.test(t)) return 'p:atelier';
@@ -706,14 +946,11 @@ function submitPrompt(text) {
   text = (text || '').trim(); if (!text) return;
   const r = route(text);
   const hint = $('#cold-hint');
-  if (!r) {
-    if (hint) hint.textContent = 'This mockup scripts three requests: service routes, the solar quote and the lobby kiosk. Pick one below.';
-    return;
-  }
+  if (!r) { if (hint) hint.textContent = 'This mockup scripts three requests: service routes, the solar quote and the lobby kiosk. Pick one below.'; return; }
   if (hint) hint.textContent = '';
   if ($('#cold-in')) $('#cold-in').value = '';
   if (r.startsWith('p:')) return setPalette(r.slice(2), text);
-  generate(r, text);
+  openRequest(r, text);
 }
 
 /* =========================================================================
@@ -721,8 +958,8 @@ function submitPrompt(text) {
    ========================================================================= */
 const STEPS = {
   dispatch: [
-    ['omadia', 'Understanding the request, 2 escalations flagged', 450],
-    ['ERP', '7 open service orders for team north', 520],
+    ['omadia', 'Understanding the request', 420],
+    ['ERP', '9 service orders for team north, 2 escalated overnight', 520],
     ['HR', 'Shifts and skills of 3 technicians', 380],
     ['Maps', 'Road network and tiles for the region', 420],
     ['Compose', 'Order queue, map Lumen, day timeline, 3 live figures', 520],
@@ -742,55 +979,78 @@ const STEPS = {
     ['Drive', 'AURA launch assets and brand colours', 420],
     ['Compose', 'Kiosk Lumen in brand colours, touch-first', 480],
     ['Cadence', 'Static layout, 1 Hz clock, motion on the GPU', 420],
+    ['Grant', 'Pushing to the lobby screen asks you first', 340],
   ],
 };
-async function generate(kind, promptText) {
-  closePanel(); closeCmdk();
-  if (S.built[kind]) { switchTo(kind); return; }
-  const fromPreset = !!S.pinned[kind];
-  openSpace(kind); switchTo(kind);
-  const cv = canvasOf(kind);
-  S.built[kind] = true;
-  APPS[kind].reset?.(fromPreset);
-  APPS[kind].build(cv);
-  renderXbar();
+async function runGeneration(kind, id, promptText, prevNote) {
+  const cv = canvasOf(kind); const I = S.inst[id];
+  const q = promptText || REQUESTS[kind].text;
+  trace('Prompt', esc(q), kind);
+  status('Generating the application. Watch it assemble.', kind);
   const t0 = performance.now();
-  if (fromPreset) {
-    trace('Preset', `Opened <b>${esc(META[kind].short)}</b> from your tools with today’s data. No regeneration.`);
-    $$('.pane', cv).forEach((p, i) => setTimeout(() => flash(p, 'condense'), i * 60));
-    status(`Opened <b>${esc(META[kind].short)}</b> from your tools in 0.2 s. Same application, today’s data.`);
-    return;
-  }
-  trace('Prompt', esc(promptText || REQUESTS[kind].text));
   const panes = $$('.pane', cv);
   panes.forEach((p) => p.classList.add('pre'));
-  const log = el(`<div class="genlog" role="status"><div class="eyebrow">Generating an application</div><div class="q">“${esc(promptText || REQUESTS[kind].text)}”</div><ol></ol></div>`);
+  const log = el(`<div class="genlog" role="status"><div class="eyebrow">Generating an application</div><div class="q">“${esc(q)}”</div><ol></ol></div>`);
   cv.appendChild(log);
   for (const [tag, text, ms] of STEPS[kind]) {
     const li = el(`<li><span class="tag">${tag}</span><span>${esc(text)}</span><span class="st"></span></li>`);
     log.querySelector('ol').appendChild(li);
     await wait(ms);
+    if (S.live[kind] !== id || !log.isConnected) return;
     li.classList.add('done'); li.querySelector('.st').textContent = 'done';
-    if (!canvasOf(kind)) return;
   }
   log.classList.add('out'); setTimeout(() => log.remove(), 320);
-  for (let i = 0; i < panes.length; i++) {
-    panes[i].classList.remove('pre'); flash(panes[i], 'condense'); await wait(110);
-  }
+  for (const p of panes) { p.classList.remove('pre'); flash(p, 'condense'); await wait(110); }
+  if (S.live[kind] !== id) return;
   const secs = ((performance.now() - t0) / 1000).toFixed(1);
   const m = APPS[kind].manifest;
-  status(`<b>${esc(META[kind].label)}</b> generated in ${secs} s from ${m}. Nothing was installed.`);
-  trace('Generated', `${esc(META[kind].label)}: ${m}.`);
+  status(`<b>${esc(I.label)}</b> generated in ${secs} s from ${m}. Nothing was installed.${APPS[kind].after?.() || ''}${prevNote || ''}`, kind);
+  trace('Generated', `${esc(I.label)}: ${m}.`, kind);
 }
+
+/* =========================================================================
+   Pin (personal) and share (asks first)
+   ========================================================================= */
+const AUD = {
+  dispatch: ['Dispatch, team north', 'Jana Wolf, Tim Brandt and Ole Kraus'],
+  solar: ['Sales team', '5 people in sales'],
+  kiosk: ['Marketing', '3 people in marketing'],
+};
+function pinLabel(kind) { return S.pinned[kind] ? 'Pinned' : 'Pin to my tools'; }
 function pin(kind) {
-  if (S.pinned[kind]) { status(`<b>${esc(META[kind].short)}</b> is already in your tools.`); return; }
-  S.pinned[kind] = 'today ' + nowHM();
-  renderTools();
-  $$(`[data-pin="${kind}"]`).forEach((b) => { b.textContent = 'Pinned'; });
-  trace('Preset', `Pinned <b>${esc(META[kind].short)}</b> as a tool. Stored as data, reusable by your team.`);
-  status(`Pinned. <b>${esc(META[kind].short)}</b> is now one of your tools on Home.`);
+  const short = INSTDEF[REQ_INST[kind]].short;
+  if (S.pinned[kind]) { status(`<b>${esc(short)}</b> is already in your tools on Home.`); return; }
+  S.pinned[kind] = { at: nowHM(), shared: false };
+  $$(`[data-pin="${kind}"]`).forEach((b) => { b.textContent = pinLabel(kind); });
+  renderHome();
+  trace('Preset', `Pinned <b>${esc(short)}</b> to your tools. Stored as data in your profile, only you see it.`);
+  status(`Pinned to your tools on Home. Only you see it. Share it from its tool card when your team should have it.`);
 }
-function openTool(kind) { if (S.built[kind]) switchTo(kind); else generate(kind); }
+async function shareTool(kind) {
+  const [who, people] = AUD[kind]; const short = INSTDEF[REQ_INST[kind]].short;
+  if (S.pinned[kind]?.shared) { status(`<b>${esc(short)}</b> is already shared with ${esc(who)}.`); return; }
+  const ok = await consent({
+    title: `Share the ${short} tool with ${who}?`,
+    text: 'They get the application as a tool. Each person opens it with their own data and permissions.',
+    items: [`Visible to ${people}`, 'Your open work and Recent work stay private', 'You can stop sharing at any time'],
+    confirm: 'Share tool', verb: 'Sharing',
+  });
+  if (!ok) return;
+  S.pinned[kind].shared = true; renderHome();
+  trace('External effect', `Shared the ${esc(short)} tool with ${esc(who)}. You confirmed.`);
+  status(`Shared with <b>${esc(who)}</b>. It appears in their tools.`);
+}
+function unshare(kind) { S.pinned[kind].shared = false; renderHome(); status(`Stopped sharing <b>${esc(INSTDEF[REQ_INST[kind]].short)}</b>. It is yours alone again.`); trace('Preset', `Stopped sharing ${esc(INSTDEF[REQ_INST[kind]].short)}.`); }
+function unpin(kind) {
+  delete S.pinned[kind]; renderHome();
+  $$(`[data-pin="${kind}"]`).forEach((b) => { b.textContent = pinLabel(kind); });
+  status(`Unpinned <b>${esc(INSTDEF[REQ_INST[kind]].short)}</b>. Your work in it stays where it is.`);
+}
+function originNote() {
+  const I = S.inst[S.live[S.space]] || {};
+  return { generated: `Generated ${I.at}`, tool: `From your tool ${I.at}`, resumed: `Resumed ${I.openedAt}`, restored: `Restored ${I.openedAt}` }[I.origin] || '';
+}
+function stateLabel(node, text, dirty) { if (!node) return; node.textContent = text; node.classList.toggle('dirty', !!dirty); }
 
 /* =========================================================================
    APP 1: Service day (dispatch). Map Lumen + queue + timeline, wired.
@@ -801,42 +1061,63 @@ const TECHS = [
   { id: 'deniz', name: 'Deniz Aydin', ini: 'DA', skills: ['heat', 'elec'] },
 ];
 const TECH = Object.fromEntries(TECHS.map((t) => [t.id, t]));
-const SKILL = { heat: 'Heat pump', pv: 'PV', elec: 'Electrical' };
+const first = (tid) => TECH[tid].name.split(' ')[0];
+const SKILL = { heat: 'heat pump', pv: 'PV', elec: 'electrical' };
+const SKILLC = { heat: 'Heat pump', pv: 'PV', elec: 'Electrical' };
 const ORD = {
-  4711: { cust: 'Bäckerei Hansen', town: 'Ostfeld', x: 628, y: 150, dur: 1.5, skill: 'heat', prio: 'high', task: 'Heat pump fault, no hot water' },
-  4712: { cust: 'Kita Sonnenhof', town: 'Wiesbach', x: 452, y: 98, dur: 2, skill: 'pv', prio: 'high', task: 'Inverter offline since Sunday' },
+  4711: { cust: 'Bäckerei Hansen', town: 'Ostfeld', x: 628, y: 150, dur: 1.5, skill: 'heat', prio: 'high', esc: '05:40', task: 'Heat pump fault, no hot water',
+    why: 'Bäckerei Hansen reported at 05:40 that the heat pump stopped and the bakery has no hot water. Their service contract promises a technician within 4 hours, so the ERP escalated the order automatically.' },
+  4712: { cust: 'Kita Sonnenhof', town: 'Wiesbach', x: 452, y: 98, dur: 2, skill: 'pv', prio: 'high', esc: '06:10', task: 'Inverter offline since Sunday',
+    why: 'The inverter at Kita Sonnenhof has been offline since Sunday. At 06:10 the monitoring portal reported two days of lost yield, which ended the 48-hour window in the contract and escalated the order.' },
   4713: { cust: 'Familie Akın', town: 'Kronau', x: 508, y: 318, dur: 3, skill: 'heat', prio: 'normal', task: 'Commission new heat pump' },
   4714: { cust: 'Autohaus Brandt', town: 'Lindhof', x: 318, y: 372, dur: 2.5, skill: 'elec', prio: 'normal', task: 'Install 4 wallboxes, 22 kW' },
   4715: { cust: 'Praxis Dr. Vogel', town: 'Seetal', x: 676, y: 300, dur: 1, skill: 'elec', prio: 'normal', task: 'Annual electrical inspection' },
   4716: { cust: 'Hofladen Mertens', town: 'Mühlberg', x: 262, y: 132, dur: 1.5, skill: 'pv', prio: 'low', task: 'Clean and inspect PV array' },
   4717: { cust: 'Gemeindehalle', town: 'Wiesbach', x: 424, y: 70, dur: 2, skill: 'elec', prio: 'low', task: 'Emergency lighting test' },
   4718: { cust: 'Familie Schulte', town: 'Ostfeld', x: 654, y: 120, dur: 1, skill: 'heat', prio: 'normal', task: 'Annual heat pump service' },
-  4719: { cust: 'Pension Seeblick', town: 'Seetal', x: 704, y: 334, dur: 2, skill: 'pv', prio: 'high', task: 'Battery storage warning' },
+  4719: { cust: 'Pension Seeblick', town: 'Seetal', x: 704, y: 334, dur: 2, skill: 'pv', prio: 'normal', task: 'Battery storage warning' },
+  4720: { cust: 'Metzgerei Krause', town: 'Kronau', x: 498, y: 340, dur: 1.5, skill: 'heat', prio: 'normal', task: 'Annual heat pump service' },
+  4721: { cust: 'Grundschule Lindhof', town: 'Lindhof', x: 330, y: 378, dur: 2, skill: 'elec', prio: 'normal', task: 'Emergency lighting test' },
+  4722: { cust: 'Familie Petersen', town: 'Mühlberg', x: 242, y: 142, dur: 3, skill: 'pv', prio: 'normal', task: 'Install 9.8 kWp PV system' },
+  4723: { cust: 'Café Lindgren', town: 'Seetal', x: 662, y: 312, dur: 1, skill: 'elec', prio: 'low', task: 'Replace RCD in the kitchen' },
+  4724: { cust: 'Weingut Albrecht', town: 'Wiesbach', x: 466, y: 104, dur: 2, skill: 'pv', prio: 'normal', task: 'Inverter firmware update and check' },
+  4725: { cust: 'Familie Novak', town: 'Ostfeld', x: 618, y: 158, dur: 1.5, skill: 'heat', prio: 'low', task: 'Heat pump noise check' },
+  4726: { cust: 'Sporthalle Nord', town: 'Kronau', x: 536, y: 318, dur: 2.5, skill: 'elec', prio: 'normal', task: 'Install 2 wallboxes, 22 kW' },
+};
+const DAYS = {
+  'dispatch-tue': { day: 'Tuesday, 24 November', lanes: { jonas: ['4713', '4719'], mira: ['4712', '4714'], deniz: ['4718'] }, queue: ['4711', '4715', '4716', '4717'] },
+  'dispatch-wed': { day: 'Wednesday, 25 November', lanes: { jonas: [], mira: [], deniz: [] }, queue: ['4720', '4721', '4722', '4723', '4724', '4725', '4726'] },
 };
 const DEPOT = { x: 150, y: 255 };
 const TOWNS = [['Mühlberg', 250, 118, 242, 106, 'end'], ['Wiesbach', 440, 84, 472, 82, 'start'], ['Ostfeld', 640, 136, 674, 142, 'start'], ['Seetal', 690, 318, 724, 318, 'start'], ['Kronau', 520, 332, 520, 358, 'middle'], ['Lindhof', 300, 386, 300, 410, 'middle']];
 const KM = 0.09, SPEED = 55, START = 7, WORKEND = 15, AXIS_END = 18;
 const PRIO_RANK = { high: 0, normal: 1, low: 2 };
-let D;
-function dispatchReset() {
-  D = { lanes: { jonas: ['4711', '4713', '4719'], mira: ['4712', '4714'], deniz: ['4718'] }, queue: ['4715', '4716', '4717'],
-    sel: null, focus: null, collapsed: {}, sort: 'prio', vb: { x: 0, y: 0, w: 800, h: 460 }, sig: {}, published: false };
+function dispatchInit(id) {
+  const d = DAYS[id];
+  D = { id, day: d.day, lanes: clone(d.lanes), queue: d.queue.slice(), sel: null, focus: null, collapsed: {}, sort: 'prio',
+    vb: { x: 0, y: 0, w: 800, h: 460 }, sig: {}, pub: null, showTravel: false };
 }
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) * KM;
-function sched(tid, list = D.lanes[tid]) {
-  let t = START, pos = DEPOT, km = 0; const stops = [];
+function sched(tid, list = D.lanes[tid], start = START) {
+  let t = start, pos = DEPOT, km = 0; const stops = [];
   for (const id of list) {
     const o = ORD[id]; const d = dist(pos, o); const tr = d / SPEED;
-    stops.push({ id, from: t, arrive: t + tr, end: t + tr + o.dur }); km += d; t += tr + o.dur; pos = o;
+    stops.push({ id, from: t, arrive: t + tr, end: t + tr + o.dur, km: d }); km += d; t += tr + o.dur; pos = o;
   }
   const back = list.length ? dist(pos, DEPOT) : 0; km += back;
-  const finish = list.length ? t + back / SPEED : START;
-  return { stops, km, lastEnd: t, finish, overtime: Math.max(0, finish - WORKEND), work: finish - START };
+  const finish = list.length ? t + back / SPEED : start;
+  return { stops, km, back, lastEnd: t, finish, overtime: Math.max(0, finish - WORKEND), work: finish - start };
 }
 const laneOf = (id) => TECHS.find((t) => D.lanes[t.id].includes(id))?.id || null;
+const dayOrders = () => [...TECHS.flatMap((t) => D.lanes[t.id]), ...D.queue];
 function totals() {
   let km = 0, ot = 0; for (const t of TECHS) { const s = sched(t.id); km += s.km; ot += s.overtime; }
   return { km, ot, open: D.queue.length };
+}
+function simulate(mut) {
+  const saved = clone({ lanes: D.lanes, queue: D.queue });
+  mut(); const t = totals(); const res = { t, sched: Object.fromEntries(TECHS.map((x) => [x.id, sched(x.id)])) };
+  D.lanes = saved.lanes; D.queue = saved.queue; return res;
 }
 function bestFit(id, exclude) {
   let best = null;
@@ -862,7 +1143,7 @@ function optimise(tid) {
 function assignAllOpen() {
   const open = D.queue.slice().sort((a, b) => PRIO_RANK[ORD[a].prio] - PRIO_RANK[ORD[b].prio]);
   const done = [];
-  for (const id of open) { const b = bestFit(id); if (b) { assign(id, b.tid, b.idx); done.push(`${ORD[id].cust} to ${TECH[b.tid].name.split(' ')[0]}`); } }
+  for (const id of open) { const b = bestFit(id); if (b) { assign(id, b.tid, b.idx); done.push(`${ORD[id].cust} to ${first(b.tid)}`); } }
   return done;
 }
 function rebalance() {
@@ -878,21 +1159,28 @@ function rebalance() {
       if (!pick || ORD[id].dur < ORD[pick.id].dur) pick = { id, b };
     }
     if (!pick) break;
-    assign(pick.id, pick.b.tid, pick.b.idx); moves.push(`${ORD[pick.id].cust} from ${over.t.name.split(' ')[0]} to ${TECH[pick.b.tid].name.split(' ')[0]}`);
+    assign(pick.id, pick.b.tid, pick.b.idx); moves.push(`${ORD[pick.id].cust} from ${first(over.t.id)} to ${first(pick.b.tid)}`);
   }
   return moves;
+}
+const planSig = (d = D) => JSON.stringify([TECHS.map((t) => d.lanes[t.id]), d.queue.slice().sort()]);
+const dayName = () => D.day.split(',')[0];
+function dispatchBadge(d) {
+  if (!d?.pub) return { text: 'Not published yet' };
+  return planSig(d) !== d.pub.sig ? { text: 'Unpublished changes', warn: true } : { text: `Published ${d.pub.at}` };
 }
 
 function dispatchBuild(cv) {
   cv.innerHTML = `<div class="app dispatch">
     <section class="pane apphead" data-ctx="kpis">
-      <div class="title"><b>Service day, team north</b><span>Tuesday, 24 November. 3 technicians, depot Altstadt</span></div>
+      <div class="title"><b>Service day, team north</b><span>${esc(D.day)}. 3 technicians, depot Altstadt</span></div>
       <div class="kpis" id="d-kpis"></div>
       <div class="grow"></div>
-      <span class="gen-note">Generated for you at ${nowHM()}</span>
+      <span class="gen-note">${originNote()}</span>
       <button class="btn" id="d-opt">Optimise routes</button>
-      <button class="btn ghost" data-pin="dispatch">${S.pinned.dispatch ? 'Pinned' : 'Pin as tool'}</button>
-      <button class="btn primary" id="d-pub">${D.published ? 'Published' : 'Publish day plans'}</button>
+      <button class="btn ghost" data-pin="dispatch">${pinLabel('dispatch')}</button>
+      <span class="state" id="d-state"></span>
+      <button class="btn primary" id="d-pub">Publish day plans</button>
       <div class="xr tr" style="top:56px"><b>status primitives</b> computed on this device<br>from the wired state, no server round trip</div>
     </section>
     <div class="dmid">
@@ -906,7 +1194,7 @@ function dispatchBuild(cv) {
         <div class="pane-h"><h3>Region north</h3>
           <div style="display:flex;gap:6px"><button class="btn sm icon" id="d-zin" aria-label="Zoom in">+</button><button class="btn sm icon" id="d-zout" aria-label="Zoom out">−</button><button class="btn sm" id="d-fit">Fit</button></div></div>
         <div class="mapwrap" id="d-mapwrap"><svg id="d-map" viewBox="0 0 800 460" preserveAspectRatio="xMidYMid meet"></svg>
-          <div class="legend">${TECHS.map((t) => `<span><i style="background:var(--c-${t.id})"></i>${t.name.split(' ')[0]}</span>`).join('')}<span><i style="background:var(--t3)"></i>open</span></div>
+          <div class="legend">${TECHS.map((t) => `<span><i style="background:var(--c-${t.id})"></i>${first(t.id)}</span>`).join('')}<span><i style="background:var(--t3)"></i>open</span><span><i style="background:var(--warn);width:6px;height:6px;border-radius:50%"></i>escalated</span></div>
         </div>
         <div class="xr tr"><b>Lumen</b> map.north, <b>scene</b> primitive<br>pan, zoom, select at 60 fps on this device<br>colorMode free (crew colours)<br>capabilities: tiles, loadData</div>
       </section>
@@ -918,19 +1206,24 @@ function dispatchBuild(cv) {
     </section>
   </div>`;
   const hours = $('#d-hours', cv);
-  for (let h = START; h <= AXIS_END; h++) hours.appendChild(el(`<span style="left:${((h - START) / (AXIS_END - START)) * 100}%">${String(h).padStart(2, '0')}</span>`));
+  for (let h = START; h <= AXIS_END; h++) hours.appendChild(el(`<span style="left:${((h - START) / (AXIS_END - START)) * 100}%">${pad(h)}</span>`));
   drawMapBase();
+  D.sig = {};
   dispatchRender(true);
   $('#d-sort', cv).addEventListener('click', (e) => { const b = e.target.closest('[data-sort]'); if (b) { D.sort = b.dataset.sort; dispatchRender(); } });
-  $('#d-opt', cv).onclick = () => { const saved = TECHS.reduce((a, t) => a + optimise(t.id), 0); dispatchRender(); status(saved > 0.5 ? `Routes optimised. <b>${num(saved)} km</b> less driving today.` : 'Routes are already optimal.'); trace('Action', `Optimise routes: ${num(saved)} km saved.`); };
+  $('#d-opt', cv).onclick = optimiseAll;
   $('[data-pin="dispatch"]', cv).onclick = () => pin('dispatch');
   $('#d-pub', cv).onclick = publishPlans;
   $('#d-zin', cv).onclick = () => zoomMap(0.8); $('#d-zout', cv).onclick = () => zoomMap(1.25); $('#d-fit', cv).onclick = fitMap;
   wireDispatchPointer(cv);
 }
-
-function dispatchRender(first) {
-  if (!canvasOf('dispatch') || !$('#d-queue')) return;
+function optimiseAll() {
+  const saved = TECHS.reduce((a, t) => a + optimise(t.id), 0); dispatchRender();
+  status(saved > 0.5 ? `Routes optimised. <b>${num(saved)} km</b> less driving today.` : 'Routes are already optimal.');
+  trace('Action', `Optimise routes: ${num(saved)} km saved.`);
+}
+function dispatchRender(firstRun) {
+  if (!D || !canvasOf('dispatch') || !$('#d-queue')) return;
   const tot = totals();
   $('#d-kpis').innerHTML = `
     <div class="kpi ${tot.open ? 'warn' : 'good'}"><span class="v">${tot.open}</span><span class="l">open orders</span></div>
@@ -940,38 +1233,43 @@ function dispatchRender(first) {
   const q = D.queue.slice().sort((a, b) => D.sort === 'dur' ? ORD[b].dur - ORD[a].dur : D.sort === 'town' ? ORD[a].town.localeCompare(ORD[b].town) : PRIO_RANK[ORD[a].prio] - PRIO_RANK[ORD[b].prio]);
   $('#d-queue').innerHTML = q.length ? q.map((id) => { const o = ORD[id]; return `
     <div class="order${D.sel === id ? ' sel' : ''}" data-order="${id}" data-ctx="order:${id}">
-      <div class="r1"><span class="mono">SO-${id}</span><span class="prio ${o.prio}">${o.prio === 'high' ? 'Escalated' : o.prio === 'low' ? 'Low' : 'Normal'}</span></div>
+      <div class="r1"><span class="mono">SO-${id}</span><span class="prio ${o.prio}">${o.esc ? 'Escalated ' + o.esc : o.prio === 'low' ? 'Low' : 'Normal'}</span></div>
       <div class="cust">${esc(o.cust)}</div><div class="task">${esc(o.task)}</div>
-      <div class="r3"><span>${o.town}</span><span class="mono">${num(o.dur, 1)} h</span><span>${SKILL[o.skill]}</span></div>
+      <div class="r3"><span>${o.town}</span><span class="mono">${num(o.dur, 1)} h</span><span>${SKILLC[o.skill]}</span></div>
     </div>`; }).join('') : '<div class="queue-empty">Every order has a technician.<br>Drag one back here to unassign it.</div>';
   const span = AXIS_END - START, pct = (t) => (Math.min(Math.max(t, START), AXIS_END) - START) / span * 100;
-  const lanes = $('#d-lanes');
-  lanes.innerHTML = TECHS.map((t) => {
+  $('#d-lanes').innerHTML = TECHS.map((t) => {
     const s = sched(t.id); const load = Math.min(100, (s.work / (WORKEND - START)) * 100);
     const grid = Array.from({ length: span - 1 }, (_, i) => `<i class="grid" style="left:${((i + 1) / span) * 100}%"></i>`).join('');
     const items = s.stops.map((st) => {
-      const o = ORD[st.id]; const mism = !t.skills.includes(o.skill);
+      const o = ORD[st.id]; const mism = !t.skills.includes(o.skill); const tmin = Math.round((st.arrive - st.from) * 60);
+      const t2 = mism ? 'needs ' + SKILL[o.skill] : D.showTravel ? `${tmin} min drive, ${hm(st.arrive)}` : hm(st.arrive) + ' ' + o.town;
       return `<i class="travel" style="left:${pct(st.from)}%;width:${pct(st.arrive) - pct(st.from)}%"></i>
-        <div class="job${D.sel === st.id ? ' sel' : ''}${mism ? ' mismatch' : ''}" data-order="${st.id}" data-ctx="order:${st.id}" style="left:${pct(st.arrive)}%;width:calc(${pct(st.end) - pct(st.arrive)}% - 2px)" title="${esc(o.cust)}, ${hm(st.arrive)} to ${hm(st.end)}">
-          <div class="t1">${esc(o.cust)}</div><div class="t2">${mism ? 'needs ' + SKILL[o.skill] : hm(st.arrive) + ' ' + o.town}</div></div>`;
+        <div class="job${D.sel === st.id ? ' sel' : ''}${mism ? ' mismatch' : ''}" data-order="${st.id}" data-ctx="order:${st.id}" style="left:${pct(st.arrive)}%;width:calc(${pct(st.end) - pct(st.arrive)}% - 2px)" title="${esc(o.cust)}, ${hm(st.arrive)} to ${hm(st.end)}, ${tmin} min drive before">
+          <div class="t1">${esc(o.cust)}</div><div class="t2">${t2}</div></div>`;
     }).join('') + (s.stops.length ? `<i class="travel" style="left:${pct(s.lastEnd)}%;width:${pct(s.finish) - pct(s.lastEnd)}%"></i>` : '');
-    return `<div class="lane${D.collapsed[t.id] ? ' collapsed' : ''}${D.focus && D.focus !== t.id ? ' dim' : ''}" style="--c:var(--c-${t.id})" data-lane="${t.id}">
+    return `<div class="lane${D.collapsed[t.id] ? ' collapsed' : ''}${D.focus && D.focus !== t.id ? ' dim' : ''}" style="--c:var(--c-${t.id})" data-lane="${t.id}" data-drop="lane:${t.id}">
       <div class="lane-h" data-ctx="lane:${t.id}" data-tech="${t.id}"><span class="av">${t.ini}</span>
-        <div class="who"><b>${t.name}</b><span>${t.skills.map((k) => SKILL[k]).join(', ')}</span></div>
+        <div class="who"><b>${t.name}</b><span>${t.skills.map((k) => SKILLC[k]).join(', ')}</span></div>
         <div class="load${s.overtime > 0.05 ? ' over' : ''}"><span>${s.stops.length ? 'back ' + hm(s.finish) : 'free'}</span><span class="bar"><i style="width:${load}%"></i></span></div></div>
-      <div class="track" data-drop="lane:${t.id}">${grid}<div class="ot" style="left:${pct(WORKEND)}%"><span>overtime</span></div>${items}</div>
+      <div class="track">${grid}<div class="ot" style="left:${pct(WORKEND)}%"><span>overtime</span></div>${items}</div>
     </div>`;
   }).join('');
-  // condense what changed (patch semantics)
   for (const t of TECHS) {
-    const sig = D.lanes[t.id].join(',');
-    if (!first && D.sig[t.id] !== undefined && D.sig[t.id] !== sig) flash($(`.lane[data-lane="${t.id}"] .track`));
+    const sig = D.lanes[t.id].join(',') + (D.showTravel ? '+t' : '');
+    if (!firstRun && D.sig[t.id] !== undefined && D.sig[t.id] !== sig) flash($(`.lane[data-lane="${t.id}"] .track`));
     D.sig[t.id] = sig;
   }
   const qsig = D.queue.slice().sort().join(',');
-  if (!first && D.sig.q !== undefined && D.sig.q !== qsig) flash($('#d-queue'));
+  if (!firstRun && D.sig.q !== undefined && D.sig.q !== qsig) flash($('#d-queue'));
   D.sig.q = qsig;
+  const b = dispatchBadge(D); const pubBtn = $('#d-pub');
+  const clean = D.pub && !b.warn;
+  pubBtn.textContent = !D.pub ? 'Publish day plans' : clean ? 'Published' : 'Publish changes';
+  pubBtn.classList.toggle('primary', !clean);
+  stateLabel($('#d-state'), D.pub ? b.text : '', b.warn);
   renderMapDyn();
+  save();
 }
 
 /* ---- map scene ---- */
@@ -1008,7 +1306,6 @@ function renderMapDyn() {
     return `<g opacity="${op}"><polyline class="rt" data-tech="${t.id}" points="${pts.map((p) => p.x + ',' + p.y).join(' ')}" fill="none" stroke="var(--c-${t.id})" stroke-width="${D.focus === t.id ? 3.5 : 2.5}" stroke-linejoin="round" stroke-linecap="round"/>
       <polyline points="${back}" fill="none" stroke="var(--c-${t.id})" stroke-width="1.5" stroke-dasharray="3 5" opacity="0.6"/></g>`;
   }).join('');
-  // draw-in animation for changed routes
   $$('.rt', routes).forEach((p) => {
     const tid = p.dataset.tech; const sig = D.lanes[tid].join(',');
     if (p.ownerSVGElement && D.sig['r' + tid] !== sig) {
@@ -1024,32 +1321,33 @@ function renderMapDyn() {
     const o = ORD[id]; const sel = D.sel === id; const dim = D.focus && tid !== D.focus ? 0.35 : 1;
     return `<g class="pin" data-order="${id}" data-ctx="order:${id}" transform="translate(${o.x},${o.y})" opacity="${dim}">
       ${sel ? `<circle r="20" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.8" filter="url(#glow)"/>` : ''}
-      ${o.prio === 'high' && !n ? '' : ''}
       <circle class="ring" r="${sel ? 13 : 11}" fill="#23262F" stroke="${c}" stroke-width="2" ${n ? '' : 'stroke-dasharray="3 3"'} ${sel ? 'filter="url(#glow)"' : ''}/>
       <text text-anchor="middle" dy="4" font-family="Geist Mono, monospace" font-size="11" font-weight="600" fill="${n ? c : '#B6B9C3'}">${n ?? '+'}</text>
-      ${o.prio === 'high' ? `<circle cx="9" cy="-9" r="3.5" fill="#D6B468"/>` : ''}
+      ${o.esc ? `<circle cx="9" cy="-9" r="3.5" fill="#D6B468"/>` : ''}
     </g>`;
   }).join('');
   renderCallout();
 }
 function renderCallout() {
-  const wrap = $('#d-mapwrap'); if (!wrap) return;
+  const wrap = $('#d-mapwrap'); if (!wrap || !D) return;
   $('.callout', wrap)?.remove();
-  if (!D.sel) return;
+  if (!D.sel || !ORD[D.sel] || !dayOrders().includes(D.sel)) return;
   const o = ORD[D.sel]; const svg = $('#d-map');
   const pt = svg.createSVGPoint(); pt.x = o.x; pt.y = o.y;
   const ctm = svg.getScreenCTM(); if (!ctm) return;
   const p = pt.matrixTransform(ctm); const r = wrap.getBoundingClientRect();
+  if (!r.width) return;
   const tid = laneOf(D.sel); const st = tid ? sched(tid).stops.find((s) => s.id === D.sel) : null;
-  wrap.appendChild(el(`<div class="callout" style="left:${p.x - r.left}px;top:${p.y - r.top}px"><b>${esc(o.cust)}</b><span>${tid ? `${TECH[tid].name.split(' ')[0]}, arrives ${hm(st.arrive)}` : 'not assigned yet'}</span></div>`));
+  wrap.appendChild(el(`<div class="callout" style="left:${p.x - r.left}px;top:${p.y - r.top}px"><b>${esc(o.cust)}</b><span>${tid ? `${first(tid)}, arrives ${hm(st.arrive)}` : 'no technician yet'}</span></div>`));
 }
 function applyVB() { const v = D.vb; $('#d-map')?.setAttribute('viewBox', `${v.x} ${v.y} ${v.w} ${v.h}`); renderCallout(); }
 function zoomMap(f, cx, cy) {
   const v = D.vb; cx ??= v.x + v.w / 2; cy ??= v.y + v.h / 2;
   const w = Math.min(1400, Math.max(220, v.w * f)); const h = w * 460 / 800;
-  D.vb = { x: cx - (cx - v.x) * (w / v.w), y: cy - (cy - v.y) * (h / v.h), w, h }; applyVB();
+  D.vb = { x: cx - (cx - v.x) * (w / v.w), y: cy - (cy - v.y) * (h / v.h), w, h }; applyVB(); save();
 }
-function fitMap() { D.vb = { x: 0, y: 0, w: 800, h: 460 }; applyVB(); }
+function fitMap() { D.vb = { x: 0, y: 0, w: 800, h: 460 }; applyVB(); save(); }
+function showOnMap(id) { const o = ORD[id]; D.sel = id; D.vb = { x: o.x - 210, y: o.y - 121, w: 420, h: 241.5 }; dispatchRender(); applyVB(); }
 
 /* ---- pointer: select, drag (move > 6 px), long-press (400 ms), pan ---- */
 function wireDispatchPointer(cv) {
@@ -1061,7 +1359,7 @@ function wireDispatchPointer(cv) {
     if (svg) return startPan(e, svg);
   });
   cv.addEventListener('mouseover', (e) => { if (document.body.classList.contains('dragging')) return; const h = e.target.closest('.lane-h'); const f = h ? h.dataset.tech : null; if (f !== D.focus) { D.focus = f; dispatchRender(); } });
-  cv.addEventListener('mouseleave', () => { if (D.focus) { D.focus = null; dispatchRender(); } });
+  cv.addEventListener('mouseleave', () => { if (D?.focus) { D.focus = null; dispatchRender(); } });
   $('#d-mapwrap', cv).addEventListener('wheel', (e) => {
     e.preventDefault(); const svg = $('#d-map'); const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
     const p = pt.matrixTransform(svg.getScreenCTM().inverse()); zoomMap(e.deltaY > 0 ? 1.12 : 0.89, p.x, p.y);
@@ -1069,26 +1367,27 @@ function wireDispatchPointer(cv) {
 }
 function startPan(e, svg) {
   const sx = e.clientX, sy = e.clientY, v0 = { ...D.vb }; let moved = false;
-  const lp = setTimeout(() => { if (!moved) { cleanup(); openPanel($('[data-ctx="map"]')); } }, 400);
+  const lp = setTimeout(() => { if (!moved) { cleanup(); openPanel($('[data-ctx="map"]'), { x: sx, y: sy }); } }, 400);
   const scale = v0.w / svg.getBoundingClientRect().width;
   const move = (ev) => {
     const dx = ev.clientX - sx, dy = ev.clientY - sy;
     if (!moved && Math.hypot(dx, dy) > 6) { moved = true; clearTimeout(lp); svg.classList.add('panning'); }
     if (moved) { D.vb = { ...v0, x: v0.x - dx * scale, y: v0.y - dy * scale }; applyVB(); }
   };
-  const up = () => { clearTimeout(lp); cleanup(); if (!moved && D.sel) { D.sel = null; dispatchRender(); } };
+  const up = () => { clearTimeout(lp); cleanup(); if (moved) save(); else if (D.sel) { D.sel = null; dispatchRender(); } };
   function cleanup() { svg.classList.remove('panning'); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); }
   window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
 }
 function startOrderGesture(e, item) {
   e.preventDefault();
   const id = item.dataset.order, sx = e.clientX, sy = e.clientY; let dragging = false, ghost = null, hover = null, lpFired = false;
-  const lp = setTimeout(() => { if (!dragging) { lpFired = true; cleanup(); openPanel(item); } }, 400);
+  const app = $('.app.dispatch');
+  const lp = setTimeout(() => { if (!dragging) { lpFired = true; cleanup(); openPanel(item, { x: sx, y: sy }); } }, 400);
   const move = (ev) => {
     if (!dragging && Math.hypot(ev.clientX - sx, ev.clientY - sy) > 6) {
-      clearTimeout(lp); dragging = true; closePanel();
-      ghost = el(`<div class="dragghost">${esc(ORD[id].cust)}<span>SO-${id}, ${num(ORD[id].dur, 1)} h, ${SKILL[ORD[id].skill]}</span></div>`);
-      document.body.appendChild(ghost); document.body.classList.add('dragging');
+      clearTimeout(lp); dragging = true; closePanel(); closeAnswer();
+      ghost = el(`<div class="dragghost">${esc(ORD[id].cust)}<span>SO-${id}, ${num(ORD[id].dur, 1)} h, ${SKILLC[ORD[id].skill]}</span></div>`);
+      document.body.appendChild(ghost); document.body.classList.add('dragging'); app.classList.add('dnd');
     }
     if (dragging) {
       ghost.style.transform = `translate(${ev.clientX + 12}px, ${ev.clientY + 10}px)`;
@@ -1100,47 +1399,86 @@ function startOrderGesture(e, item) {
     clearTimeout(lp); cleanup();
     if (lpFired) return;
     if (!dragging) { D.sel = D.sel === id ? null : id; dispatchRender(); if (D.sel) status(`Selected <b>${esc(ORD[id].cust)}</b>. Queue, map and timeline follow the same selection, right here on the device.`); return; }
-    ghost.remove(); document.body.classList.remove('dragging'); hover?.classList.remove('drop-on');
+    ghost.remove(); document.body.classList.remove('dragging'); app.classList.remove('dnd'); hover?.classList.remove('drop-on');
     if (!hover) return;
     const target = hover.dataset.drop;
     if (target === 'queue') { if (laneOf(id)) { unassign(id); D.sel = id; dispatchRender(); status(`<b>${esc(ORD[id].cust)}</b> is open again.`); trace('Direct', `Unassigned ${esc(ORD[id].cust)}.`); } return; }
     const tid = target.split(':')[1];
-    const jobs = $$('.job', hover).filter((j) => j.dataset.order !== id);
-    const idx = jobs.filter((j) => { const r = j.getBoundingClientRect(); return r.left + r.width / 2 < ev.clientX; }).length;
+    const track = $('.track', hover); const tr = track.getBoundingClientRect();
+    let idx = null;
+    if (ev.clientX >= tr.left) {
+      const jobs = $$('.job', track).filter((j) => j.dataset.order !== id);
+      idx = jobs.filter((j) => { const r = j.getBoundingClientRect(); return r.left + r.width / 2 < ev.clientX; }).length;
+    }
     const prev = laneOf(id); assign(id, tid, idx); D.sel = id; dispatchRender();
     const s = sched(tid); const st = s.stops.find((x) => x.id === id); const mism = !TECH[tid].skills.includes(ORD[id].skill);
-    status(`${esc(ORD[id].cust)} to <b>${TECH[tid].name.split(' ')[0]}</b>, arrives ${hm(st.arrive)}.${mism ? ` <span style="color:var(--err)">${TECH[tid].name.split(' ')[0]} lacks ${SKILL[ORD[id].skill]} skills.</span>` : ''}${s.overtime > 0.05 ? ` Back at ${hm(s.finish)}, ${num(s.overtime, 1)} h overtime.` : ''}`);
+    status(`${esc(ORD[id].cust)} to <b>${first(tid)}</b>, arrives ${hm(st.arrive)}.${mism ? ` <span style="color:var(--err)">${first(tid)} lacks ${SKILL[ORD[id].skill]} skills.</span>` : ''}${s.overtime > 0.05 ? ` Back at ${hm(s.finish)}, ${num(s.overtime, 1)} h overtime.` : ''}`);
     trace('Direct', `${esc(ORD[id].cust)} ${prev ? 'moved' : 'assigned'} to ${TECH[tid].name}.`);
   };
   function cleanup() { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); }
   window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
 }
-async function publishPlans() {
-  if (D.published) { status('Day plans are already on the technicians’ phones.'); return; }
-  const tot = totals();
-  const ok = await consent({
-    title: 'Publish today’s plans to 3 technicians?',
-    text: 'omadia sends each technician their route and orders, and updates the service orders in the ERP.',
-    items: [`Push message to ${TECHS.map((t) => t.name.split(' ')[0]).join(', ')}`, `${TECHS.reduce((a, t) => a + D.lanes[t.id].length, 0)} ERP service orders get a technician and a time slot`, tot.open ? `${tot.open} open order${tot.open > 1 ? 's stay' : ' stays'} unassigned` : 'No order stays unassigned'],
-    confirm: 'Publish', verb: 'Publishing',
+function escalationLines() {
+  return dayOrders().filter((id) => ORD[id].esc).map((id) => {
+    const tid = laneOf(id); const st = tid ? sched(tid).stops.find((s) => s.id === id) : null;
+    return `${ORD[id].cust}, escalated ${ORD[id].esc}: ${tid ? `${first(tid)} arrives ${hm(st.arrive)}` : 'still without a technician'}`;
   });
+}
+function planChanges(prev) {
+  const prevTid = (id) => TECHS.find((t) => (prev[t.id] || []).includes(id))?.id || null;
+  const out = [];
+  for (const id of dayOrders()) {
+    const a = prevTid(id), b = laneOf(id);
+    if (a !== b) out.push({ text: `${ORD[id].cust}: ${b ? first(b) : 'back to open orders'}${a ? (b ? ` instead of ${first(a)}` : `, was ${first(a)}`) : ', newly assigned'}`, techs: [a, b].filter(Boolean) });
+    else if (b && prev[b].indexOf(id) !== D.lanes[b].indexOf(id)) {
+      const st = sched(b).stops.find((s) => s.id === id);
+      out.push({ text: `${ORD[id].cust}: new slot with ${first(b)}, ${hm(st.arrive)}`, techs: [b] });
+    }
+  }
+  return out;
+}
+async function publishPlans() {
+  const dirty = D.pub && planSig() !== D.pub.sig;
+  if (D.pub && !dirty) { status(`The plans are on the technicians’ phones since ${D.pub.at}. Change the plan to publish an update.`); return; }
+  const tot = totals(); const assigned = TECHS.reduce((a, t) => a + D.lanes[t.id].length, 0);
+  let spec;
+  if (!D.pub) {
+    spec = {
+      title: `Publish ${dayName()}’s plans to 3 technicians?`,
+      text: 'omadia sends each technician their route and orders, and updates the service orders in the ERP.',
+      items: [`Push message to ${TECHS.map((t) => first(t.id)).join(', ')}`, `${plural(assigned, 'ERP service order')} get a technician and a time slot`, ...escalationLines(),
+        tot.open ? `${plural(tot.open, 'open order')} stay${tot.open === 1 ? 's' : ''} unassigned` : 'No order stays unassigned'],
+      confirm: 'Publish', verb: 'Publishing',
+    };
+  } else {
+    const ch = planChanges(D.pub.plan); const who = [...new Set(ch.flatMap((c) => c.techs))];
+    spec = {
+      title: `Publish ${plural(ch.length, 'change')} to the day plans?`,
+      text: `The plans went out at ${D.pub.at}. omadia sends an update only to the technicians affected and adjusts the ERP orders.`,
+      items: [who.length ? `Update to ${who.map(first).join(', ')}` : 'No technician is affected', ...ch.map((c) => c.text), ...escalationLines()],
+      confirm: 'Publish changes', verb: 'Publishing',
+    };
+  }
+  const ok = await consent(spec);
   if (!ok) return;
-  D.published = true; const b = $('#d-pub'); if (b) b.textContent = 'Published';
-  status(`Published at ${nowHM()}. Technicians have their plans, the ERP is up to date.`);
-  trace('External effect', `Day plans published to 3 technicians, ERP updated. You confirmed.`);
+  const v = (D.pub?.v || 0) + 1;
+  D.pub = { sig: planSig(), at: nowHM(), plan: clone(D.lanes), v };
+  dispatchRender();
+  status(v === 1 ? `Published at ${D.pub.at}. Technicians have their plans, the ERP is up to date.` : `Update ${v - 1} published at ${D.pub.at}. Only the affected technicians were notified.`);
+  trace('External effect', v === 1 ? `${dayName()}’s plans published to 3 technicians, ERP updated. You confirmed.` : `Plan update published, ERP adjusted. You confirmed.`);
 }
 async function textCustomer(id) {
-  const tid = laneOf(id); const st = sched(tid).stops.find((s) => s.id === id);
+  const tid = laneOf(id); if (!tid) { status(`${esc(ORD[id].cust)} has no technician yet, so there is no arrival window to send.`); return; }
+  const st = sched(tid).stops.find((s) => s.id === id);
   const win = `${hm(st.arrive - 0.25)} and ${hm(st.arrive + 0.25)}`;
-  const ok = await consent({ title: `Text ${ORD[id].cust}?`, text: `“Your technician ${TECH[tid].name.split(' ')[0]} arrives today between ${win}.”`, items: ['SMS to the contact stored in the CRM', 'Logged on the service order'], confirm: 'Send SMS', verb: 'Sending' });
+  const ok = await consent({ title: `Text ${ORD[id].cust}?`, text: `“Your technician ${first(tid)} arrives today between ${win}.”`, items: ['SMS to the contact stored in the CRM', 'Logged on the service order'], confirm: 'Send SMS', verb: 'Sending' });
   if (!ok) return;
   status(`SMS sent to <b>${esc(ORD[id].cust)}</b>: arrival between ${win}.`); trace('External effect', `SMS to ${esc(ORD[id].cust)}, arrival ${win}. You confirmed.`);
 }
-async function sendDayPlan(tid) {
-  const s = sched(tid); const n = s.stops.length;
-  const ok = await consent({ title: `Send ${TECH[tid].name.split(' ')[0]}’s day plan?`, text: `${n} order${n === 1 ? '' : 's'}, back at the depot around ${hm(s.finish)}.`, items: [`Push message to ${TECH[tid].name}`], confirm: 'Send', verb: 'Sending' });
-  if (!ok) return;
-  status(`Day plan sent to <b>${TECH[tid].name}</b>.`); trace('External effect', `Day plan sent to ${TECH[tid].name}. You confirmed.`);
+function setTravel(on) {
+  D.showTravel = on; dispatchRender();
+  status(on ? 'Patched the timeline: every stop shows its driving time. The application changed in place, nothing was regenerated.' : 'Driving times hidden again.');
+  trace('Patch', on ? 'Timeline: driving time added to every stop.' : 'Timeline: driving times removed.');
 }
 
 /* =========================================================================
@@ -1157,53 +1495,61 @@ const OBST = { 's-1-3': 'chimney', 's-2-9': 'skylight', 's-2-10': 'skylight', 'n
 const CONS = 38000;
 const MONTH = [0.03, 0.05, 0.08, 0.11, 0.13, 0.135, 0.135, 0.12, 0.09, 0.06, 0.03, 0.02];
 const CONS_M = [1.12, 1.05, 1.0, 0.95, 0.92, 0.9, 0.9, 0.92, 0.96, 1.02, 1.1, 1.16];
-let P;
 const key = (f, r, c) => `${f}-${r}-${c}`;
 function isMargin(f, r, c) { return c === 0 || c === COLS - 1 || (f === 'n' && r === 0) || (f === 's' && r === SROWS - 1); }
-function blocked(k) { const [f, r, c] = k.split('-'); return OBST[k] || (P.margin && isMargin(f, +r, +c) ? 'margin' : null); }
-function solarReset() {
-  P = { panels: new Set(), module: 'std', battery: 'b10', wallbox: false, margin: true, discount: false, tool: 'paint', sent: false };
-  for (let r = 0; r < 4; r++) for (let c = 1; c < COLS - 1; c++) { const k = key('s', r, c); if (!OBST[k]) P.panels.add(k); }
+function blocked(k, p = P) { const [f, r, c] = k.split('-'); return OBST[k] || (p.margin && isMargin(f, +r, +c) ? 'margin' : null); }
+function solarInit() {
+  P = { panels: new Set(), module: 'std', battery: 'b10', wallbox: false, margin: true, discount: false, maint: false, tool: 'paint', sent: null };
+  for (let r = 0; r < 3; r++) for (let c = 1; c < COLS - 1; c++) { const k = key('s', r, c); if (!OBST[k]) P.panels.add(k); }
 }
-function calc() {
-  const m = MODS[P.module]; let ns = 0, nn = 0;
-  for (const k of P.panels) (k[0] === 's' ? ns++ : nn++);
+function calc(p = P) {
+  const m = MODS[p.module]; let ns = 0, nn = 0;
+  for (const k of p.panels) (k[0] === 's' ? ns++ : nn++);
   const n = ns + nn, kwp = n * m.wp / 1000;
-  const yieldK = (ns * m.wp / 1000 * 980 + nn * m.wp / 1000 * 640) * (P.module === 'bif' ? 1.05 : 1);
-  const ratio = 0.55 + BATT[P.battery].boost + (P.wallbox ? 0.03 : 0);
+  const yieldK = (ns * m.wp / 1000 * 980 + nn * m.wp / 1000 * 640) * (p.module === 'bif' ? 1.05 : 1);
+  const ratio = 0.55 + BATT[p.battery].boost + (p.wallbox ? 0.03 : 0);
   const self = Math.min(yieldK * ratio, CONS * 0.8), exp = yieldK - self;
   const save = self * 0.29 + exp * 0.078;
-  const inv = !n ? null : kwp <= 10 ? ['Hybrid inverter 10 kW', 2400] : kwp <= 15 ? ['Hybrid inverter 15 kW', 3100] : kwp <= 25 ? ['Hybrid inverter 25 kW', 3900] : ['Hybrid inverter 30 kW', 4700];
+  const inv = !n ? null : kwp <= 10 ? ['Hybrid inverter 10 kW', 2400, 10] : kwp <= 15 ? ['Hybrid inverter 15 kW', 3100, 15] : kwp <= 25 ? ['Hybrid inverter 25 kW', 3900, 25] : ['Hybrid inverter 30 kW', 4700, 30];
   const lines = [];
   if (n) {
     lines.push([`PV module, ${m.name}`, n, m.price]);
     lines.push(['Mounting system, per module', n, 85]);
     lines.push([inv[0], 1, inv[1]]);
   }
-  if (BATT[P.battery].kwh) lines.push([`Battery storage ${BATT[P.battery].name}`, 1, BATT[P.battery].price]);
-  if (P.wallbox) lines.push(['Wallbox 11 kW, load management', 1, 1150]);
+  if (BATT[p.battery].kwh) lines.push([`Battery storage ${BATT[p.battery].name}`, 1, BATT[p.battery].price]);
+  if (p.wallbox) lines.push(['Wallbox 11 kW, load management', 1, 1150]);
   if (n) { lines.push(['Installation and commissioning', 1, 2800]); lines.push(['Scaffolding', 1, 950]); }
+  if (p.maint) lines.push(['Maintenance contract, per year, 5 years', 5, 390]);
   const sub = lines.reduce((a, [, q, u]) => a + q * u, 0);
-  const disc = P.discount ? sub * 0.05 : 0; const net = sub - disc;
-  return { n, ns, nn, kwp, yieldK, self, exp, save, lines, sub, disc, net, vat: net * 0.19, gross: net * 1.19, payback: save > 0 && n ? net / save : null, co2: yieldK * 0.38 / 1000, selfShare: yieldK ? self / yieldK : 0 };
+  const disc = p.discount ? sub * 0.05 : 0; const net = sub - disc;
+  return { n, ns, nn, kwp, yieldK, self, exp, save, inv, lines, sub, disc, net, vat: net * 0.19, gross: net * 1.19, payback: save > 0 && n ? net / save : null, co2: yieldK * 0.38 / 1000, selfShare: yieldK ? self / yieldK : 0 };
+}
+const quoteSig = (p = P) => JSON.stringify([calc(p).lines, p.discount]);
+function solarBadge(d) {
+  if (!d) return { text: '' };
+  const p = { ...d, panels: new Set(d.panels) };
+  if (!p.sent) return { text: 'Not sent yet' };
+  return quoteSig(p) !== p.sent.sig ? { text: 'Changed since sent', warn: true } : { text: `Sent ${p.sent.at}` };
 }
 function solarBuild(cv) {
   cv.innerHTML = `<div class="app solar">
     <section class="pane apphead">
       <div class="title"><b>Solar quote, Müller GmbH</b><span>Hallenstraße 12, Kronau. Logistics hall, 38,000 kWh per year. Roof from the site visit on 23 Nov</span></div>
       <div class="grow"></div>
-      <span class="gen-note">Generated for you at ${nowHM()}</span>
-      <button class="btn ghost" data-pin="solar">${S.pinned.solar ? 'Pinned' : 'Pin as tool'}</button>
-      <button class="btn primary" id="s-send">${P.sent ? 'Quote sent' : 'Send quote'}</button>
+      <span class="gen-note">${originNote()}</span>
+      <button class="btn ghost" data-pin="solar">${pinLabel('solar')}</button>
+      <span class="state" id="s-state"></span>
+      <button class="btn primary" id="s-send">Send quote</button>
     </section>
     <div class="smain">
       <section class="pane roof" data-ctx="roof">
         <div class="pane-h"><h3>Roof layout</h3>
           <div style="display:flex;gap:8px;align-items:center">
-            <div class="seg" id="s-tool"><button data-tool="paint">Paint</button><button data-tool="erase">Erase</button></div>
+            <div class="seg" id="s-tool"><button data-tool="paint" title="Paint adds modules">Paint</button><button data-tool="erase" title="Erase removes modules">Erase</button></div>
             <button class="btn sm" id="s-fill">Fill south face</button><button class="btn sm ghost" id="s-clear">Clear</button></div></div>
         <div class="roofwrap" data-toolzone><svg id="s-roof" viewBox="0 0 784 420" preserveAspectRatio="xMidYMid meet"></svg></div>
-        <div class="xr"><b>Lumen</b> roof.editor, <b>scene</b> primitive, 112 cells<br>paint and erase run on this device<br>invariant: no panel on obstacles or margin<br>source: Drive photos, measured by omadia</div>
+        <div class="xr"><b>Lumen</b> roof.editor, <b>scene</b> primitive, 112 cells<br>paint adds, erase removes, on this device<br>invariant: no panel on obstacles or margin<br>source: Drive photos, measured by omadia</div>
       </section>
       <div class="sbottom">
         <section class="pane" data-ctx="chart">
@@ -1230,13 +1576,14 @@ function solarBuild(cv) {
     </div>
   </div>`;
   drawRoofBase();
+  P.sig = null;
   solarRender(true);
   $('#s-tool', cv).onclick = (e) => { const b = e.target.closest('[data-tool]'); if (b) { P.tool = b.dataset.tool; solarRender(); } };
-  $('#s-fill', cv).onclick = () => { fillFace('s'); trace('Direct', 'Filled the south face.'); };
-  $('#s-clear', cv).onclick = () => { P.panels.clear(); solarRender(); status('Roof cleared. Paint panels where you want them.'); };
+  $('#s-fill', cv).onclick = () => { fillFace('s'); trace('Direct', 'Fill south face.'); };
+  $('#s-clear', cv).onclick = () => { P.panels.clear(); solarRender(); status('Roof cleared. Paint panels where you want them.'); trace('Direct', 'Cleared the roof.'); };
   $('#s-mods', cv).onclick = (e) => { const b = e.target.closest('[data-mod]'); if (b) { P.module = b.dataset.mod; solarRender(); flash($('#s-metrics')); } };
   $('#s-batt', cv).onclick = (e) => { const b = e.target.closest('[data-batt]'); if (b) { P.battery = b.dataset.batt; solarRender(); flash($('#s-metrics')); } };
-  $('#s-wb', cv).onclick = () => { P.wallbox = !P.wallbox; solarRender(); flash($('#s-quote')); };
+  $('#s-wb', cv).onclick = () => { P.wallbox = !P.wallbox; solarRender(); };
   $('#s-margin', cv).onclick = () => setMargin(!P.margin);
   $('[data-pin="solar"]', cv).onclick = () => pin('solar');
   $('#s-send', cv).onclick = sendQuote;
@@ -1270,8 +1617,8 @@ function drawRoofBase() {
   <g transform="translate(${RX},${RY + H + 52})" pointer-events="none"><rect width="100" height="3" fill="#B6B9C3"/><text x="106" y="5" font-family="Geist, sans-serif" font-size="11" fill="#888B95">5 m</text></g>
   <text x="${RX + W - 6}" y="${ridge + SROWS * CH - 8}" text-anchor="end" font-family="Geist, sans-serif" font-size="11" fill="#EEEFF3" opacity="0.75" pointer-events="none">South face, 980 kWh per kWp</text>`;
 }
-function solarRender(first) {
-  if (!$('#s-cells')) return;
+function solarRender(firstRun) {
+  if (!P || !$('#s-cells')) return;
   const ridge = RY + NROWS * CH; const g = $('#s-cells'); const m = P.module;
   let html = '';
   for (const [f, rows, y0] of [['n', NROWS, RY], ['s', SROWS, ridge]]) {
@@ -1307,15 +1654,21 @@ function solarRender(first) {
     <tr class="sum"><td style="color:var(--t3);font-weight:400">VAT 19 %</td><td></td><td></td><td class="n" style="color:var(--t3);font-weight:400">${eur(c.vat)}</td></tr>
     <tr class="sum"><td>Total</td><td></td><td></td><td class="n">${eur(c.gross)}</td></tr></tbody>`;
   renderChart(c);
-  const sig = [c.n, P.module, P.battery, P.wallbox, P.discount].join('|');
-  if (!first && P.sig !== sig) { flash($('#s-quote')); }
+  const sig = quoteSig();
+  if (!firstRun && P.sig !== sig) flash($('#s-quote'));
   P.sig = sig;
+  const b = solarBadge(snapshot('solar')); const btn = $('#s-send');
+  const clean = P.sent && !b.warn;
+  btn.textContent = !P.sent ? 'Send quote' : clean ? 'Quote sent' : 'Send revision';
+  btn.classList.toggle('primary', !clean);
+  stateLabel($('#s-state'), P.sent ? b.text : '', b.warn);
+  save();
 }
 function renderChart(c) {
   const svg = $('#s-chart'); if (!svg) return;
   const prod = MONTH.map((f) => c.yieldK * f / MONTH.reduce((a, b) => a + b, 0));
   const dem = CONS_M.map((f) => CONS / 12 * f);
-  const max = Math.max(...prod, ...dem) * 1.12; const W = 520, H = 190, base = 168, top = 10, bw = 26, gap = (W - 20 - 12 * bw) / 11;
+  const max = Math.max(...prod, ...dem) * 1.12; const W = 520, base = 168, top = 10, bw = 26, gap = (W - 20 - 12 * bw) / 11;
   const y = (v) => base - (v / max) * (base - top);
   const L = 'JFMAMJJASOND';
   let s = `<line x1="10" x2="${W - 10}" y1="${base}" y2="${base}" stroke="rgba(255,255,255,0.08)"/>`;
@@ -1325,193 +1678,489 @@ function renderChart(c) {
   $('#s-chart-sub').innerHTML = `<span style="color:var(--accent)">■</span> yield &nbsp; <span style="color:var(--t2)">- - -</span> demand`;
 }
 function wireRoofPointer(svg) {
-  let mode = null, touched = new Set(), warned = false;
+  let mode = null, touched = new Set(), warned = false, changed = 0, occupied = 0;
   const apply = (k) => {
     if (touched.has(k)) return; touched.add(k);
-    const b = blocked(k);
     if (mode === 'add') {
-      if (b) { if (!warned) { warned = true; status(`Not there: ${b === 'margin' ? 'the fire-safety margin stays free' : 'that is the ' + b}. The roof Lumen checks this on every stroke.`); } const cell = $(`[data-cell="${k}"] .hov`); if (cell) { cell.setAttribute('stroke', 'var(--err-edge)'); cell.setAttribute('stroke-width', '2'); } return; }
-      P.panels.add(k);
-    } else P.panels.delete(k);
+      const b = blocked(k);
+      if (b) {
+        if (!warned) { warned = true; status(`Not there: ${b === 'margin' ? 'the fire-safety margin stays free' : 'that is the ' + b}. The roof Lumen checks this on every stroke.`); }
+        const cell = $(`[data-cell="${k}"] .hov`); if (cell) { cell.setAttribute('stroke', 'var(--err-edge)'); cell.setAttribute('stroke-width', '2'); }
+        return;
+      }
+      if (P.panels.has(k)) { occupied++; return; }
+      P.panels.add(k); changed++;
+    } else { if (!P.panels.has(k)) return; P.panels.delete(k); changed++; }
     solarRender();
   };
   svg.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
     const cell = e.target.closest('[data-cell]'); if (!cell) return;
     e.preventDefault(); svg.setPointerCapture(e.pointerId);
-    const k = cell.dataset.cell; touched = new Set(); warned = false;
-    mode = P.tool === 'erase' ? 'del' : P.panels.has(k) ? 'del' : 'add';
-    apply(k);
+    touched = new Set(); warned = false; changed = 0; occupied = 0;
+    mode = P.tool === 'erase' ? 'del' : 'add';
+    apply(cell.dataset.cell);
   });
   svg.addEventListener('pointermove', (e) => {
     if (!mode) return;
     const c = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-cell]'); if (c) apply(c.dataset.cell);
   });
-  const end = () => { if (mode && touched.size) { const c = calc(); status(`${c.n} modules, <b>${num(c.kwp, 1)} kWp</b>, ${eur(c.net)} net. Yield, price and quote followed every cell.`); } mode = null; };
+  const end = () => {
+    if (!mode) return;
+    const c = calc();
+    if (changed) { status(`${mode === 'add' ? 'Added' : 'Removed'} ${plural(changed, 'module')}. Now ${c.n} modules, <b>${num(c.kwp, 1)} kWp</b>, ${eur(c.net)} net. Yield, price and quote followed every cell.`); trace('Direct', `${mode === 'add' ? 'Painted' : 'Erased'} ${plural(changed, 'module')}.`); }
+    else if (mode === 'add' && occupied && !warned) status('Those cells already have modules. Paint adds, Erase removes.');
+    else if (mode === 'del' && !warned) status('Nothing to erase there. Erase removes modules, Paint adds them.');
+    mode = null;
+  };
   svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
 }
 function fillFace(f) {
   const rows = f === 's' ? SROWS : NROWS; let added = 0;
   for (let r = 0; r < rows; r++) for (let c = 0; c < COLS; c++) { const k = key(f, r, c); if (!blocked(k) && !P.panels.has(k)) { P.panels.add(k); added++; } }
   solarRender(); flash($('#s-metrics'));
-  const c = calc(); status(added ? `Added ${added} modules on the ${f === 's' ? 'south' : 'north'} face. Now <b>${num(c.kwp, 1)} kWp</b>.` : `The ${f === 's' ? 'south' : 'north'} face is already full.`);
+  const c = calc(); status(added ? `Added ${plural(added, 'module')} on the ${f === 's' ? 'south' : 'north'} face. Now <b>${num(c.kwp, 1)} kWp</b>, ${eur(c.net)} net.` : `The ${f === 's' ? 'south' : 'north'} face is already full.`);
 }
 function setMargin(on) {
   P.margin = on;
   if (on) for (const k of [...P.panels]) if (blocked(k)) P.panels.delete(k);
   solarRender(); status(on ? 'Fire-safety margin restored. Modules on the edge were removed.' : 'Margin released. Edge cells can take modules now, check the local fire code first.');
 }
+function setMaint(on) {
+  P.maint = on; solarRender();
+  status(on ? 'Patched the quote: a 5-year maintenance contract is now a line of its own, €390 per year.' : 'Maintenance contract removed from the quote.');
+  trace('Patch', on ? 'Quote: maintenance contract, 5 years, added as a line.' : 'Quote: maintenance contract removed.');
+}
+function quoteDiff(s, c) {
+  const d = [];
+  if (s.n !== c.n) d.push(`Modules: ${s.n} to ${c.n}, ${num(s.kwp, 1)} to ${num(c.kwp, 1)} kWp`);
+  if (s.module !== P.module) d.push(`Module type: ${MODS[P.module].name}`);
+  if (s.battery !== P.battery) d.push(`Battery: ${BATT[s.battery].name} to ${BATT[P.battery].name}`);
+  if (s.wallbox !== P.wallbox) d.push(P.wallbox ? 'Wallbox added' : 'Wallbox removed');
+  if (s.maint !== P.maint) d.push(P.maint ? 'Maintenance contract added, 5 years' : 'Maintenance contract removed');
+  if (s.discount !== P.discount) d.push(P.discount ? 'Volume discount 5 % applied' : 'Volume discount removed');
+  d.push(`Net price: ${eur(s.net)} to ${eur(c.net)}`);
+  return d;
+}
 async function sendQuote() {
-  if (P.sent) { status('The quote is already with Müller GmbH.'); return; }
   const c = calc(); if (!c.n) { status('Paint at least one module before sending the quote.'); return; }
-  const ok = await consent({
+  const sig = quoteSig();
+  if (P.sent && P.sent.sig === sig) { status(`Revision ${P.sent.rev} is with Müller GmbH since ${P.sent.at}. Change the quote to send a revision.`); return; }
+  const rev = P.sent ? P.sent.rev + 1 : 1;
+  const ok = await consent(rev === 1 ? {
     title: 'Send quote Q-2026-0412 to Müller GmbH?',
     text: `${c.n} modules, ${num(c.kwp, 1)} kWp, ${eur(c.gross)} including VAT. omadia writes the PDF from this canvas.`,
     items: ['Email with PDF to Anna Müller, purchasing', 'Offer created in the CRM, follow-up in 7 days', `${c.n} modules reserved in the ERP for 14 days`],
     confirm: 'Send quote', verb: 'Sending',
+  } : {
+    title: `Send revision ${rev} of Q-2026-0412?`,
+    text: `Revision ${P.sent.rev} went out at ${P.sent.at}. Anna Müller gets the new PDF with these changes:`,
+    items: [...quoteDiff(P.sent, c), 'CRM offer updated, module reservation adjusted in the ERP'],
+    confirm: 'Send revision', verb: 'Sending',
   });
   if (!ok) return;
-  P.sent = true; const b = $('#s-send'); if (b) b.textContent = 'Quote sent';
-  status(`Quote sent at ${nowHM()}. Offer in the CRM, ${c.n} modules reserved.`); trace('External effect', `Quote Q-2026-0412 sent to Müller GmbH, ${eur(c.gross)}. You confirmed.`);
+  P.sent = { sig, at: nowHM(), rev, n: c.n, kwp: c.kwp, net: c.net, module: P.module, battery: P.battery, wallbox: P.wallbox, discount: P.discount, maint: P.maint };
+  solarRender();
+  status(rev === 1 ? `Quote sent at ${P.sent.at}. Offer in the CRM, ${c.n} modules reserved.` : `Revision ${rev} sent at ${P.sent.at}. CRM and ERP follow.`);
+  trace('External effect', `${rev === 1 ? 'Quote' : 'Revision ' + rev + ' of quote'} Q-2026-0412 sent to Müller GmbH, ${eur(c.gross)}. You confirmed.`);
 }
 
 /* =========================================================================
-   APP 3: Lobby kiosk (embeds the existing kiosk Lumen mockup)
+   APP 3: Lobby kiosk. AURA brand Lumen (colorMode brand), native here.
    ========================================================================= */
+const KX = {
+  en: { eyebrow: 'New for 2026', tag: 'A speaker that lights the room it fills.', lead: 'Choose a feature to explore AURA Halo.', feats: {
+    sound: { chip: 'Sound', sub: '360° spatial', title: 'Spatial sound', metric: '108 dB', body: 'Six drivers fire in a ring and fill the room evenly. AURA Halo tunes its sound to the space it stands in.', specs: [['Drivers', '6 × 2.5″'], ['Peak', '108 dB'], ['Range', '45 Hz to 22 kHz'], ['Latency', '18 ms']] },
+    battery: { chip: 'Battery', sub: 'All-day play', title: 'All-day battery', metric: '30 h', body: 'A full day of continuous play. Fifteen minutes on the charger add another five hours, and the halo turns amber when the battery runs low.', specs: [['Playtime', '30 h'], ['Quick charge', '15 min for 5 h'], ['Cell', '9,600 mAh'], ['Standby', '40 days']] },
+    material: { chip: 'Materials', sub: 'Aluminium shell', title: 'Aluminium shell', metric: '410 g', body: 'Bead-blasted aluminium gives the shell a soft matte finish. One solid block, light enough to carry from room to room.', specs: [['Weight', '410 g'], ['Shell', '6061-T6 aluminium'], ['Finish', 'Bead-blasted'], ['Rating', 'IP67']] },
+    connect: { chip: 'Connect', sub: 'Multi-room', title: 'Multi-room', metric: 'Any room', body: 'Put one in every room and they find each other. Move the music from room to room with a swipe.', specs: [['Network', 'Wi-Fi 6E'], ['Codec', 'aptX Lossless'], ['Rooms', 'Unlimited'], ['Pairing', 'Automatic']] },
+  } },
+  de: { eyebrow: 'Neu für 2026', tag: 'Ein Lautsprecher, der den Raum erhellt, den er füllt.', lead: 'Wählen Sie eine Funktion, um AURA Halo zu entdecken.', feats: {
+    sound: { chip: 'Klang', sub: '360° räumlich', title: 'Räumlicher Klang', metric: '108 dB', body: 'Sechs Treiber strahlen im Ring und füllen den Raum gleichmäßig. AURA Halo stimmt den Klang auf den Raum ab, in dem er steht.', specs: [['Treiber', '6 × 2,5″'], ['Spitze', '108 dB'], ['Bereich', '45 Hz bis 22 kHz'], ['Latenz', '18 ms']] },
+    battery: { chip: 'Akku', sub: 'Den ganzen Tag', title: 'Akku für den ganzen Tag', metric: '30 h', body: 'Einen ganzen Tag Musik am Stück. Fünfzehn Minuten am Ladegerät bringen weitere fünf Stunden, und der Halo leuchtet bernsteinfarben, wenn der Akku zur Neige geht.', specs: [['Laufzeit', '30 h'], ['Schnellladen', '15 min für 5 h'], ['Zelle', '9.600 mAh'], ['Standby', '40 Tage']] },
+    material: { chip: 'Material', sub: 'Aluminiumgehäuse', title: 'Aluminiumgehäuse', metric: '410 g', body: 'Glasperlgestrahltes Aluminium gibt dem Gehäuse eine sanfte, matte Oberfläche. Ein massiver Block, leicht genug, um ihn von Raum zu Raum zu tragen.', specs: [['Gewicht', '410 g'], ['Gehäuse', 'Aluminium 6061-T6'], ['Oberfläche', 'Glasperlgestrahlt'], ['Schutz', 'IP67']] },
+    connect: { chip: 'Verbinden', sub: 'Mehrere Räume', title: 'Mehrere Räume', metric: 'Jeder Raum', body: 'Stellen Sie in jeden Raum einen auf, und sie finden sich von selbst. Mit einem Wisch wandert die Musik von Raum zu Raum.', specs: [['Netz', 'Wi-Fi 6E'], ['Codec', 'aptX Lossless'], ['Räume', 'Unbegrenzt'], ['Kopplung', 'Automatisch']] },
+  } },
+};
+const KICON = {
+  sound: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>',
+  battery: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="8" width="15" height="9" rx="2"/><path d="M21 11v3"/><path d="M6 11v3"/></svg>',
+  material: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>',
+  connect: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.3 11l7.4-3.9M8.3 13l7.4 3.9"/></svg>',
+};
+const MOTES = Array.from({ length: 14 }, (_, i) => { const r = (n) => { const x = Math.sin(i * 12.9898 + n * 78.233) * 43758.5453; return x - Math.floor(x); }; return { l: 8 + r(1) * 84, t: 40 + r(2) * 55, d: 7 + r(3) * 9, dl: -r(4) * 16 }; });
+let kxSeq = 0;
+function speakerSVG() {
+  const s = 'kx' + (++kxSeq);
+  return `<svg viewBox="0 0 200 260" fill="none" aria-hidden="true"><defs>
+    <linearGradient id="${s}b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3d3a50"/><stop offset="1" stop-color="#1d1b28"/></linearGradient>
+    <radialGradient id="${s}g" cx="0.5" cy="0.42" r="0.6"><stop offset="0" stop-color="#B9A6FF" stop-opacity="0.55"/><stop offset="0.5" stop-color="#2e2a44" stop-opacity="0.9"/><stop offset="1" stop-color="#14121c"/></radialGradient></defs>
+    <rect x="40" y="20" width="120" height="220" rx="60" fill="url(#${s}b)" stroke="rgba(255,255,255,0.08)"/>
+    <rect x="52" y="34" width="96" height="150" rx="48" fill="url(#${s}g)"/>
+    <circle cx="100" cy="106" r="30" fill="none" stroke="rgba(236,230,255,0.45)" stroke-width="1.5"/>
+    <circle cx="100" cy="106" r="14" fill="rgba(185,166,255,0.30)"/>
+    <rect x="78" y="206" width="44" height="6" rx="3" fill="rgba(236,230,255,0.6)"/></svg>`;
+}
+function kxDetail() {
+  const f = KX[K.lang].feats[K.feat];
+  return `<div class="kx-swap"><div class="kx-dh"><h4>${f.title}</h4><span>${f.metric}</span></div><p class="kx-body">${f.body}</p>
+    <dl class="kx-specs">${f.specs.map(([a, b]) => `<div><dt>${a}</dt><dd>${b}</dd></div>`).join('')}</dl></div>`;
+}
+function kioskLumen() {
+  const L = KX[K.lang];
+  return `<div class="kx" lang="${K.lang}">
+    <section class="kx-hero" data-c="tick" aria-label="AURA Halo">
+      <div class="kx-bg"></div>
+      <div class="kx-motes">${MOTES.map((m) => `<i class="kx-mote" style="left:${m.l.toFixed(1)}%;top:${m.t.toFixed(1)}%;animation-duration:${m.d.toFixed(1)}s;animation-delay:${m.dl.toFixed(1)}s"></i>`).join('')}</div>
+      <div class="kx-prod"><div class="kx-halo"></div>${speakerSVG()}</div>
+      <div class="kx-vig"></div>
+      <div class="kx-copy"><div class="kx-eyebrow" data-c="static">${L.eyebrow}</div><h2 class="kx-title" data-c="static">AURA <span>Halo</span></h2><p class="kx-tag" data-c="static">${L.tag}</p></div>
+    </section>
+    <section class="kx-panel">
+      <div class="kx-top"><div class="kx-brand" data-c="static"><i></i>AURA Studio</div>
+        <div class="r">${K.langs.length > 1 ? `<div class="kx-lang" role="group" aria-label="Language">${K.langs.map((l) => `<button data-kx-lang="${l}" aria-pressed="${l === K.lang}">${l.toUpperCase()}</button>`).join('')}</div>` : ''}<span class="kx-clock" data-c="reactive">${nowHMS()}</span></div></div>
+      <p class="kx-lead" data-c="static">${L.lead}</p>
+      <div class="kx-chips" role="group" aria-label="Features">${Object.entries(L.feats).map(([k, f]) => `<button class="kx-chip" data-c="reactive" data-kx-feat="${k}" aria-pressed="${k === K.feat}">${KICON[k]}<span><b>${f.chip}</b><span>${f.sub}</span></span></button>`).join('')}</div>
+      <div class="kx-detail" data-c="reactive" aria-live="polite">${kxDetail()}</div>
+    </section>
+  </div>`;
+}
+const kioskSig = () => K.langs.join(',');
+function kioskBadge(d) {
+  if (!d?.pushed) return { text: 'Not on the lobby screen yet' };
+  return d.langs.join(',') !== d.pushed.sig ? { text: 'Screen shows the older version', warn: true } : { text: `On the lobby screen since ${d.pushed.at}` };
+}
 function kioskBuild(cv) {
   cv.innerHTML = `<div class="app kiosk">
     <section class="pane apphead">
-      <div class="title"><b>Lobby kiosk, AURA launch</b><span>Touch screen in the entrance hall. Brand colours inside the Lumen, omadia chrome stays Lume</span></div>
+      <div class="title"><b>Lobby kiosk, AURA launch</b><span>Touch screen in the entrance hall. The Lumen shows AURA brand colours, omadia chrome stays Lume</span></div>
       <div class="grow"></div>
-      <button class="btn ghost" data-pin="kiosk">${S.pinned.kiosk ? 'Pinned' : 'Pin as tool'}</button>
-      <a class="btn" href="kiosk-lumen-aura.html" target="_blank" rel="noopener">Open full screen</a>
+      <span class="gen-note">${originNote()}</span>
+      <button class="btn" id="k-prev">Visitor preview</button>
+      <button class="btn ghost" data-pin="kiosk">${pinLabel('kiosk')}</button>
+      <span class="state" id="k-state"></span>
       <button class="btn primary" id="k-push">Push to lobby screen</button>
     </section>
     <section class="pane" data-ctx="kioskpane">
-      <iframe class="kframe" src="kiosk-lumen-aura.html" title="Kiosk Lumen preview" loading="lazy"></iframe>
+      <div class="kstage"><div class="kscreen" id="k-screen"></div></div>
       <div class="xr tr"><b>Lumen</b> kiosk.aura, colorMode brand<br>cadence: static layout, 1 Hz clock, GPU motion<br>runs on a thin kiosk client, gas-bounded</div>
     </section>
   </div>`;
+  $('#k-prev', cv).onclick = openVisitor;
   $('[data-pin="kiosk"]', cv).onclick = () => pin('kiosk');
   $('#k-push', cv).onclick = pushKiosk;
+  kioskRender();
+}
+function kioskRender() {
+  const scr = $('#k-screen'); if (scr) scr.innerHTML = kioskLumen();
+  const v = $('#visitor .kscreen'); if (v) v.innerHTML = kioskLumen();
+  const btn = $('#k-push');
+  if (btn) {
+    const b = kioskBadge(K); const clean = K.pushed && !b.warn;
+    btn.textContent = !K.pushed ? 'Push to lobby screen' : clean ? 'On the lobby screen' : 'Push update';
+    btn.classList.toggle('primary', !clean);
+    stateLabel($('#k-state'), K.pushed && b.warn ? 'Screen shows the older version' : '', b.warn);
+  }
+  save();
+}
+document.addEventListener('click', (e) => {
+  const f = e.target.closest('[data-kx-feat]');
+  if (f && K) {
+    K.feat = f.dataset.kxFeat;
+    $$('.kx').forEach((kx) => {
+      $$('[data-kx-feat]', kx).forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.kxFeat === K.feat)));
+      $('.kx-detail', kx).innerHTML = kxDetail();
+    });
+    save(); return;
+  }
+  const l = e.target.closest('[data-kx-lang]');
+  if (l && K) { K.lang = l.dataset.kxLang; kioskRender(); }
+});
+function addGerman() {
+  if (!K.langs.includes('de')) K.langs.push('de');
+  K.lang = 'de'; kioskRender(); flash($('#k-screen'));
+  status('Patched the kiosk: a German version in the Sie form, and visitors can switch languages. The layout stayed, nothing was regenerated.');
+  trace('Patch', 'Kiosk: German version added with a language switch.');
 }
 async function pushKiosk() {
-  const ok = await consent({ title: 'Show this on the lobby screen?', text: 'The kiosk client in the entrance hall switches to this Lumen right away.', items: ['Lobby screen, entrance hall', 'Visitors can use it at once'], confirm: 'Push to screen', verb: 'Pushing' });
+  const b = kioskBadge(K);
+  if (K.pushed && !b.warn) { status(`The lobby screen shows this version since ${K.pushed.at}.`); return; }
+  const update = !!K.pushed;
+  const ok = await consent(update ? {
+    title: 'Update the lobby screen?', text: 'The kiosk client in the entrance hall switches to the new version right away.',
+    items: ['German version with a language switch', 'Lobby screen, entrance hall'], confirm: 'Push update', verb: 'Pushing',
+  } : {
+    title: 'Show this on the lobby screen?', text: 'The kiosk client in the entrance hall switches to this Lumen right away.',
+    items: ['Lobby screen, entrance hall', `Languages: ${K.langs.map((l) => l.toUpperCase()).join(', ')}`, 'Visitors can use it at once'], confirm: 'Push to screen', verb: 'Pushing',
+  });
   if (!ok) return;
-  status('The lobby screen shows the AURA kiosk now.'); trace('External effect', 'AURA kiosk pushed to the lobby screen. You confirmed.');
+  K.pushed = { sig: kioskSig(), at: nowHM() }; kioskRender();
+  status(update ? 'The lobby screen shows the updated kiosk now.' : 'The lobby screen shows the AURA kiosk now.');
+  trace('External effect', update ? 'Kiosk update pushed to the lobby screen. You confirmed.' : 'AURA kiosk pushed to the lobby screen. You confirmed.');
 }
+function openVisitor() {
+  if ($('#visitor')) return;
+  closePanel(); closeAnswer();
+  const v = el(`<div id="visitor" role="dialog" aria-label="Visitor preview"><div class="kscreen"></div>
+    <div class="vbar"><button class="btn" id="v-back">Back to Lea’s desktop</button><span>Visitor preview. This is what the lobby screen shows.</span></div></div>`);
+  document.body.appendChild(v);
+  kioskRender();
+  $('#v-back').onclick = closeVisitor;
+  trace('View', 'Opened the visitor preview of the kiosk.', 'kiosk');
+}
+function closeVisitor() { $('#visitor')?.remove(); }
 
 const APPS = {
-  dispatch: { build: dispatchBuild, reset: (preset) => { if (!preset || !D) dispatchReset(); }, manifest: '2 Lumens, 9 primitives and 3 wires' },
-  solar: { build: solarBuild, reset: (preset) => { if (!preset || !P) solarReset(); }, manifest: '1 Lumen, 14 primitives and 4 wires' },
-  kiosk: { build: kioskBuild, manifest: '1 Lumen in brand colours' },
+  dispatch: { init: dispatchInit, build: dispatchBuild, badge: dispatchBadge, manifest: '2 Lumens, 9 primitives and 3 wires',
+    after: () => (D.queue.includes('4711') ? ' <b>Bäckerei Hansen</b> is escalated and has no technician yet. Drag it onto a lane, or right-click it.' : D.id === 'dispatch-wed' ? ` ${plural(D.queue.length, 'order')} open for Wednesday.` : '') },
+  solar: { init: solarInit, build: solarBuild, badge: solarBadge, manifest: '1 Lumen, 14 primitives and 4 wires',
+    after: () => ' The bottom row of the south face is still free. Paint it, or use Fill south face.' },
+  kiosk: { init: () => { K = { feat: 'sound', lang: 'en', langs: ['en'], pushed: null }; }, build: kioskBuild, badge: kioskBadge, manifest: '1 Lumen in AURA brand colours',
+    after: () => ' Open the visitor preview to use it the way a visitor would.' },
 };
 
 /* =========================================================================
-   Context-invoke: action panel (affordances, suggestions, beam)
+   Context-invoke: action panel (direct, suggested, beam).
+   Beam intents: questions get an answer and change nothing; explicit change
+   requests patch the element; anything else gets an honest reply.
    ========================================================================= */
+const ans = (html, follow) => ({ answer: html, follow });
+function dispatchCommon() {
+  return [
+    [/travel time|drive time|driving time|travel times|driving times/, (t) => { setTravel(!/hide|remove|without/.test(t)); }],
+    [/assign (all|every)/, () => runAssignAll()],
+    [/optimi[sz]e (all|the routes|routes)/, () => optimiseAll()],
+    [/rebalance|remove (the )?overtime/, () => runRebalance()],
+  ];
+}
+function runAssignAll() { const d = assignAllOpen(); dispatchRender(); status(d.length ? `Assigned ${d.length}: ${esc(d.join(', '))}.` : 'Nothing open, or no technician has the skills.'); }
+function runRebalance() { const m = rebalance(); dispatchRender(); status(m.length ? `Rebalanced: ${esc(m.join(', '))}. Overtime now ${num(totals().ot, 1)} h.` : 'No overtime to remove, or no technician with the right skills has room.'); }
+const TECHRE = /\b(jonas|mira|deniz)\b/;
+function answerBest(id) {
+  const o = ORD[id]; const b = bestFit(id);
+  if (!b) return ans(`Nobody on team north has ${SKILL[o.skill]} skills today, so ${esc(o.cust)} needs a technician from another team.`);
+  const sim = simulate(() => assign(id, b.tid, b.idx)); const s = sim.sched[b.tid]; const st = s.stops.find((x) => x.id === id);
+  const near = D.lanes[b.tid].map((x) => ORD[x]).find((x) => x.town === o.town);
+  const alt = bestFit(id, b.tid);
+  let html = `<b>${first(b.tid)}.</b> ${first(b.tid)} has ${SKILL[o.skill]} skills and ${near ? `is already in ${o.town} for ${esc(near.cust)}` : 'has room in the day'}. Arrival at ${hm(st.arrive)}, back at the depot at ${hm(s.finish)}${s.overtime > 0.05 ? `, with ${num(s.overtime, 1)} h overtime` : ''}.`;
+  if (alt) { const s2 = simulate(() => assign(id, alt.tid, alt.idx)).sched[alt.tid]; html += ` ${first(alt.tid)} could take it too and would be back at ${hm(s2.finish)}.`; }
+  return ans(html, { label: `Assign to ${first(b.tid)}`, run: () => { assign(id, b.tid, b.idx); D.sel = id; dispatchRender(); status(`${esc(o.cust)} goes to <b>${first(b.tid)}</b>, arrives ${hm(st.arrive)}.`); } });
+}
+function answerWhy(id, named) {
+  const o = ORD[id]; const tid = laneOf(id); const who = named || tid;
+  if (!who) return answerBest(id);
+  const has = TECH[who].skills.includes(o.skill);
+  const kmNow = totals().km;
+  if (who === tid) {
+    const st = sched(tid).stops.find((s) => s.id === id); const n = D.lanes[tid].indexOf(id) + 1;
+    const alt = bestFit(id, tid);
+    let html = has ? `${first(tid)} has ${SKILL[o.skill]} skills. ${esc(o.cust)} is stop ${n} of ${D.lanes[tid].length}, arrival at ${hm(st.arrive)}.` : `${first(tid)} lacks ${SKILL[o.skill]} skills, so this assignment will not hold.`;
+    if (alt) { const d = simulate(() => assign(id, alt.tid, alt.idx)).t.km - kmNow; html += d > 0.5 ? ` Moving it to ${first(alt.tid)} would add ${num(d)} km of driving.` : ` ${first(alt.tid)} would save ${num(-d)} km, see the suggestion above.`; }
+    return ans(html, !has && alt ? { label: `Move to ${first(alt.tid)}`, run: () => { assign(id, alt.tid, alt.idx); D.sel = id; dispatchRender(); } } : null);
+  }
+  if (!has) return ans(`${first(who)} lacks ${SKILL[o.skill]} skills, so omadia does not suggest ${first(who)} for ${esc(o.cust)}.`);
+  const b = bestFit(id, undefined); const idx = b && b.tid === who ? b.idx : null;
+  const sim = simulate(() => assign(id, who, idx)); const st = sim.sched[who].stops.find((s) => s.id === id); const d = sim.t.km - kmNow;
+  return ans(`${first(who)} has ${SKILL[o.skill]} skills and would arrive at ${hm(st.arrive)}, back at ${hm(sim.sched[who].finish)}. That changes the team’s driving by ${d >= 0 ? '+' : '−'}${num(Math.abs(d))} km.`,
+    { label: `Move to ${first(who)}`, run: () => { assign(id, who, idx); D.sel = id; dispatchRender(); } });
+}
 function ctxSpec(ctx) {
   const [kind, id] = ctx.split(':');
-  const first = (tid) => TECH[tid].name.split(' ')[0];
   if (kind === 'order') {
     const o = ORD[id]; const tid = laneOf(id);
-    const direct = [{ label: D.sel === id ? 'Deselect' : 'Select', run: () => { D.sel = D.sel === id ? null : id; dispatchRender(); } }];
+    const direct = [{ label: D.sel === id ? 'Deselect' : 'Select', run: () => { D.sel = D.sel === id ? null : id; dispatchRender(); } }, { label: 'Show on map', run: () => showOnMap(id) }];
     if (tid) direct.push({ label: 'Unassign', run: () => { unassign(id); dispatchRender(); status(`<b>${esc(o.cust)}</b> is open again.`); } });
-    direct.push({ label: 'Copy order number', run: () => { navigator.clipboard?.writeText('SO-' + id).catch(() => {}); status(`Copied <b>SO-${id}</b>.`); } });
     const sugg = [];
     const b = bestFit(id, tid || undefined);
     if (!tid && b) sugg.push({ label: `Assign to ${first(b.tid)}, best fit`, run: () => { assign(id, b.tid, b.idx); D.sel = id; dispatchRender(); const st = sched(b.tid).stops.find((s) => s.id === id); status(`${esc(o.cust)} goes to <b>${first(b.tid)}</b>, arrives ${hm(st.arrive)}. Skills match, least extra driving.`); } });
-    if (tid && b) sugg.push({ label: `Move to ${first(b.tid)}`, run: () => { assign(id, b.tid, b.idx); D.sel = id; dispatchRender(); status(`${esc(o.cust)} moved to <b>${first(b.tid)}</b>.`); } });
+    if (tid && b) sugg.push({ label: `Move to ${first(b.tid)}${TECH[tid].skills.includes(o.skill) ? '' : ', has the skills'}`, run: () => { assign(id, b.tid, b.idx); D.sel = id; dispatchRender(); status(`${esc(o.cust)} moved to <b>${first(b.tid)}</b>.`); } });
     if (tid) sugg.push({ label: 'Text the customer the arrival window', ext: true, run: () => textCustomer(id) });
-    return { title: o.cust, sub: `SO-${id}, ${o.task}`, direct, sugg, prompt: 'Why is this escalated?' };
+    const hints = [...(o.esc ? ['Why is this escalated?'] : []), tid ? `Why ${first(tid)}?` : 'Who fits best?'];
+    const intents = [
+      [/escalat/, () => ans(o.esc ? esc(o.why) : `${esc(o.cust)} is a ${o.prio} order. Nothing was escalated.`)],
+      [/who (fits|should|can|could)|best fit|best (technician|person)/, () => answerBest(id)],
+      [/^(why|how come)\b.*\b(jonas|mira|deniz)\b|^(why|how about|what about)\b.*\b(him|her|them|this technician)\b/, (t) => answerWhy(id, (t.match(TECHRE) || [])[1])],
+      [/\b(assign|move|give|put|hand)\b.*\b(jonas|mira|deniz)\b/, (t) => { const w = t.match(TECHRE)[1]; const bb = bestFit(id); assign(id, w, bb && bb.tid === w ? bb.idx : null); D.sel = id; dispatchRender(); status(`${esc(o.cust)} to <b>${first(w)}</b>, as you asked.`); }],
+      [/unassign|back to (the )?(queue|open)|take .* off/, () => { if (tid) { unassign(id); dispatchRender(); status(`<b>${esc(o.cust)}</b> is open again.`); } else status(`${esc(o.cust)} is already open.`); }],
+      [/\b(text|sms|notify|tell)\b/, () => textCustomer(id)],
+      ...dispatchCommon(),
+    ];
+    return { title: o.cust, sub: `SO-${id}, ${o.task}`, direct, sugg, hints, intents };
   }
   if (kind === 'lane') {
     const s = sched(id); const last = D.lanes[id][D.lanes[id].length - 1];
     const sugg = [{ label: `Optimise ${first(id)}’s route`, run: () => { const sv = optimise(id); dispatchRender(); status(sv > 0.5 ? `${first(id)} drives <b>${num(sv)} km</b> less, back at ${hm(sched(id).finish)}.` : `${first(id)}’s route is already optimal.`); } }];
-    if (last) { const b = bestFit(last, id); if (b) sugg.push({ label: `Hand ${ORD[last].cust} over to ${first(b.tid)}`, run: () => { assign(last, b.tid, b.idx); dispatchRender(); status(`${esc(ORD[last].cust)} handed over to <b>${first(b.tid)}</b>. ${first(id)} is back at ${hm(sched(id).finish)}.`); } }); }
-    if (s.stops.length) sugg.push({ label: `Send the day plan to ${first(id)}`, ext: true, run: () => sendDayPlan(id) });
-    return { title: TECH[id].name, sub: `${s.stops.length} orders, back at ${hm(s.finish)}${s.overtime > 0.05 ? `, ${num(s.overtime, 1)} h overtime` : ''}`,
-      direct: [{ label: D.collapsed[id] ? 'Expand lane' : 'Collapse lane', run: () => { D.collapsed[id] = !D.collapsed[id]; dispatchRender(); } }, { label: 'Show only this route on the map', run: () => { D.focus = id; dispatchRender(); } }], sugg, prompt: `What if ${first(id)} starts at 06:30?` };
+    const handOver = () => { const b = bestFit(last, id); if (!b) { status(`Nobody else has the skills for ${esc(ORD[last].cust)}.`); return; } assign(last, b.tid, b.idx); dispatchRender(); status(`${esc(ORD[last].cust)} handed over to <b>${first(b.tid)}</b>. ${first(id)} is back at ${hm(sched(id).finish)}.`); };
+    if (last && bestFit(last, id)) sugg.push({ label: `Hand ${ORD[last].cust} over to ${first(bestFit(last, id).tid)}`, run: handOver });
+    const late = s.overtime > 0.05;
+    const hints = [late ? `Why is ${first(id)} back so late?` : `What if ${first(id)} starts at 06:30?`];
+    const intents = [
+      [/start|06[:.]?30|6[:.]30|earlier/, () => { const e = sched(id, D.lanes[id], 6.5); return ans(s.stops.length ? `If ${first(id)} starts at 06:30, the last customer is reached at ${hm(e.stops[e.stops.length - 1].arrive)} and ${first(id)} is back at ${hm(e.finish)} instead of ${hm(s.finish)}. The plan stays as it is until you change it.` : `${first(id)} has no orders yet, so the start time changes nothing today.`); }],
+      [/late|overtime|why .*back/, () => { const legs = s.stops.map((st, i) => ({ st, i })).sort((a, b) => b.st.km - a.st.km)[0]; return ans(s.stops.length ? `${first(id)} has ${plural(s.stops.length, 'order')}, ${num(s.stops.reduce((a, st) => a + ORD[st.id].dur, 0), 1)} h of work and ${num(s.km)} km of driving. The longest leg is to ${esc(ORD[legs.st.id].cust)} in ${ORD[legs.st.id].town}, ${Math.round((legs.st.arrive - legs.st.from) * 60)} min.${late ? ` That ends at ${hm(s.finish)}, ${num(s.overtime, 1)} h past the shift.` : ''}` : `${first(id)} has no orders yet.`, late ? { label: 'Rebalance to remove overtime', run: runRebalance } : null); }],
+      [/optimi[sz]e|shorter|fewer km/, () => sugg[0].run()],
+      [/hand|give away|move the last/, () => (last ? handOver() : status(`${first(id)} has no orders to hand over.`))],
+      [/collapse|expand/, () => { D.collapsed[id] = !D.collapsed[id]; dispatchRender(); }],
+      ...dispatchCommon(),
+    ];
+    return { title: TECH[id].name, sub: `${plural(s.stops.length, 'order')}, back at ${hm(s.finish)}${late ? `, ${num(s.overtime, 1)} h overtime` : ''}`,
+      direct: [{ label: D.collapsed[id] ? 'Expand lane' : 'Collapse lane', run: () => { D.collapsed[id] = !D.collapsed[id]; dispatchRender(); } }, { label: 'Show only this route on the map', run: () => { D.focus = id; dispatchRender(); } }], sugg, hints, intents };
   }
   if (kind === 'map' || kind === 'queue' || kind === 'timeline') {
-    const sugg = [{ label: 'Assign all open orders', run: () => { const d = assignAllOpen(); dispatchRender(); status(d.length ? `Assigned ${d.length}: ${esc(d.join(', '))}.` : 'Nothing open, or no technician has the skills.'); } },
-      { label: 'Optimise all routes', run: () => $('#d-opt').click() }];
+    const sugg = [{ label: 'Assign all open orders', run: runAssignAll }, { label: 'Optimise all routes', run: optimiseAll }];
     const direct = kind === 'map' ? [{ label: 'Zoom in', run: () => zoomMap(0.8) }, { label: 'Zoom out', run: () => zoomMap(1.25) }, { label: 'Fit to region', run: fitMap }]
       : kind === 'queue' ? [{ label: 'Sort by priority', run: () => { D.sort = 'prio'; dispatchRender(); } }, { label: 'Sort by duration', run: () => { D.sort = 'dur'; dispatchRender(); } }, { label: 'Sort by town', run: () => { D.sort = 'town'; dispatchRender(); } }]
-      : TECHS.map((t) => ({ label: `${D.collapsed[t.id] ? 'Expand' : 'Collapse'} ${t.name.split(' ')[0]}`, run: () => { D.collapsed[t.id] = !D.collapsed[t.id]; dispatchRender(); } }));
-    return { title: { map: 'Region north', queue: 'Open orders', timeline: 'Day timeline' }[kind], sub: kind === 'map' ? 'map Lumen' : kind === 'queue' ? `${D.queue.length} open` : '3 technicians', direct, sugg, prompt: kind === 'map' ? 'Add live traffic for the B12' : 'Plan tomorrow with the same team' };
+      : TECHS.map((t) => ({ label: `${D.collapsed[t.id] ? 'Expand' : 'Collapse'} ${first(t.id)}`, run: () => { D.collapsed[t.id] = !D.collapsed[t.id]; dispatchRender(); } }));
+    const escList = () => { const l = escalationLines(); return l.length ? ans(`${plural(l.length, 'order')} ${l.length === 1 ? 'is' : 'are'} escalated today. ${l.map(esc).join('. ')}.`) : ans('Nothing is escalated today.'); };
+    const urgent = () => { const open = D.queue.slice().sort((a, b) => PRIO_RANK[ORD[a].prio] - PRIO_RANK[ORD[b].prio]); if (!open.length) return ans('Every order has a technician.'); const u = open[0]; return ans(`<b>${esc(ORD[u].cust)}</b>. ${ORD[u].esc ? esc(ORD[u].why) : `${esc(ORD[u].task)}, ${ORD[u].prio} priority.`}`, { label: 'Who fits best?', run: () => { const r = answerBest(u); showAnswer(null, ORD[u].cust, 'Who fits best?', r.answer, r.follow); } }); };
+    const hints = kind === 'map' ? ['Which stops are escalated?'] : kind === 'queue' ? ['Which order is most urgent?', 'Assign all open orders'] : [D.showTravel ? 'Hide the travel times' : 'Show travel time on each stop'];
+    const intents = [[/escalat/, escList], [/urgent|first|most important/, urgent], ...dispatchCommon(),
+      [/zoom in/, () => zoomMap(0.8)], [/zoom out/, () => zoomMap(1.25)], [/fit|whole region/, fitMap]];
+    return { title: { map: 'Region north', queue: 'Open orders', timeline: 'Day timeline' }[kind], sub: kind === 'map' ? 'map Lumen' : kind === 'queue' ? `${D.queue.length} open` : '3 technicians', direct, sugg, hints, intents };
   }
   if (kind === 'kpis') {
     const t = totals();
-    return { title: 'Today’s figures', sub: `${t.open} open, ${num(t.km)} km, ${num(t.ot, 1)} h overtime`, direct: [{ label: 'Copy figures', run: () => { navigator.clipboard?.writeText(`${t.open} open, ${num(t.km)} km, ${num(t.ot, 1)} h overtime`).catch(() => {}); status('Figures copied.'); } }],
-      sugg: [{ label: 'Rebalance to remove overtime', run: () => { const m = rebalance(); dispatchRender(); status(m.length ? `Rebalanced: ${esc(m.join(', '))}. Overtime now ${num(totals().ot, 1)} h.` : 'No overtime to remove, or no technician with the right skills has room.'); } },
-        { label: 'Assign all open orders', run: () => { const d = assignAllOpen(); dispatchRender(); status(d.length ? `Assigned ${d.length}: ${esc(d.join(', '))}.` : 'Nothing open.'); } }], prompt: 'Compare with last Tuesday' };
+    const otAns = () => { const over = TECHS.map((x) => ({ x, s: sched(x.id) })).filter((y) => y.s.overtime > 0.05); return over.length ? ans(`${over.map((y) => `${first(y.x.id)} is back at ${hm(y.s.finish)}, ${num(y.s.overtime, 1)} h past the shift`).join('. ')}. Rebalancing moves the shortest order that someone else can take without overtime.`, { label: 'Rebalance to remove overtime', run: runRebalance }) : ans('Nobody works past 15:00 with today’s plan.'); };
+    const kmAns = () => ans(TECHS.map((x) => `${first(x.id)} ${num(sched(x.id).km)} km`).join(', ') + `. ${num(t.km)} km in total, including the way back to the depot.`);
+    return { title: 'Today’s figures', sub: `${t.open} open, ${num(t.km)} km, ${num(t.ot, 1)} h overtime`, direct: [],
+      sugg: [{ label: 'Rebalance to remove overtime', run: runRebalance }, { label: 'Assign all open orders', run: runAssignAll }],
+      hints: [t.ot > 0.05 ? 'Why is there overtime?' : 'How far does each technician drive?'],
+      intents: [[/overtime|late/, otAns], [/km|far|drive|driving/, kmAns], ...dispatchCommon()] };
   }
   if (kind === 'roof') {
-    return { title: 'Roof layout', sub: `${calc().n} modules placed`, direct: [{ label: 'Paint tool', run: () => { P.tool = 'paint'; solarRender(); } }, { label: 'Erase tool', run: () => { P.tool = 'erase'; solarRender(); } }, { label: 'Clear roof', run: () => { P.panels.clear(); solarRender(); } }],
-      sugg: [{ label: 'Fill the south face', run: () => fillFace('s') }, { label: 'Add the north face too, lower yield', run: () => fillFace('n') },
-        { label: 'Clear the north face', run: () => { for (const k of [...P.panels]) if (k[0] === 'n') P.panels.delete(k); solarRender(); status('North face cleared.'); } },
-        { label: P.margin ? 'Release the fire-safety margin' : 'Restore the fire-safety margin', run: () => setMargin(!P.margin) }], prompt: 'Can we route around the skylights?' };
+    const clearNorth = () => { for (const k of [...P.panels]) if (k[0] === 'n') P.panels.delete(k); solarRender(); status('North face cleared.'); };
+    return { title: 'Roof layout', sub: `${calc().n} modules placed`,
+      direct: [{ label: 'Paint tool, adds modules', run: () => { P.tool = 'paint'; solarRender(); } }, { label: 'Erase tool, removes modules', run: () => { P.tool = 'erase'; solarRender(); } }, { label: 'Clear roof', run: () => { P.panels.clear(); solarRender(); } }],
+      sugg: [{ label: 'Fill the south face', run: () => fillFace('s') }, { label: 'Add the north face too, lower yield', run: () => fillFace('n') }, { label: 'Clear the north face', run: clearNorth },
+        { label: P.margin ? 'Release the fire-safety margin' : 'Restore the fire-safety margin', run: () => setMargin(!P.margin) }],
+      hints: ['Can panels go around the skylights?'],
+      intents: [
+        [/skylight|chimney|around|obstacle/, () => ans('Yes. The two skylights and the chimney block three cells on the south face. Every cell next to them stays usable, and the roof Lumen keeps the required clearance around each obstacle by itself.')],
+        [/fill.*south|south.*fill|full south/, () => fillFace('s')], [/(add|fill|use).*north/, () => fillFace('n')], [/clear.*north/, clearNorth],
+        [/release|without (the )?margin/, () => setMargin(false)], [/restore|keep (the )?margin/, () => setMargin(true)],
+      ] };
   }
   if (kind === 'module' || kind === 'config') {
+    const setMod = (k, why) => { P.module = k; solarRender(); flash($('#s-metrics')); status(why); };
     return { title: 'Configuration', sub: `${MODS[P.module].name}, battery ${BATT[P.battery].name}`, direct: Object.entries(MODS).map(([k, m]) => ({ label: m.name, run: () => { P.module = k; solarRender(); } })),
       sugg: [{ label: 'Size the battery to the evening load', run: () => { P.battery = 'b15'; solarRender(); flash($('#s-metrics')); status('Battery set to <b>15 kWh</b>, sized from the hall’s evening load in the CRM report.'); } },
-        { label: 'Cheapest price per kWp', run: () => { P.module = 'std'; solarRender(); status('Switched to the standard module, lowest price per kWp.'); } }], prompt: 'Which module ages best?' };
+        { label: 'Cheapest price per kWp', run: () => setMod('std', 'Switched to the standard module, lowest price per kWp.') }],
+      hints: ['Which module ages best?'],
+      intents: [
+        [/age|degrad|last|warranty|durable/, () => ans('The glass-glass bifacial module. It loses about 0.25 % of output per year and comes with a 30-year warranty. The standard module loses about 0.4 % per year, so after 25 years it delivers roughly 4 % less.', P.module === 'bif' ? null : { label: 'Switch to bifacial', run: () => setMod('bif', 'Switched to the bifacial module.') })],
+        [/bifacial|glass/, () => setMod('bif', 'Switched to the bifacial module.')], [/black/, () => setMod('black', 'Switched to the full black module.')], [/standard|cheap/, () => setMod('std', 'Switched to the standard module.')],
+        [/15|bigger battery|larger battery/, () => { P.battery = 'b15'; solarRender(); status('Battery set to <b>15 kWh</b>.'); }], [/no battery|without battery/, () => { P.battery = 'none'; solarRender(); status('Battery removed.'); }],
+      ] };
   }
   if (kind === 'quote') {
-    return { title: 'Quote Q-2026-0412', sub: `${eur(calc().net)} net`, direct: [{ label: 'Copy as text', run: () => { const c = calc(); navigator.clipboard?.writeText(c.lines.map(([t, q, u]) => `${t}\t${q}\t${eur(q * u)}`).join('\n')).catch(() => {}); status('Quote copied as text.'); } }],
+    const c = calc();
+    return { title: 'Quote Q-2026-0412', sub: `${eur(c.net)} net`, direct: [],
       sugg: [{ label: P.discount ? 'Remove the volume discount' : 'Apply 5 % volume discount', run: () => { P.discount = !P.discount; solarRender(); status(P.discount ? 'Volume discount applied.' : 'Discount removed.'); } },
-        { label: 'Send quote to Müller GmbH', ext: true, run: sendQuote }], prompt: 'Add a maintenance contract for 5 years' };
+        { label: !P.sent ? 'Send quote to Müller GmbH' : 'Send a revision to Müller GmbH', ext: true, run: sendQuote }],
+      hints: [P.maint ? 'Remove the maintenance contract' : 'Add a maintenance contract for 5 years', 'Why this inverter?'],
+      intents: [
+        [/(remove|drop|without).*maint/, () => setMaint(false)], [/maint|service contract/, () => setMaint(true)],
+        [/inverter/, () => ans(c.n ? `${num(c.kwp, 1)} kWp of modules need an inverter of at least that size. The ${c.inv[0].replace('Hybrid inverter ', '')} hybrid inverter is the smallest that covers it, and it charges the battery directly.` : 'There are no modules on the roof yet, so the quote has no inverter.')],
+        [/discount/, (t) => { P.discount = !/remove|without|drop/.test(t); solarRender(); status(P.discount ? 'Volume discount applied.' : 'Discount removed.'); }],
+      ] };
   }
-  if (kind === 'chart') return { title: 'Yield and demand', sub: 'per month', direct: [], sugg: [{ label: 'Size the battery to the evening load', run: () => { P.battery = 'b15'; solarRender(); status('Battery set to <b>15 kWh</b>.'); } }], prompt: 'Explain the summer surplus' };
-  if (kind === 'kioskpane') return { title: 'Lobby kiosk', sub: 'kiosk Lumen', direct: [{ label: 'Open full screen', run: () => window.open('kiosk-lumen-aura.html', '_blank', 'noopener') }], sugg: [{ label: 'Push to lobby screen', ext: true, run: pushKiosk }], prompt: 'Add a German version' };
-  if (kind === 'tool') return { title: META[id].short, sub: `pinned ${S.pinned[id]}`, direct: [{ label: 'Open', run: () => openTool(id) }, { label: 'Unpin', run: () => { delete S.pinned[id]; renderTools(); $$(`[data-pin="${id}"]`).forEach((b) => { b.textContent = 'Pin as tool'; }); status(`Unpinned <b>${esc(META[id].short)}</b>.`); } }], sugg: [], prompt: 'Share this tool with my team' };
-  if (kind === 'tools') return { title: 'Your tools', sub: `${Object.keys(S.pinned).length} pinned`, direct: [], sugg: Object.keys(REQUESTS).filter((k) => !S.pinned[k]).map((k) => ({ label: `Generate ${META[k].short}`, run: () => generate(k) })), prompt: 'Make me a tool for weekly reporting' };
+  if (kind === 'chart') {
+    const surplus = () => { const c = calc(); const tot = MONTH.reduce((a, b) => a + b, 0); let s = 0; [4, 5, 6, 7].forEach((i) => { s += Math.max(0, c.yieldK * MONTH[i] / tot - CONS / 12 * CONS_M[i]); }); return ans(s > 50 ? `From May to August the roof produces about ${num(s)} kWh more than the hall uses. The ${BATT[P.battery].kwh ? BATT[P.battery].name + ' battery' : 'missing battery'} shifts part of it into the evening, the rest goes to the grid at 7.8 ct per kWh.` : 'With this layout the hall uses almost everything the roof produces, even in summer.', P.battery !== 'b15' ? { label: 'Size the battery to the evening load', run: () => { P.battery = 'b15'; solarRender(); status('Battery set to <b>15 kWh</b>.'); } } : null); };
+    return { title: 'Yield and demand', sub: 'per month', direct: [], sugg: [{ label: 'Size the battery to the evening load', run: () => { P.battery = 'b15'; solarRender(); status('Battery set to <b>15 kWh</b>.'); } }],
+      hints: ['Explain the summer surplus'], intents: [[/surplus|summer|explain/, surplus]] };
+  }
+  if (kind === 'kioskpane') {
+    return { title: 'Lobby kiosk', sub: 'AURA kiosk Lumen', direct: [{ label: 'Visitor preview', run: openVisitor }],
+      sugg: [{ label: kioskBadge(K).warn ? 'Push the update to the lobby screen' : 'Push to lobby screen', ext: true, run: pushKiosk }],
+      hints: [K.langs.includes('de') ? (K.lang === 'de' ? 'Show the English version' : 'Show the German version') : 'Add a German version'],
+      intents: [[/german|deutsch/, () => (K.langs.includes('de') ? (K.lang = 'de', kioskRender()) : addGerman())], [/english/, () => { K.lang = 'en'; kioskRender(); }], [/preview|visitor/, openVisitor]] };
+  }
+  if (kind === 'tool') {
+    const short = INSTDEF[REQ_INST[id]].short;
+    return { title: short, sub: `pinned ${S.pinned[id].at}${S.pinned[id].shared ? `, shared with ${AUD[id][0]}` : ', only you see it'}`,
+      direct: [{ label: toolHint(id), run: () => openTool(id) }, ...(S.pinned[id].shared ? [{ label: 'Stop sharing', run: () => unshare(id) }] : []), { label: 'Unpin', run: () => unpin(id) }],
+      sugg: S.pinned[id].shared ? [] : [{ label: `Share with ${AUD[id][0]}…`, ext: true, run: () => shareTool(id) }],
+      hints: S.pinned[id].shared ? [] : ['Share this tool with my team'], intents: [[/share/, () => shareTool(id)], [/unpin|remove/, () => unpin(id)]] };
+  }
+  if (kind === 'tools') return { title: 'Your tools', sub: `${plural(Object.keys(S.pinned).length, 'tool')}, only you see them`, direct: [], sugg: [], hints: ['What can I pin here?'],
+    intents: [[/pin|what/, () => ans('Any application omadia generated for you. Pinning stores it as data in your profile. Only you see it until you share it from its tool card, and opening it starts it on new data without generating anything.')]] };
+  if (kind === 'recent') {
+    if (!id) return { title: 'Recent work', sub: `${plural(S.recent.length, 'item')}`, direct: [], sugg: [], hints: [], intents: [] };
+    const I = S.inst[id]; const b = APPS[I.kind].badge(I.data);
+    return { title: I.label, sub: I.sub, direct: [{ label: 'Open as you left it', run: () => openInst(id, 'resume') }], sugg: [], hints: ['Where did I leave this?'],
+      intents: [[/where|left|state|change/, () => ans(`You closed it at ${I.closedAt}. ${esc(b.text)}. Opening it restores every change, nothing is generated again.`)]] };
+  }
   return null;
 }
-let panelTarget = null;
+let panelTarget = null, answerTarget = null;
+function placeNear(node, target, at) {
+  const pw = node.offsetWidth, ph = node.offsetHeight, vw = innerWidth, vh = innerHeight;
+  if (!target || !target.isConnected) { node.style.left = (vw - pw) / 2 + 'px'; node.style.top = Math.max(60, (vh - ph) / 3) + 'px'; return; }
+  const r = target.getBoundingClientRect();
+  let x = r.right + 12; if (x + pw > vw - 8) x = r.left - pw - 12; if (x < 8) x = Math.min(Math.max(8, (at?.x ?? r.left) + 12), vw - pw - 8);
+  let y = Math.min(Math.max(8, r.top), vh - ph - 8);
+  if (r.width > vw * 0.45 && at) { x = Math.min(at.x + 14, vw - pw - 8); y = Math.min(Math.max(8, at.y - 20), vh - ph - 8); }
+  node.style.left = x + 'px'; node.style.top = y + 'px';
+}
 function openPanel(target, at) {
   if (!target) return;
   const spec = ctxSpec(target.dataset.ctx); if (!spec) return;
-  closePanel(); closeCmdk();
+  closePanel(); closeCmdk(); closeAnswer();
   panelTarget = target; target.classList.add('ctx-target');
   const p = el(`<div id="panel" role="dialog" aria-label="Actions for ${esc(spec.title)}">
     <div class="ph"><b>${esc(spec.title)}</b><span>${esc(spec.sub || '')}</span></div>
     ${spec.direct.length ? `<div class="zone"><div class="eyebrow">Direct <em>on this device</em></div>${spec.direct.map((a, i) => `<button class="act" data-d="${i}"><span>${esc(a.label)}</span></button>`).join('')}</div>` : ''}
     ${spec.sugg.length ? `<div class="zone"><div class="eyebrow">Suggested by omadia <em>prepared with this view</em></div>${spec.sugg.map((a, i) => `<button class="act" data-s="${i}"><span>${esc(a.label)}</span><span class="fx${a.ext ? ' ext' : ''}">${a.ext ? 'asks first' : ''}</span></button>`).join('')}</div>` : ''}
-    <form class="beam" autocomplete="off"><input placeholder="Beam omadia about this…" aria-label="Beam omadia about this" /><button class="btn primary sm" type="submit">Beam</button></form>
-    <button class="bhint" type="button">Try: “${esc(spec.prompt)}”</button>
+    <form class="beam" autocomplete="off"><input placeholder="Ask or change something here…" aria-label="Beam omadia about ${esc(spec.title)}" /><button class="btn primary sm" type="submit">Beam</button></form>
+    ${spec.hints.length ? `<div class="bhints">${spec.hints.map((h, i) => `<button class="bhint" type="button" data-h="${i}">Try “${esc(h)}”</button>`).join('')}</div>` : '<div style="height:6px"></div>'}
   </div>`);
   document.body.appendChild(p);
-  const r = target.getBoundingClientRect(), pw = p.offsetWidth, ph = p.offsetHeight, vw = innerWidth, vh = innerHeight;
-  let x = r.right + 12; if (x + pw > vw - 8) x = r.left - pw - 12; if (x < 8) x = Math.min(Math.max(8, (at?.x ?? r.left) + 12), vw - pw - 8);
-  let y = Math.min(Math.max(8, r.top), vh - ph - 8);
-  if (r.width > vw * 0.45 && at) { x = Math.min(at.x + 14, vw - pw - 8); y = Math.min(Math.max(8, at.y - 20), vh - ph - 8); }
-  p.style.left = x + 'px'; p.style.top = y + 'px';
+  placeNear(p, target, at);
   p.addEventListener('click', (e) => {
-    const d = e.target.closest('[data-d]'), s = e.target.closest('[data-s]');
-    if (d) { closePanel(); spec.direct[+d.dataset.d].run(); trace('Direct', `${esc(spec.title)}: ${esc(spec.direct[+d.dataset.d].label)}.`); }
+    const d = e.target.closest('[data-d]'), s = e.target.closest('[data-s]'), h = e.target.closest('[data-h]');
+    if (d) { const a = spec.direct[+d.dataset.d]; closePanel(); a.run(); trace('Direct', `${esc(spec.title)}: ${esc(a.label)}.`); }
     if (s) { const a = spec.sugg[+s.dataset.s]; closePanel(); if (!a.ext) trace('Suggestion', `${esc(spec.title)}: ${esc(a.label)}.`); a.run(); }
+    if (h) { const inp = $('input', p); inp.value = spec.hints[+h.dataset.h]; inp.focus(); }
   });
   const inp = $('input', p);
-  $('.bhint', p).onclick = () => { inp.value = spec.prompt; inp.focus(); };
-  $('form', p).addEventListener('submit', (e) => { e.preventDefault(); beam(target, spec, inp.value.trim() || spec.prompt); });
+  $('form', p).addEventListener('submit', (e) => { e.preventDefault(); const v = inp.value.trim() || spec.hints[0]; if (v) beam(target, spec, v); });
 }
-function closePanel() { $('#panel')?.remove(); panelTarget?.classList.remove('ctx-target'); panelTarget = null; }
+function closePanel() { $('#panel')?.remove(); if (panelTarget !== answerTarget) panelTarget?.classList.remove('ctx-target'); panelTarget = null; }
+function showAnswer(target, title, q, html, follow, eyebrow = 'Answer, nothing changed') {
+  closeAnswer();
+  const a = el(`<div id="answer" role="dialog" aria-label="Answer about ${esc(title)}"><div class="eyebrow"><span>${eyebrow}</span><span>${esc(title)}</span></div>
+    <div class="q">“${esc(q)}”</div><p>${html}</p>
+    <div class="foot">${follow ? `<button class="btn sm" data-f>${esc(follow.label)}</button>` : ''}<button class="btn primary sm" data-x>Got it</button></div></div>`);
+  document.body.appendChild(a);
+  placeNear(a, target);
+  answerTarget = target?.isConnected ? target : null; answerTarget?.classList.add('ctx-target');
+  $('[data-x]', a).onclick = closeAnswer;
+  if (follow) $('[data-f]', a).onclick = () => { closeAnswer(); follow.run(); trace('Action', `${esc(title)}: ${esc(follow.label)}.`); };
+}
+function closeAnswer() { $('#answer')?.remove(); answerTarget?.classList.remove('ctx-target'); answerTarget = null; }
 async function beam(target, spec, text) {
   closePanel();
   trace('Beam', `<b>${esc(spec.title)}</b>: “${esc(text)}”`);
-  const words = text.toLowerCase().split(/\W+/).filter((w) => w.length > 3);
-  const match = spec.sugg.find((s) => words.some((w) => s.label.toLowerCase().includes(w)));
   target.classList.add('beaming');
   const r = target.getBoundingClientRect();
   const chip = el(`<div class="beamchip">omadia is on it: “${esc(text.length > 46 ? text.slice(0, 44) + '…' : text)}”</div>`);
-  chip.style.left = Math.min(r.left, innerWidth - 380) + 'px'; chip.style.top = Math.max(50, r.top - 36) + 'px';
+  chip.style.left = Math.max(8, Math.min(r.left, innerWidth - 380)) + 'px'; chip.style.top = Math.max(50, r.top - 36) + 'px';
   document.body.appendChild(chip);
-  await wait(1600);
+  await wait(1100);
   target.classList.remove('beaming'); chip.remove();
-  if (match) { match.run(); return; }
-  status(`Beam to <b>${esc(spec.title)}</b> received. The real product patches this element now. In the mockup, the suggested actions are the scripted part.`);
+  const t = text.toLowerCase();
+  const hit = spec.intents.find(([re]) => re.test(t));
+  if (!hit) {
+    const tries = spec.hints.map((h) => `“${esc(h)}”`).join(' or ');
+    showAnswer(target, spec.title, text, `In the product, omadia answers any question about ${esc(spec.title)} and patches it when you ask for a change. This mockup scripts a few requests${tries ? `, for example ${tries}` : ''}.`, null, 'Not scripted in this mockup');
+    status('That request is not scripted in this mockup. Nothing changed.');
+    return;
+  }
+  const res = hit[1](t);
+  if (res && res.answer) {
+    showAnswer(target, spec.title, text, res.answer, res.follow);
+    trace('Answer', `${esc(spec.title)}: answered “${esc(text)}”. Nothing changed.`);
+    status('omadia answered next to the element. Nothing changed.');
+  }
 }
 document.addEventListener('contextmenu', (e) => {
   const t = e.target.closest('[data-ctx]'); if (!t || !booted) return;
@@ -1520,7 +2169,7 @@ document.addEventListener('contextmenu', (e) => {
 // long-press (400 ms, <= 6 px) on everything else with a context; tool zones never context-invoke
 document.addEventListener('pointerdown', (e) => {
   if (e.button !== 0 || !booted) return;
-  if (e.target.closest('[data-order], #d-map, [data-toolzone], button, input, a, #panel, #cmdk, #modal')) return;
+  if (e.target.closest('[data-order], #d-map, [data-toolzone], button, input, a, #panel, #cmdk, #modal, #answer')) return;
   const t = e.target.closest('[data-ctx]'); if (!t) return;
   const sx = e.clientX, sy = e.clientY;
   const lp = setTimeout(() => { done(); openPanel(t, { x: sx, y: sy }); }, 400);
@@ -1528,14 +2177,17 @@ document.addEventListener('pointerdown', (e) => {
   function done() { clearTimeout(lp); window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', done); }
   window.addEventListener('pointermove', mv); window.addEventListener('pointerup', done);
 });
-document.addEventListener('pointerdown', (e) => { if ($('#panel') && !e.target.closest('#panel')) closePanel(); }, true);
+document.addEventListener('pointerdown', (e) => {
+  if ($('#panel') && !e.target.closest('#panel')) closePanel();
+  if ($('#answer') && !e.target.closest('#answer')) closeAnswer();
+}, true);
 
 /* =========================================================================
    Consent for external effects
    ========================================================================= */
 function consent({ title, text, items, confirm, verb }) {
   return new Promise((resolve) => {
-    closePanel();
+    closePanel(); closeAnswer();
     const scrim = el('<div class="scrim"></div>');
     const m = el(`<div id="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}">
       <div class="eyebrow">External effect, needs your OK</div><h2>${esc(title)}</h2><p>${esc(text)}</p>
@@ -1543,9 +2195,9 @@ function consent({ title, text, items, confirm, verb }) {
       <div class="foot"><button class="btn ghost" data-no>Cancel</button><button class="btn primary" data-yes>${esc(confirm)}</button></div></div>`);
     document.body.append(scrim, m);
     $('[data-yes]', m).focus();
-    const close = (v) => { scrim.remove(); m.remove(); document.removeEventListener('keydown', key, true); resolve(v); };
-    const key = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(false); } };
-    document.addEventListener('keydown', key, true);
+    const close = (v) => { scrim.remove(); m.remove(); document.removeEventListener('keydown', onKey, true); resolve(v); };
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(false); } };
+    document.addEventListener('keydown', onKey, true);
     scrim.onclick = () => close(false);
     $('[data-no]', m).onclick = () => close(false);
     $('[data-yes]', m).onclick = async (e) => {
@@ -1560,18 +2212,22 @@ function consent({ title, text, items, confirm, verb }) {
    Command layer (Cmd/Ctrl+K)
    ========================================================================= */
 const CMDS = () => [
-  ...Object.entries(REQUESTS).map(([k, r]) => ({ label: r.text, hint: S.built[k] ? 'open' : S.pinned[k] ? 'tool' : 'generate', run: () => (S.built[k] ? switchTo(k) : generate(k, r.text)) })),
+  ...Object.entries(REQUESTS).map(([k, r]) => { const id = REQ_INST[k]; return { label: r.text, hint: S.live[k] === id ? 'open' : S.inst[id] ? 'resume' : 'generate', run: () => openRequest(k, r.text) }; }),
+  ...(S.space === 'dispatch' && D ? [{ label: D.showTravel ? 'Hide the travel times' : 'Show travel time on each stop', hint: 'patch timeline', run: () => setTravel(!D.showTravel) }] : []),
+  ...(S.space === 'kiosk' && K ? [{ label: 'Open the visitor preview', hint: 'kiosk', run: openVisitor }] : []),
   { label: 'Make it warmer', hint: 'palette Atelier', run: () => setPalette('atelier', 'Make it warmer') },
   { label: 'Make it cooler', hint: 'palette Petrol', run: () => setPalette('petrol', 'Make it cooler') },
   { label: 'Back to Lagoon', hint: 'default palette', run: () => setPalette('lagoon', 'Back to Lagoon') },
   { label: 'Show what this canvas is made of', hint: 'X-ray', run: () => toggleXray() },
   { label: 'Open the Trace', hint: 'history', run: () => toggleTrace(true) },
   { label: 'Go to Home', hint: 'space', run: () => switchTo('home') },
-  { label: 'Replay the boot', hint: 'thin client', run: () => location.reload() },
+  { label: 'Open the guide', hint: 'about this mockup', run: openGuide },
+  { label: 'Replay the boot', hint: 'keeps your work', run: () => { saveNow(); location.reload(); } },
+  { label: 'Reset the demo', hint: 'clears everything', run: resetDemo },
 ];
 let cmdSel = 0;
 function openCmdk() {
-  if ($('#cmdk')) return; closePanel();
+  if ($('#cmdk')) return; closePanel(); closeAnswer();
   const scrim = el('<div class="scrim" id="cmdk-scrim" style="background:rgba(10,24,30,.35)"></div>');
   const box = el('<div id="cmdk" role="dialog" aria-label="Command layer"><input placeholder="Ask omadia or run a command" aria-label="Ask omadia or run a command" /><ul></ul></div>');
   document.body.append(scrim, box);
@@ -1585,7 +2241,7 @@ function openCmdk() {
     const l = list();
     if (e.key === 'ArrowDown') { cmdSel = Math.min(cmdSel + 1, l.length - 1); draw(); e.preventDefault(); }
     if (e.key === 'ArrowUp') { cmdSel = Math.max(cmdSel - 1, 0); draw(); e.preventDefault(); }
-    if (e.key === 'Enter') { e.preventDefault(); const c = l[cmdSel]; const v = inp.value; closeCmdk(); if (c) c.run(); else { const r = route(v); if (r) submitPrompt(v); else status('This mockup scripts the requests listed in the command layer.'); } }
+    if (e.key === 'Enter') { e.preventDefault(); const c = l[cmdSel]; const v = inp.value; closeCmdk(); if (c) c.run(); else if (route(v)) submitPrompt(v); else status('This mockup scripts the requests listed in the command layer. Nothing changed.'); }
   });
   $('ul', box).addEventListener('click', (e) => { const li = e.target.closest('[data-i]'); if (li) { const c = list()[+li.dataset.i]; closeCmdk(); c.run(); } });
   scrim.onclick = closeCmdk;
@@ -1594,29 +2250,48 @@ function closeCmdk() { $('#cmdk')?.remove(); $('#cmdk-scrim')?.remove(); }
 $('#btn-cmdk').onclick = openCmdk;
 document.addEventListener('keydown', (e) => {
   if (!booted) return;
-  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); $('#cmdk') ? closeCmdk() : openCmdk(); }
-  if (e.key === 'Escape') { closePanel(); closeCmdk(); closeGuide(); }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); $('#cmdk') ? closeCmdk() : openCmdk(); return; }
+  if (e.key === 'Escape') { if ($('#visitor')) { closeVisitor(); return; } closePanel(); closeAnswer(); closeCmdk(); closeGuide(); }
+  if (e.key === '?' && !e.target.closest('input, textarea')) { $('#guide') ? closeGuide() : openGuide(); }
 });
 
 /* =========================================================================
-   X-ray
+   X-ray: what the canvas is made of, and where this instance came from
    ========================================================================= */
-const XBAR = {
-  home: '<b>Home</b> is the only screen the thin client runs. There is no start menu and no installed application: each tool below the prompt is a generated application, stored as data.',
-  dispatch: '<b>This application did not exist a minute ago.</b> 2 Lumens (map, schedule), 9 primitives, 3 wires. Data comes through omadia core from the ERP, HR and Maps plugins. Dragging, panning and selecting run on this device without a server round trip. Writing back asks you first.',
-  solar: '<b>A roof editor, a configurator and a quote, generated from one site-visit report.</b> 1 Lumen with 112 paintable cells, 14 primitives, 4 wires into yield, price and quote. CRM, Drive and ERP plugins deliver the data. Sending writes to CRM and ERP, after your OK.',
-  kiosk: '<b>The same runtime drives a public kiosk.</b> The Lumen picks brand colours for its own content, omadia chrome stays Lume. A gas budget stops a faulty Lumen cleanly, so an always-on screen never freezes.',
+const XBASE = {
+  dispatch: '2 Lumens (map, schedule), 9 primitives, 3 wires. Data comes through omadia core from the ERP, HR and Maps plugins. Dragging, panning and selecting run on this device without a server round trip. Writing back asks you first.',
+  solar: 'A roof editor, a configurator and a quote: 1 Lumen with 112 paintable cells, 14 primitives, 4 wires into yield, price and quote. CRM, Drive and ERP plugins deliver the data. Sending writes to CRM and ERP, after your OK.',
+  kiosk: 'The same runtime drives a public kiosk. The Lumen uses the AURA brand colours for its own content (colorMode brand), omadia chrome stays Lume. Dashed tags show the render cadence: static, reactive, tick. A gas budget stops a faulty Lumen cleanly, so an always-on screen never freezes.',
 };
-function renderXbar() { $('#xbar').innerHTML = XBAR[S.space] || ''; }
+function originSentence(I) {
+  return {
+    generated: `<b>Generated at ${I.at} for your request.</b> This application did not exist before.`,
+    tool: `<b>Started from your pinned tool at ${I.at}.</b> The stored application opened on new data, nothing was generated.`,
+    resumed: `<b>Resumed from Recent work at ${I.openedAt}.</b> Same application, same state, nothing regenerated.`,
+    restored: `<b>Restored at ${I.openedAt} after a restart.</b> Your profile kept the application and its state.`,
+  }[I.origin] || '';
+}
+function renderXbar() {
+  const x = $('#xbar');
+  x.innerHTML = S.space === 'home'
+    ? '<b>Home</b> is the only screen the thin client runs: no start menu, no installed applications. Your tools and Recent work are applications omadia generated, stored as data in your profile. Host: omadia thin client.'
+    : `${originSentence(liveInst(S.space) || {})} ${XBASE[S.space] || ''}`;
+  requestAnimationFrame(() => {
+    document.documentElement.style.setProperty('--xbar-h', S.xray ? (x.offsetHeight + 10) + 'px' : '0px');
+    requestAnimationFrame(() => { if (S.space === 'dispatch') renderCallout(); });
+  });
+}
 function toggleXray() {
   S.xray = !S.xray; document.body.classList.toggle('xray', S.xray);
   $('#btn-xray').setAttribute('aria-pressed', String(S.xray)); renderXbar();
   if (S.xray) trace('View', 'X-ray on.');
 }
 $('#btn-xray').onclick = toggleXray;
-addEventListener('resize', () => { if (D && S.space === 'dispatch') renderCallout(); closePanel(); });
+addEventListener('resize', () => { if (D && S.space === 'dispatch') renderCallout(); closePanel(); closeAnswer(); });
 
 /* go */
+restored = restore();
+applyPalette(S.palette);
 const params = new URLSearchParams(location.search);
 if (params.has('noboot')) { bootSkip = true; finishBoot(); } else boot();
 })();

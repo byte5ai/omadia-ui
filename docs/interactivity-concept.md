@@ -374,6 +374,12 @@ Nothing about a Lumen forces 60 Hz. A blanket game-loop is the *wrong* default
 for almost everything and ruinous for an always-on kiosk. This section pins
 the rendering model and the realistic capability envelope on weak hardware.
 
+The lobby kiosk Space of the agentic desktop mockup
+([`mockups/agentic-desktop.html#kiosk`](mockups/agentic-desktop.html#kiosk),
+[live](https://byte5ai.github.io/omadia-ui/mockups/agentic-desktop.html#kiosk))
+shows a kiosk Lumen built this way; its X-ray view tags each region as static,
+reactive or tick.
+
 ### Reactive by default — 60 Hz only where it earns it
 
 Cadence is declared **per node/region, not globally**, in three classes:
