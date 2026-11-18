@@ -67,6 +67,26 @@ guide (press `?`) or in the command layer, clears it.
 - Lume material, palettes and condensation:
   [`visual-spec.md`](../visual-spec.md), with §4.13 for Lumens.
 
+## Agentic desktop, idaria design
+
+[`agentic-desktop-idaria.html`](agentic-desktop-idaria.html), live at
+<https://byte5ai.github.io/omadia-ui/mockups/agentic-desktop-idaria.html>
+
+The agentic desktop in the idaria design and with the product name idaria. It
+runs the same applications as the mockup above and adds the shell of a desktop
+OS:
+
+- System menu on the idaria mark: profile, lock screen, switch user, sign out,
+  restart, shut down.
+- Status icons for the core connection, Wi-Fi, sound and battery, a search
+  icon for the command layer, and date and time with a month calendar.
+- Saved apps. "Save as app" keeps an application's layout, wires and data
+  queries. Its icon on Home opens it on current data without a prompt. Try
+  "Next day" in the mockup bar, then open the Service day app again.
+
+The striped bar at the bottom holds the mockup controls (X-ray, Guide, Next
+day, Replay boot, Reset demo). It is not part of the simulated desktop.
+
 ## Kiosk Lumen, AURA
 
 [`kiosk-lumen-aura.html`](kiosk-lumen-aura.html), live at
