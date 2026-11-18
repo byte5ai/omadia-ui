@@ -716,16 +716,16 @@ body.xray #xbar{background:rgba(20,16,8,.95)!important;border:1px dashed rgba(25
 
 .apps{display:flex;justify-content:center;flex-wrap:wrap;gap:18px;margin-top:30px}
 .apps:empty{display:none}
-.app{appearance:none;background:none;border:0;width:84px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;color:var(--text);font:400 12.5px var(--sans)}
-.app .ic{position:relative;width:56px;height:56px;border-radius:16px;display:grid;place-items:center;color:var(--ink);border:1px solid transparent;
+.appicon{appearance:none;background:none;border:0;width:84px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;color:var(--text);font:400 12.5px var(--sans)}
+.appicon .ic{position:relative;width:56px;height:56px;border-radius:16px;display:grid;place-items:center;color:var(--ink);border:1px solid transparent;
   background:linear-gradient(var(--lit),var(--lit)) padding-box,var(--edge) border-box;background-attachment:scroll,fixed;transition:transform .12s}
-.app .ic svg{width:24px;height:24px}
-.app:hover{color:var(--ink)}
-.app:hover .ic{background:linear-gradient(#212125,#212125) padding-box,var(--edge) border-box;background-attachment:scroll,fixed}
-.app:active .ic{transform:scale(.96)}
-.app:focus-visible{outline:none}
-.app:focus-visible .ic{box-shadow:0 0 0 3px #f3efe624}
-.app .bdg{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--warn);color:#0a0a0b;font:600 11px/18px var(--sans);font-style:normal}
+.appicon .ic svg{width:24px;height:24px}
+.appicon:hover{color:var(--ink)}
+.appicon:hover .ic{background:linear-gradient(#212125,#212125) padding-box,var(--edge) border-box;background-attachment:scroll,fixed}
+.appicon:active .ic{transform:scale(.96)}
+.appicon:focus-visible{outline:none}
+.appicon:focus-visible .ic{box-shadow:0 0 0 3px #f3efe624}
+.appicon .bdg{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--warn);color:#0a0a0b;font:600 11px/18px var(--sans);font-style:normal}
 .apps + .sugg{margin-top:26px}
 #appsave{position:fixed;z-index:70;width:300px;padding:14px;border-radius:14px;border:1px solid transparent;
   background:linear-gradient(var(--lit),var(--lit)) padding-box,var(--edge) border-box;background-attachment:scroll,fixed;box-shadow:0 18px 50px rgba(0,0,0,.55);animation:smIn .14s ease-out}
@@ -744,7 +744,7 @@ body.xray #xbar{background:rgba(20,16,8,.95)!important;border:1px dashed rgba(25
 .hgroup .sugg{margin-top:0!important}
 .hgroup + .hgroup{margin-top:26px}
 
-button.clock{appearance:none;background:none;border:0;height:28px;border-radius:7px;padding:0 8px;cursor:default}
+button.clock{appearance:none;background:none;border:0;height:28px;align-items:center;border-radius:7px;padding:0 8px;cursor:default}
 button.clock:hover,button.clock[aria-expanded]{background:var(--lit)}
 button.clock:focus-visible{outline:none;box-shadow:0 0 0 3px #f3efe624}
 #tpop.cal{width:252px;padding:14px}
@@ -1208,7 +1208,7 @@ function renderHome() {
   const pins = Object.keys(S.pinned);
   const rec = S.recent.filter((id) => S.inst[id]);
   const group = (title, items) => `<div class="sgroup" data-ctx="${title === 'Tools' ? 'tools' : 'recent'}"><span class="sh">${title}</span>${items}</div>`;
-  $('#apps').innerHTML = pins.map((k) => { const badge = k === 'dispatch' && !(S.day || 0) && !S.inst['dispatch-tue'] ? '<i class="bdg" title="2 escalated">2</i>' : ''; return `<button class="app" data-tool="${k}" data-ctx="tool:${k}" title="Open with current data"><span class="ic">${GLYPH[GLYPHOF[k]]}${badge}</span><span class="nm">${esc(appName(k))}</span></button>`; }).join('');
+  $('#apps').innerHTML = pins.map((k) => { const badge = k === 'dispatch' && !(S.day || 0) && !S.inst['dispatch-tue'] ? '<i class="bdg" title="2 escalated">2</i>' : ''; return `<button class="appicon" data-tool="${k}" data-ctx="tool:${k}" title="Open with current data"><span class="ic">${GLYPH[GLYPHOF[k]]}${badge}</span><span class="nm">${esc(appName(k))}</span></button>`; }).join('');
   $('#shelf').innerHTML = ''
     + (rec.length ? group('Recent', rec.map((id) => { const I = S.inst[id]; const bd = APPS[I.kind].badge(I.data); return `<button class="tool" data-recent="${id}" data-ctx="recent:${id}" title="${esc(I.sub)}. ${esc(bd.text)}"><span class="glyph">${GLYPH[GLYPHOF[I.kind]]}</span>${esc(I.short)}${bd.warn ? '<i class="wdot"></i>' : ''}</button>`; }).join('')) : '');
 }
