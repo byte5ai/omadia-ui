@@ -50,7 +50,8 @@ Omadia UI is the next layer — a desktop application where the agent
   [`docs/lumens-spec.md`](docs/lumens-spec.md).
 
 **See it:** the [clickable agentic desktop mockup](https://byte5ai.github.io/omadia-ui/mockups/agentic-desktop.html)
-shows omadia UI as the whole desktop of a thin client, generating a dispatch
+shows the UI as the whole desktop of a thin client, in the idaria design and
+with the product name idaria, generating a dispatch
 planner, a solar quote editor and a lobby kiosk on request. What to try is in
 [`docs/mockups/README.md`](docs/mockups/README.md).
 

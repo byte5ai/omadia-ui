@@ -3,25 +3,26 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>omadia UI: the agentic desktop (clickable mockup)</title>
-<meta name="description" content="Clickable mockup: omadia UI as the desktop. The host OS only boots it; every application is generated on request and runs on omadia core with its plugins." />
+<title>idaria UI: the agentic desktop (clickable mockup)</title>
+<meta name="description" content="Clickable mockup: idaria UI as the desktop. The host OS only boots it; every application is generated on request and runs on idaria core with its plugins." />
 <!--
-  Clickable mockup, not an implementation. Shows omadia UI as the desktop shell
-  of a thin client: applications are generated on request from primitives and
-  Lumens (docs/lumens-spec.md), backed by omadia core and its plugins.
-  Material: Lume, dark base, Lagoon palette (docs/visual-spec.md).
-  Interaction model: direct manipulation, context-invoke action panel, beam,
-  Cmd/Ctrl+K, Spaces, Recent work, Trace (CONCEPT.md "Interaction Model").
-  The lobby kiosk is a brand Lumen with its render cadence visible in X-ray
-  (docs/interactivity-concept.md section 5).
+  Clickable mockup, not an implementation. idaria UI as the desktop shell of a
+  thin client: applications are generated on request from primitives and Lumens
+  (docs/lumens-spec.md), backed by idaria core and its plugins. The shell of a
+  desktop OS around them: system menu on the idaria mark, status icons, date and
+  time with a calendar, and saved apps that open on current data.
+  Material: idaria Admin, near-black ground, hairline edges lit by one light
+  cone, Archivo and Geist Mono.
+  The bar at the bottom holds the mockup controls (X-ray, Guide, Next day,
+  Replay boot, Reset demo); it is not part of the simulated desktop.
   Deep links: #dispatch, #solar, #kiosk. ?noboot skips the boot sequence.
-  State persists in localStorage; "Reset demo" (guide or Cmd/Ctrl+K) clears it.
-  All data is fictional. All logic is illustrative and runs in this page.
+  State persists in localStorage; "Reset demo" clears it.
+  All data is fictional. Profile photo: Unsplash, free licence.
 -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%2303121D%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%276%27 fill=%27%236FC8D6%27/%3E%3C/svg%3E" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 32 150 150%27%3E%3Crect x=%270%27 y=%2732%27 width=%27150%27 height=%27150%27 rx=%2732%27 fill=%27%230a0a0b%27/%3E%3Cpath d=%27M24.14 82.49A47 47 0 1 1 24.14 132.31%27 fill=%27none%27 stroke=%27%23f3efe6%27 stroke-width=%2716%27 stroke-linecap=%27round%27/%3E%3Ccircle cx=%2764%27 cy=%27107.4%27 r=%2711.5%27 fill=%27%23f3efe6%27/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Days+One&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;450;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@100..900&family=Geist+Mono:wght@400;450;600&display=swap" rel="stylesheet" />
 <style>
 :root{
   --canvas-top:#232631; --canvas-btm:#1B1D24;
@@ -345,7 +346,7 @@ table.q tr.disc td{color:var(--ok)}
 .chartwrap{flex:1;min-height:0;padding:8px 12px 10px}
 .chartwrap svg{display:block;width:100%;height:100%}
 
-/* Kiosk: AURA brand Lumen (colorMode brand). Its accent ignores the user palette; omadia chrome stays Lume. */
+/* Kiosk: AURA brand Lumen (colorMode brand). Its accent ignores the user palette; idaria chrome keeps its own light. */
 .app.kiosk{grid-template-rows:auto minmax(0,1fr)}
 .kstage{flex:1;min-height:0;container-type:size;display:grid;place-items:center;padding:16px}
 .kscreen{width:min(calc(100cqw - 32px),calc((100cqh - 32px) * 16 / 9));aspect-ratio:16/9;border-radius:14px;padding:6px;
@@ -508,34 +509,279 @@ body.xray #xbar{display:block;position:absolute;left:50%;transform:translateX(-5
 @media (max-width:900px){
   body{overflow:auto}
   .sugg{grid-template-columns:1fr}
-  .wordmark small,.core span,.clock{display:none}
+  .wordmark small,.core span,.clock .cdate{display:none}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important}
   .condense::before,.condense::after{display:none}
 }
+
+/* ===================== idaria design test =====================
+   Tokens and material taken from the idaria Admin: near-black ground,
+   flat surfaces with hairline edges, warm ink, one light cone from above
+   that lights edges and headings, drifting motes. Archivo + Geist Mono. */
+:root{
+  --ground:#0a0a0b; --surface:#111113; --lit:#19191c; --card:#0e0e10; --line:#222226; --line-strong:#2e2e33;
+  --ink:#f3efe6; --text:#a1a1aa; --meta:#85858d; --dim:#55555c;
+  --cone:#f3efe6; --cone-from:135deg; --cone-span:44deg; --cone-x:36vw; --cone-y:-44vh;
+  --edge-c:color-mix(in srgb,var(--cone) 46%,var(--line));
+  --edge:conic-gradient(from var(--cone-from) at var(--cone-x) var(--cone-y),var(--line) 0deg,var(--edge-c) 7deg,var(--edge-c) calc(var(--cone-span) - 7deg),var(--line) var(--cone-span),var(--line) 360deg);
+  --canvas-top:var(--ground); --canvas-btm:var(--ground);
+  --surface-top:var(--surface); --surface-btm:var(--surface);
+  --raised-top:var(--lit); --raised-btm:var(--lit);
+  --sunken-top:var(--card); --sunken-btm:var(--card);
+  --t1:var(--ink); --t2:var(--text); --t3:var(--meta);
+  --bst:var(--line); --bsb:var(--line); --bdt:var(--line); --bdb:var(--line);
+  --accent:#f3efe6; --accent-hover:#fff; --accent-active:#fff;
+  --accent-subtle:rgba(243,239,230,.07); --accent-glow:rgba(243,239,230,.05);
+  --accent-glow-strong:rgba(243,239,230,.10); --accent-glow-core:rgba(243,239,230,0);
+  --on-accent:#0a0a0b; --loading:#19191c; --loading-hi:#2e2e33;
+  --ok:#3fc1ee; --warn:#ffb547; --err:#ff6a55; --err-edge:#ff6a55;
+  --r-lg:14px; --r-md:10px; --r-sm:8px;
+  --sans:'Archivo','Helvetica Neue',sans-serif; --serif:'Archivo','Helvetica Neue',sans-serif;
+  --mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+:root[data-light="2700"]{--cone:#ffe3c2}
+:root[data-light="6500"]{--cone:#e3ecff}
+body{background:var(--ground);color:var(--text)}
+#shell{background:var(--ground)}
+#cone{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+#stage{z-index:1}
+.topbar{background:transparent;border-bottom:1px solid #16161a;z-index:20}
+.wordmark{font-family:var(--sans);font-size:15px;font-weight:500;color:var(--ink);text-shadow:none;gap:8px;letter-spacing:0}
+.wordmark .logo{width:18px;height:18px;flex:none}
+.wordmark small{color:var(--meta);font-size:15px;font-weight:400;margin-left:-2px}
+.lit{color:transparent!important;background-image:conic-gradient(from var(--cone-from) at var(--cone-x) var(--cone-y),var(--text) 0deg,var(--cone) 7deg,var(--cone) calc(var(--cone-span) - 7deg),var(--text) var(--cone-span),var(--text) 360deg);
+  background-attachment:fixed;-webkit-background-clip:text;background-clip:text}
+#boot{background:var(--ground)}
+#boot .mark{font-family:var(--sans);font-weight:300;font-size:64px;letter-spacing:-1.5px;color:var(--ink);text-shadow:none;display:flex;align-items:center;gap:18px}
+#boot .mark .logo{width:54px;height:54px;color:var(--cone)}
+#boot .arc{background:radial-gradient(closest-side,rgba(243,239,230,.07),transparent 70%)}
+#boot .log b{color:var(--ok)}
+/* material: flat surfaces, hairline edges lit where the cone falls */
+.pane,.cold,#panel,#answer,#modal,#cmdk,#trace,#guide,.genlog{border:1px solid transparent!important;
+  background:linear-gradient(var(--surface),var(--surface)) padding-box,var(--edge) border-box!important;background-attachment:scroll,fixed!important;
+  box-shadow:0 18px 50px rgba(0,0,0,.45)!important}
+.pane{box-shadow:none!important}
+.pane.pre{background:linear-gradient(var(--surface),var(--surface)) padding-box,var(--edge) border-box!important}
+#panel,#answer,#modal,#cmdk,#guide,.genlog{background:linear-gradient(var(--lit),var(--lit)) padding-box,var(--edge) border-box!important}
+.btn,.chip,.tool,.order,.mod,.job,.kpi,.seg,.space.active,.callout,.dragghost,.beamchip{box-shadow:none!important}
+.btn{background:var(--lit);border:1px solid var(--line-strong);border-radius:10px;color:var(--ink)}
+.btn:hover{border-color:#3a3a40;background:#1d1d21}
+.btn.primary{background:var(--ink);color:var(--on-primary,#0a0a0b);border-color:transparent}
+.btn.primary:hover{background:#fff}
+.btn.ghost{background:none;border-color:transparent;color:var(--text)}
+.btn.ghost:hover{background:var(--lit);color:var(--ink)}
+.chip,.tool,.order,.mod{background:var(--card);border:1px solid var(--line)}
+.chip:hover,.tool:hover,.order:hover,.mod:hover{border-color:var(--line-strong);background:var(--lit)}
+.order.sel,.mod[aria-pressed="true"],.job.sel{border-color:var(--ink)!important}
+.job{background:var(--lit);border:1px solid var(--line);border-left:3px solid var(--c)}
+.track{background:var(--card);border:1px solid var(--line)}
+.space{color:var(--text)}
+.space.active{background:var(--lit);border-color:var(--line-strong);color:var(--ink)}
+.space .dot{background:var(--ink);box-shadow:none}
+.seg{background:var(--card);border-color:var(--line)}
+.seg button[aria-pressed="true"]{background:var(--lit);box-shadow:0 0 0 1px var(--line-strong)}
+.tbtn[aria-pressed="true"]{color:var(--ink);border-color:var(--line-strong);background:var(--lit)}
+.kbd{background:#1d1d21;border:1px solid var(--line-strong);color:var(--meta)}
+.core i{box-shadow:none}
+.toggle[aria-pressed="true"]{background:rgba(243,239,230,.12);border-color:var(--ink)}
+.toggle[aria-pressed="true"]::after{background:var(--ink);box-shadow:none}
+.greet{font-weight:300;font-size:40px;letter-spacing:-.8px}
+.brief{font-weight:300;font-size:18px;color:var(--text)}
+.apphead .title b{font-weight:500}
+.cold{box-shadow:0 0 0 4px rgba(243,239,230,.03),0 24px 60px rgba(0,0,0,.5)!important}
+.cold:focus-within{box-shadow:0 0 0 4px #f3efe624!important}
+.cold .go{background:var(--ink);color:#0a0a0b}
+.genlog .q,#answer p,#modal p,#guide p{font-weight:300}
+#modal .eyebrow{color:var(--warn)}
+.genlog li .tag{color:var(--ink)}
+#status .sdot{background:var(--ink);box-shadow:none}
+.ctx-target{box-shadow:0 0 0 1px var(--ink)!important}
+@keyframes beamPulse{0%,100%{box-shadow:0 0 0 1px var(--ink)}50%{box-shadow:0 0 0 1px var(--ink),0 0 24px rgba(243,239,230,.18)}}
+.condense::before{background:radial-gradient(closest-side,rgba(243,239,230,.14),transparent)}
+.condense::after{background:var(--cone);box-shadow:0 0 8px rgba(243,239,230,.3)}
+body.xray .pane{outline-color:rgba(243,239,230,.35)}
+body.xray .xr,body.xray #xbar{background:rgba(10,10,11,.92);border-color:var(--line-strong)}
+body.xray .xr b,#xbar b{color:var(--ink)}
+.scrim{background:rgba(5,5,6,.6)}
+
+.clock{display:flex;align-items:baseline;gap:8px;padding:0 4px 0 10px;margin-left:4px;font:500 13px var(--sans);font-variant-numeric:tabular-nums;white-space:nowrap;cursor:default}
+.clock .cdate{color:var(--text)}
+.clock .ctime{color:var(--ink);min-width:5ch;text-align:right}
+.topbar{grid-template-columns:minmax(120px,1fr) minmax(0,auto) minmax(max-content,1fr)}
+.spaces{min-width:0;overflow-x:auto;scrollbar-width:none}
+.spaces::-webkit-scrollbar{display:none}
+.space{flex:none}
+
+.wordmark{appearance:none;background:none;border:0;justify-self:start;display:flex;align-items:center;gap:8px;padding:5px 9px 5px 7px;margin-left:-7px;border-radius:9px;cursor:pointer;font:500 15px var(--sans);color:var(--ink)}
+.wordmark:hover,.wordmark[aria-expanded="true"]{background:var(--lit)}
+.wordmark:focus-visible{outline:none;box-shadow:0 0 0 3px #f3efe624}
+#sysmenu{position:fixed;top:40px;left:8px;z-index:70;width:300px;padding:6px;border-radius:14px;border:1px solid transparent;
+  background:linear-gradient(var(--lit),var(--lit)) padding-box,var(--edge) border-box;background-attachment:scroll,fixed;
+  box-shadow:0 18px 50px rgba(0,0,0,.55);animation:smIn .14s ease-out}
+@keyframes smIn{from{opacity:0;transform:translateY(-4px)}}
+.sm-user{display:flex;gap:12px;align-items:center;padding:10px 10px 12px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.sm-user b{display:block;color:var(--ink);font-weight:500;font-size:14px}
+.sm-user span{display:block;font-size:12px;color:var(--meta);line-height:1.45}
+.sm-av{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;flex:none;background:#1d1d21;border:1px solid var(--line-strong);color:var(--ink);font:600 12.5px var(--sans)}
+.sm-av.big{width:56px;height:56px;font-size:17px}
+#sysmenu button{display:flex;justify-content:space-between;align-items:baseline;gap:12px;width:100%;padding:8px 10px;border-radius:8px;background:none;border:0;color:var(--ink);font:500 13.5px var(--sans);text-align:left;cursor:pointer}
+#sysmenu button small{font-size:11.5px;color:var(--meta);font-weight:400}
+#sysmenu button:hover,#sysmenu button:focus-visible{background:#1d1d21;outline:none}
+#sysmenu hr{border:0;border-top:1px solid var(--line);margin:6px 4px}
+#session{position:fixed;inset:0;z-index:90;display:grid;place-items:center;background:rgba(8,8,9,.84);-webkit-backdrop-filter:blur(40px) saturate(.6);backdrop-filter:blur(40px) saturate(.6);animation:ssIn .3s ease-out;color:var(--text);font-family:var(--sans)}
+@keyframes ssIn{from{opacity:0}}
+.ss-center{display:flex;flex-direction:column;align-items:center;text-align:center}
+.ss-time{font:200 120px/1 var(--sans);letter-spacing:-3px;font-variant-numeric:tabular-nums}
+.ss-date{font:300 20px var(--sans);color:var(--text);margin-top:12px}
+.ss-foot{position:absolute;bottom:56px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:8px}
+.ss-foot b{color:var(--ink);font-weight:500;font-size:15px}
+.ss-foot span{font-size:13px;color:var(--meta)}
+.ss-top{position:absolute;top:26px;left:0;right:0;text-align:center;font:500 13px var(--sans);color:var(--text);font-variant-numeric:tabular-nums}
+.ss-top span{color:var(--ink);margin-right:6px}
+.ss-h{font:300 32px var(--sans);letter-spacing:-.5px;color:var(--ink)}
+.ss-users{display:flex;gap:16px;margin-top:28px}
+.ss-user{width:176px;padding:22px 14px 16px;border-radius:14px;border:1px solid transparent;cursor:pointer;
+  background:linear-gradient(var(--surface),var(--surface)) padding-box,var(--edge) border-box;background-attachment:scroll,fixed;
+  display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--ink);font:500 14px var(--sans)}
+.ss-user small{font-size:12px;color:var(--meta);font-weight:400;line-height:1.4}
+.ss-user:hover,.ss-user:focus-visible{background:linear-gradient(var(--lit),var(--lit)) padding-box,var(--edge) border-box;background-attachment:scroll,fixed;outline:none}
+.ss-note{min-height:20px;margin-top:20px;font-size:13px;color:var(--text);max-width:520px}
+.ss-logo{width:56px;height:56px;color:var(--cone);animation:ssPulse 1.2s ease-in-out infinite}
+@keyframes ssPulse{50%{opacity:.35}}
+#session.sess-off{background:#000;-webkit-backdrop-filter:none;backdrop-filter:none;animation:ssOff .7s ease-in;cursor:pointer}
+@keyframes ssOff{from{opacity:0}}
+.ss-off{gap:16px;font-size:13px;color:var(--dim)}
+
+.ticon{appearance:none;background:none;border:0;height:28px;min-width:28px;padding:0 6px;border-radius:7px;display:grid;place-items:center;color:var(--ink);cursor:default}
+.ticon svg{width:16px;height:16px;display:block}
+.ticon:hover,.ticon[aria-expanded]{background:var(--lit)}
+.ticon:focus-visible{outline:none;box-shadow:0 0 0 3px #f3efe624}
+#t-vol.low .w2,#t-vol.mute .w1,#t-vol.mute .w2{opacity:.18}
+.tray{gap:2px}
+#tpop{position:fixed;top:40px;z-index:70;width:250px;padding:12px 14px;border-radius:14px;border:1px solid transparent;
+  background:linear-gradient(var(--lit),var(--lit)) padding-box,var(--edge) border-box;background-attachment:scroll,fixed;box-shadow:0 18px 50px rgba(0,0,0,.55);
+  font:400 12.5px/1.5 var(--sans);color:var(--text);animation:smIn .14s ease-out}
+#tpop h4{margin:0 0 8px;font:500 13.5px var(--sans);color:var(--ink)}
+#tpop p{margin:2px 0}
+#tpop .pk{color:var(--ink);display:flex;align-items:center;gap:7px}
+#tpop .okdot{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+#tpop .pl{list-style:none;margin:0;padding:0}
+#tpop .pl li{display:flex;justify-content:space-between;padding:6px 8px;margin:0 -8px;border-radius:8px}
+#tpop .pl li.on{color:var(--ink);background:#1d1d21}
+#tpop .pl small{color:var(--meta)}
+#tpop input[type=range]{width:100%;accent-color:var(--ink);margin:4px 0 8px}
+.sm-av.photo{overflow:hidden;padding:0;border-color:var(--line-strong)}
+.sm-av.photo .ava{width:100%;height:100%;display:block}
+/* mockup bar: outside the simulated screen */
+#shell{bottom:30px}
+#metabar{position:fixed;left:0;right:0;bottom:0;height:30px;z-index:200;display:flex;align-items:center;gap:6px;padding:0 10px;
+  background:repeating-linear-gradient(-45deg,#15120b 0 8px,#100e09 8px 16px);border-top:1px dashed rgba(255,181,71,.55);
+  font:500 11.5px var(--mono);color:#c9a46a}
+#metabar .tag{color:#0a0a0b;background:#ffb547;padding:2px 7px;border-radius:4px;font-weight:600;letter-spacing:.08em;margin-right:6px}
+#metabar button{appearance:none;background:none;border:1px dashed rgba(255,181,71,.45);color:#ffcf87;border-radius:6px;padding:2px 9px;font:inherit;cursor:pointer}
+#metabar button:hover{background:rgba(255,181,71,.10)}
+#metabar button[aria-pressed="true"]{background:rgba(255,181,71,.18);border-style:solid}
+#metabar .note{margin-left:auto;color:#8a7650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.xray .pane{outline:1.5px dashed rgba(255,181,71,.5)!important}
+body.xray .xr{background:rgba(20,16,8,.94)!important;border:1px dashed rgba(255,181,71,.65)!important;color:#f3e2c4!important}
+body.xray .xr b,body.xray #xbar b{color:#ffb547!important}
+body.xray #xbar{background:rgba(20,16,8,.95)!important;border:1px dashed rgba(255,181,71,.65)!important;color:#f3e2c4!important;box-shadow:none!important}
+@media (max-width:900px){#metabar .note{display:none}}
+
+/* Home, reduced */
+.home{grid-template-rows:1fr;max-width:none}
+.home-center{width:min(600px,100%);gap:0;padding-top:0;margin-top:-6vh}
+.greet{font-size:44px;letter-spacing:-1px;margin-bottom:28px}
+.cold{margin-top:0}
+.cold-hint{min-height:0;margin:10px 0 0;color:var(--meta)}
+.cold-hint:empty{display:none}
+.sugg{display:flex;flex-direction:column;gap:0;margin-top:18px;text-align:left}
+.sugg .chip{min-height:0;flex-direction:row;justify-content:space-between;align-items:center;gap:16px;padding:11px 14px;border:0!important;border-radius:10px;background:none!important}
+.sugg .chip:hover,.sugg .chip:focus-visible{background:var(--lit)!important;outline:none}
+.sugg .chip b{font-size:14px;font-weight:400;color:var(--ink)}
+.sugg .chip span{font-size:12.5px;color:var(--meta);white-space:nowrap}
+.sugg .chip span.flag{color:var(--warn)}
+.shelf{display:flex;flex-direction:column;gap:10px;margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
+.shelf:empty{display:none}
+.sgroup{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.sgroup .sh{width:64px;font-size:12px;color:var(--meta);text-align:left}
+.sgroup .tool{flex:none;max-width:none;min-width:0;padding:5px 11px 5px 6px;gap:7px;border-radius:999px;font-size:13px;color:var(--ink);position:relative}
+.sgroup .tool .glyph{width:22px;height:22px;border-radius:50%;background:#1d1d21!important;border:0!important;box-shadow:none!important;color:var(--ink)}
+.sgroup .tool .glyph svg{width:13px;height:13px}
+.sgroup .wdot{width:6px;height:6px;border-radius:50%;background:var(--warn);margin-left:2px}
+#status:has(#status-t:empty){display:none}
+.sugg:empty{display:none}
+.sugg:empty + .shelf{border-top:0;padding-top:0}
+
+.apps{display:flex;justify-content:center;flex-wrap:wrap;gap:18px;margin-top:30px}
+.apps:empty{display:none}
+.appicon{appearance:none;background:none;border:0;width:84px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;color:var(--text);font:400 12.5px var(--sans)}
+.appicon .ic{position:relative;width:56px;height:56px;border-radius:16px;display:grid;place-items:center;color:var(--ink);border:1px solid transparent;
+  background:linear-gradient(var(--lit),var(--lit)) padding-box,var(--edge) border-box;background-attachment:scroll,fixed;transition:transform .12s}
+.appicon .ic svg{width:24px;height:24px}
+.appicon:hover{color:var(--ink)}
+.appicon:hover .ic{background:linear-gradient(#212125,#212125) padding-box,var(--edge) border-box;background-attachment:scroll,fixed}
+.appicon:active .ic{transform:scale(.96)}
+.appicon:focus-visible{outline:none}
+.appicon:focus-visible .ic{box-shadow:0 0 0 3px #f3efe624}
+.appicon .bdg{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--warn);color:#0a0a0b;font:600 11px/18px var(--sans);font-style:normal}
+.apps + .sugg{margin-top:26px}
+#appsave{position:fixed;z-index:70;width:300px;padding:14px;border-radius:14px;border:1px solid transparent;
+  background:linear-gradient(var(--lit),var(--lit)) padding-box,var(--edge) border-box;background-attachment:scroll,fixed;box-shadow:0 18px 50px rgba(0,0,0,.55);animation:smIn .14s ease-out}
+#appsave h4{margin:0 0 10px;font:500 14px var(--sans);color:var(--ink)}
+#appsave input{width:100%;box-sizing:border-box;height:36px;padding:0 10px;border-radius:10px;background:var(--card);border:1px solid var(--line-strong);color:var(--ink);font:400 14px var(--sans);outline:none}
+#appsave input:focus{border-color:#3a3a40;box-shadow:0 0 0 3px #f3efe624}
+#appsave p{margin:10px 0 12px;font-size:12.5px;line-height:1.5;color:var(--meta)}
+#appsave .row{display:flex;justify-content:flex-end;gap:8px}
+.sm-av.photo .ava{object-fit:cover}
+::selection{background:rgba(243,239,230,.22);color:inherit}
+
+.hgroup{margin-top:30px;text-align:left}
+.hgroup:has(.apps:empty),.hgroup:has(.sugg:empty){display:none}
+.hcap{font-size:12px;color:var(--meta);padding:0 14px;margin-bottom:10px}
+.hgroup .apps{justify-content:flex-start;margin-top:0;padding:0 4px;gap:10px}
+.hgroup .sugg{margin-top:0!important}
+.hgroup + .hgroup{margin-top:26px}
+
+button.clock{appearance:none;background:none;border:0;height:28px;align-items:center;border-radius:7px;padding:0 8px;cursor:default}
+button.clock:hover,button.clock[aria-expanded]{background:var(--lit)}
+button.clock:focus-visible{outline:none;box-shadow:0 0 0 3px #f3efe624}
+#tpop.cal{width:252px;padding:14px}
+.cal-today{font:500 13.5px var(--sans);color:var(--ink);padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid var(--line)}
+.cal-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.cal-h b{font:500 13px var(--sans);color:var(--ink)}
+.cal-h button{appearance:none;background:none;border:0;width:24px;height:24px;border-radius:6px;color:var(--text);font:400 16px/1 var(--sans);cursor:pointer}
+.cal-h button:hover{background:#1d1d21;color:var(--ink)}
+.cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;font:400 12px/28px var(--sans);font-variant-numeric:tabular-nums}
+.cal-g i{font-style:normal;color:var(--dim);font-size:11px}
+.cal-g span{color:var(--text);border-radius:50%;width:28px;height:28px;margin:0 auto}
+.cal-g span.we{color:var(--meta)}
+.cal-g span.td{background:var(--ink);color:#0a0a0b;font-weight:600}
 </style>
 </head>
 <body>
 
+<div id="metabar" role="toolbar" aria-label="Mockup controls"><span class="tag">MOCKUP</span><button id="btn-xray" aria-pressed="false" title="Show what each canvas is made of">X-ray</button><button id="btn-guide" title="Short guide, or press ?">Guide</button><button id="m-day">Next day</button><button id="m-replay">Replay boot</button><button id="m-reset">Reset demo</button><span class="note">Not part of idaria UI. Fictional data.</span></div>
 <div id="boot" role="status" aria-label="Booting">
   <div class="log" id="bootlog"></div>
   <div class="arc" id="bootarc"></div>
-  <div class="mark" id="bootmark">omadia</div>
+  <div class="mark" id="bootmark"><svg class="logo" aria-hidden="true" viewBox="0 32 150 150"><path d="M24.14 82.49A47 47 0 1 1 24.14 132.31" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round"/><circle cx="64" cy="107.4" r="11.5" fill="currentColor"/></svg><span class="lit">idaria</span></div>
   <div class="skip">Click to skip</div>
 </div>
 
 <div id="shell" aria-hidden="true">
   <header class="topbar">
-    <div class="wordmark">omadia <small>UI</small></div>
+    <button class="wordmark" id="sysbtn" aria-haspopup="menu" aria-expanded="false" title="System menu"><svg class="logo" aria-hidden="true" viewBox="0 32 150 150"><path d="M24.14 82.49A47 47 0 1 1 24.14 132.31" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round"/><circle cx="64" cy="107.4" r="11.5" fill="currentColor"/></svg>idaria <small>UI</small></button>
     <nav class="spaces" id="spaces" aria-label="Spaces"></nav>
     <div class="tray">
-      <button class="tbtn" id="btn-cmdk" title="Ask omadia or run a command"><span class="lbl">Ask or run</span> <span class="kbd" id="kbd">Ctrl K</span></button>
-      <button class="tbtn" id="btn-xray" aria-pressed="false" title="Show what this canvas is made of">X-ray</button>
-      <button class="tbtn" id="btn-guide" title="About this mockup">?</button>
-      <div class="core" title="omadia core connection"><i></i><span>omadia core, 34 plugins</span></div>
-      <div class="clock" id="clock">--:--</div>
-      <div class="avatar" title="Lea Sommer">LS</div>
+      <button class="ticon" data-pop="core" title="idaria core"><svg viewBox="0 0 16 16"><path d="M4.6 12.6h6.9a3 3 0 0 0 .4-6 4 4 0 0 0-7.7 1 2.5 2.5 0 0 0 .4 5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M6.4 9.4l1.3 1.3 2.4-2.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="ticon" data-pop="wifi" title="Wi-Fi"><svg viewBox="0 0 16 16"><path d="M1.8 6.4a9 9 0 0 1 12.4 0M4.1 8.9a5.7 5.7 0 0 1 7.8 0M6.4 11.3a2.4 2.4 0 0 1 3.2 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="13.4" r="1" fill="currentColor"/></svg></button>
+      <button class="ticon" data-pop="vol" id="t-vol" title="Sound"><svg viewBox="0 0 16 16"><path d="M2.3 6.1h2.4L8 3.2v9.6L4.7 9.9H2.3z" fill="currentColor"/><path class="w1" d="M10.4 5.8a3.2 3.2 0 0 1 0 4.4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path class="w2" d="M12.3 3.9a6 6 0 0 1 0 8.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+      <button class="ticon" data-pop="bat" title="Battery, 82 %"><svg viewBox="0 0 22 16" style="width:22px"><rect x="1" y="4" width="17" height="8.5" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".7"/><rect x="2.8" y="5.8" width="10.8" height="4.9" rx="1.2" fill="currentColor"/><rect x="19" y="6.6" width="1.6" height="3.3" rx=".7" fill="currentColor" opacity=".7"/></svg></button>
+      <button class="ticon" id="btn-cmdk" title="Ask idaria or run a command"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.4 10.4l3.6 3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+      <button class="clock" id="clock" data-pop="cal" aria-label="Date and time, open calendar"><span class="cdate" id="cdate">Tue 24 Nov</span><span class="ctime" id="ctime">--:--</span></button>
     </div>
   </header>
   <main id="stage">
@@ -548,6 +794,67 @@ body.xray #xbar{display:block;position:absolute;left:50%;transform:translateX(-5
   </main>
 </div>
 
+
+<script>
+(() => {
+  'use strict';
+  const shell = document.getElementById('shell');
+  const cv = document.createElement('canvas'); cv.id = 'cone'; shell.prepend(cv);
+  const ctx = cv.getContext('2d');
+  const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let W = 0, H = 0, dpr = 1, beam = null, motes = [], t0 = performance.now();
+  const rgb = () => { const c = getComputedStyle(document.documentElement).getPropertyValue('--cone').trim() || '#f3efe6'; const n = parseInt(c.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+  const SRC = () => ({ x: 0.36 * W, y: -0.44 * H });
+  const A0 = 135 * Math.PI / 180, A1 = 179 * Math.PI / 180;
+  const dir = (a) => ({ x: Math.sin(a), y: -Math.cos(a) });
+  function inCone(x, y) { const s = SRC(); let a = Math.atan2(x - s.x, -(y - s.y)); if (a < 0) a += 2 * Math.PI; return a >= A0 && a <= A1 ? Math.min(1, Math.min(a - A0, A1 - a) / 0.12) : 0; }
+  function drawBeam() {
+    // Drawn at 1/16 resolution and scaled up with smoothing: soft edges in every
+    // browser, without relying on canvas filter support.
+    const sc = 1 / 16, w = Math.max(8, Math.ceil(W * sc)), h = Math.max(8, Math.ceil(H * sc));
+    beam = document.createElement('canvas'); beam.width = w; beam.height = h;
+    const b = beam.getContext('2d'); b.scale(sc, sc);
+    const s = SRC(), L = Math.hypot(W, H) * 2.2, [r, g, bl] = rgb();
+    const N = 10;
+    for (let k = 0; k < N; k++) {
+      const shrink = k * 0.012; const p0 = dir(A0 + shrink), p1 = dir(A1 - shrink);
+      const grd = b.createRadialGradient(s.x, s.y, H * 0.40, s.x, s.y, H * 1.75);
+      grd.addColorStop(0, `rgba(${r},${g},${bl},0.144)`);
+      grd.addColorStop(0.45, `rgba(${r},${g},${bl},0.072)`);
+      grd.addColorStop(1, `rgba(${r},${g},${bl},0)`);
+      b.fillStyle = grd; b.beginPath(); b.moveTo(s.x, s.y); b.lineTo(s.x + p0.x * L, s.y + p0.y * L); b.lineTo(s.x + p1.x * L, s.y + p1.y * L); b.closePath(); b.fill();
+    }
+  }
+  function seed() {
+    let q = 7; const rnd = () => { q = (q * 16807) % 2147483647; return q / 2147483647; };
+    motes = Array.from({ length: 90 }, (_, i) => ({ x: rnd() * W, y: rnd() * H, r: i < 8 ? 5 + rnd() * 6 : 0.5 + rnd() * 1.6, vx: (rnd() - 0.5) * 6, vy: -2 - rnd() * 6, ph: rnd() * 6.28, big: i < 8 }));
+  }
+  function size() {
+    dpr = Math.min(2, devicePixelRatio || 1); W = shell.clientWidth; H = shell.clientHeight;
+    cv.width = W * dpr; cv.height = H * dpr; drawBeam(); seed();
+  }
+  function frame(now) {
+    const dt = Math.min(0.05, (now - t0) / 1000); t0 = now;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.globalAlpha = 1 / 6; ctx.drawImage(beam, 0, 0, W, H); ctx.globalAlpha = 1;
+    const [r, g, b] = rgb();
+    for (const m of motes) {
+      if (!RM) { m.x += m.vx * dt; m.y += m.vy * dt; m.ph += dt * 0.6; if (m.y < -20) { m.y = H + 20; m.x = Math.random() * W; } if (m.x < -20) m.x = W + 20; if (m.x > W + 20) m.x = -20; }
+      const lit = inCone(m.x, m.y); const tw = 0.6 + 0.4 * Math.sin(m.ph);
+      const a = m.big ? (0.03 + 0.07 * lit) : (0.05 + 0.55 * lit) * tw;
+      if (a < 0.02) continue;
+      if (m.big) { const gr = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, m.r); gr.addColorStop(0, `rgba(${r},${g},${b},${a})`); gr.addColorStop(1, `rgba(${r},${g},${b},0)`); ctx.fillStyle = gr; }
+      else ctx.fillStyle = `rgba(${r},${g},${b},${a})`;
+      ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, 6.283); ctx.fill();
+    }
+    if (!RM) requestAnimationFrame(frame);
+  }
+  addEventListener('resize', () => { size(); if (RM) frame(performance.now()); });
+  addEventListener('lightchange', () => { drawBeam(); if (RM) frame(performance.now()); });
+  size(); requestAnimationFrame(frame);
+})();
+</script>
 <script>
 (() => {
 'use strict';
@@ -575,16 +882,15 @@ function flash(node, cls = 'patch') {
   node.classList.remove(cls); void node.offsetWidth; node.classList.add(cls);
   node.addEventListener('animationend', () => node.classList.remove(cls), { once: true });
 }
-$('#kbd').textContent = KBD;
-setInterval(() => { $('#clock').textContent = nowHM(); $$('.kx-clock').forEach((c) => { c.textContent = nowHMS(); }); }, 1000);
-$('#clock').textContent = nowHM();
+setInterval(() => { $('#ctime').textContent = nowHM(); $$('.kx-clock').forEach((c) => { c.textContent = nowHMS(); }); }, 1000);
+$('#ctime').textContent = nowHM();
 
 /* =========================================================================
    State. One live instance per application kind; closed work waits in
    Recent work with its full state. Everything persists in localStorage.
    ========================================================================= */
-const STORE = 'omadia-agentic-desktop-v2';
-const S = { space: 'home', order: ['home'], live: {}, inst: {}, recent: [], pinned: {}, status: {}, palette: 'lagoon', traceAll: false, xray: false };
+const STORE = 'idaria-agentic-desktop';
+const S = { space: 'home', order: ['home'], live: {}, inst: {}, recent: [], pinned: { dispatch: { at: '16 Nov', shared: false, name: 'Service day' } }, day: 0, status: {}, palette: 'lagoon', traceAll: false, xray: false };
 let TRACE = [];
 let D = null, P = null, K = null;
 let persistOn = true, restored = false;
@@ -640,7 +946,7 @@ addEventListener('pagehide', saveNow);
 /* =========================================================================
    Status line (one per Space) + Trace (per Space, or all Spaces)
    ========================================================================= */
-const defaultStatus = (sp) => (sp === 'home' ? `Ask anything, or press <b>${KBD}</b>.` : 'Ready.');
+const defaultStatus = (sp) => (sp === 'home' ? '' : 'Ready.');
 function showStatus() { $('#status-t').innerHTML = S.status[S.space] || defaultStatus(S.space); flash($('#status')); }
 function status(html, sp = S.space) { S.status[sp] = html; if (sp === S.space) showStatus(); save(); }
 function trace(kind, text, sp = S.space) {
@@ -672,14 +978,14 @@ $('#btn-trace').onclick = () => toggleTrace();
 /* =========================================================================
    Palette (Lume: one accent slot, three palettes, set conversationally)
    ========================================================================= */
-function applyPalette(p) { document.documentElement.dataset.palette = p; }
+function applyPalette(p) { document.documentElement.dataset.light = { atelier: '2700', petrol: '6500' }[p] || '4500'; dispatchEvent(new Event('lightchange')); }
 function setPalette(p, said) {
   document.body.classList.add('palette-fade');
   S.palette = p; applyPalette(p);
   setTimeout(() => document.body.classList.remove('palette-fade'), 260);
-  const name = { lagoon: 'Lagoon', atelier: 'Atelier', petrol: 'Petrol' }[p];
-  trace('Preference', `${esc(said)}: palette set to ${name} for this user.`);
-  status(`Palette <b>${name}</b>. Stored as your preference, every canvas follows. Brand content inside a Lumen keeps its own colours.`);
+  const name = { lagoon: 'neutral light', atelier: 'warm light, 2700 K', petrol: 'cool light, 6500 K' }[p];
+  trace('Preference', `${esc(said)}: ${name} for this user.`);
+  status(`Light set to <b>${name}</b>. Stored as your preference, every canvas follows. Brand content inside a Lumen keeps its own colours.`);
 }
 
 /* =========================================================================
@@ -768,8 +1074,8 @@ async function openInst(id, how, promptText) {
     trace('Resumed', `${esc(I.label)}, ${esc(I.sub)}: reopened as you left it. Nothing regenerated.`, kind);
     status(`Resumed <b>${esc(I.short)}</b>, ${esc(I.sub)}, as you left it.${prevNote}`, kind);
   } else {
-    trace('Tool', `Started ${esc(I.label)}, ${esc(I.sub)}, from your pinned tool. Same application on new data, nothing generated.`, kind);
-    status(`Started <b>${esc(I.sub)}</b> from your tool in 0.2 s. Same application, new data.${APPS[kind].after?.() || ''}${prevNote}`, kind);
+    trace('App', `Opened your app ${esc(appName(kind))}: saved layout and wires, data queries ran again on ${APPSRC[kind]}. Nothing generated.`, kind);
+    status(`Opened your app <b>${esc(appName(kind))}</b> with current data, ${esc(I.sub)}.${APPS[kind].after?.() || ''}${prevNote}`, kind);
   }
   save();
 }
@@ -779,17 +1085,11 @@ function openRequest(kind, promptText) {
   openInst(id, 'generated', promptText);
 }
 function toolTarget(kind) {
-  if (kind === 'dispatch' && !S.inst['dispatch-wed']) return { id: 'dispatch-wed', next: true };
-  if (S.live[kind]) return { id: S.live[kind] };
-  const rec = S.recent.find((x) => S.inst[x]?.kind === kind);
-  return rec ? { id: rec } : { id: REQ_INST[kind], next: true };
+  return { id: kind === 'dispatch' ? ((S.day || 0) ? 'dispatch-wed' : 'dispatch-tue') : REQ_INST[kind] };
 }
-function toolHint(kind) {
-  const t = toolTarget(kind);
-  if (kind === 'dispatch' && t.id === 'dispatch-wed' && t.next) return 'Starts Wednesday’s plan';
-  if (t.next) return 'Starts with today’s data';
-  return S.live[kind] ? 'Open now' : 'Opens your latest work';
-}
+function toolHint() { return 'Open with current data'; }
+const appName = (k) => S.pinned[k]?.name || INSTDEF[REQ_INST[k]].short;
+const APPSRC = { dispatch: 'ERP, HR and Maps', solar: 'CRM, Drive and ERP', kiosk: 'Drive and the kiosk screen' };
 function openTool(kind) { const t = toolTarget(kind); openInst(t.id, 'tool'); }
 
 /* =========================================================================
@@ -800,13 +1100,13 @@ async function boot() {
   const log = $('#bootlog');
   const n = S.order.length - 1;
   const lines = [
-    'omadia thin client   Linux 6.8   4 GB RAM   no local applications',
+    'idaria thin client   Linux 6.8   4 GB RAM   no local applications',
     '<b>[  ok  ]</b> network            wired, 1 Gbit/s',
     '<b>[  ok  ]</b> display            3840 x 2160 at 60 Hz, touch',
     '<b>[  ok  ]</b> device identity    key loaded from secure element',
-    '<b>[  ok  ]</b> omadia core        connected, 34 plugins, tenant byte5-demo',
+    '<b>[  ok  ]</b> idaria core        connected, 34 plugins, tenant byte5-demo',
     `<b>[  ok  ]</b> session            Lea Sommer, ${restored && n ? plural(n, 'Space') + ' restored' : 'Operations and Sales'}`,
-    '<b>[  ok  ]</b> starting omadia UI shell',
+    '<b>[  ok  ]</b> starting idaria UI shell',
   ];
   for (const l of lines) { if (bootSkip) break; log.innerHTML += l + '\n'; await wait(230); }
   if (!bootSkip) { $('#bootarc').classList.add('on'); $('#bootmark').classList.add('on'); await wait(1100); }
@@ -847,14 +1147,16 @@ function openGuide() {
   toggleTrace(false);
   document.body.appendChild(el(`<aside id="guide">
     <div class="eyebrow">Clickable mockup, fictional data</div>
-    <p>This screen is the whole desktop. The thin client boots straight into omadia UI. Every application here is generated for the task and works on live data through omadia core and its plugins.</p>
+    <p>This screen is the whole desktop. The thin client boots straight into idaria UI. Every application here is generated for the task and works on live data through idaria core and its plugins.</p>
     <ol>
       <li><b>Pick a request</b> on Home and watch the application assemble.</li>
       <li><b>Work in it:</b> drag orders onto technicians, paint panels on the roof.</li>
       <li><b>Right-click or long-press</b> anything for actions and questions.</li>
+      <li><b>Apps</b> on Home open a saved application with current data. Save your own with <b>Save as app</b>; try <b>Next day</b> in the mockup bar.</li>
       <li><b>Close a Space</b> with ×. Your work waits under Recent work, also after a reload.</li>
-      <li><b>${KBD}</b> for commands. Try “make it warmer”.</li>
-      <li><b>X-ray</b> shows what each canvas is made of.</li>
+      <li><b>${KBD}</b> or the magnifier top right for commands. Try “make it warmer”.</li>
+      <li><b>X-ray</b> in the mockup bar at the bottom shows what each canvas is made of.</li>
+      <li><b>The idaria mark</b> top left opens the system menu: your profile, lock, switch user, sign out, restart, shut down.</li>
     </ol>
     <div class="foot"><span><button class="btn ghost sm" id="g-replay">Replay boot</button><button class="btn ghost sm" id="g-reset">Reset demo</button></span><button class="btn primary sm" id="g-ok">Got it</button></div>
   </aside>`));
@@ -874,31 +1176,24 @@ const GLYPH = {
   screen: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
 };
 const REQUESTS = {
-  dispatch: { text: 'Plan today’s service routes for team north. Two orders were escalated overnight.', area: 'Operations', note: 'ERP orders, HR calendars, maps' },
-  solar: { text: 'Draft a solar quote for Müller GmbH from yesterday’s site visit.', area: 'Sales', note: 'CRM, site photos, ERP price list' },
-  kiosk: { text: 'Show the lobby kiosk for the AURA launch.', area: 'Marketing', note: 'brand assets, kiosk screen' },
+  dispatch: { text: 'Plan today’s service routes for team north. Two orders were escalated overnight.', area: 'Operations', note: 'ERP orders, HR calendars, maps', label: 'Service routes, team north', meta: '2 escalated', warn: true },
+  solar: { text: 'Draft a solar quote for Müller GmbH from yesterday’s site visit.', area: 'Sales', note: 'CRM, site photos, ERP price list', label: 'Solar quote, Müller GmbH', meta: 'Ready to quote' },
+  kiosk: { text: 'Show the lobby kiosk for the AURA launch.', area: 'Marketing', note: 'brand assets, kiosk screen', label: 'Lobby kiosk, AURA launch', meta: '' },
 };
-function chipNote(kind) {
-  const id = REQ_INST[kind];
-  if (S.live[kind] === id) return 'Open now';
-  if (S.inst[id]) return `Resumes your work from ${S.inst[id].closedAt || S.inst[id].at}`;
-  return REQUESTS[kind].note;
-}
 function buildHome() {
   const cv = $('#cv-home');
   cv.innerHTML = `<div class="home">
     <div class="home-center">
-      <div class="greet">Good morning, Lea.</div>
-      <p class="brief">Two service orders for team north were escalated overnight, and Bäckerei Hansen still has no technician. The site visit at Müller GmbH is ready to be quoted.</p>
+      <div class="greet lit">Good morning, Lea.</div>
       <form class="cold" id="cold" autocomplete="off">
         <input id="cold-in" aria-label="What do you want to get done?" placeholder="What do you want to get done?" />
         <button class="go" aria-label="Send" type="submit"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
       </form>
       <div class="cold-hint" id="cold-hint"></div>
-      <div class="sugg" id="sugg"></div>
+      <div class="hgroup" id="g-apps"><div class="hcap">Your apps</div><div class="apps" id="apps" data-ctx="apps"></div></div>
+      <div class="hgroup" id="g-sugg"><div class="hcap">Suggested for today</div><div class="sugg" id="sugg"></div></div>
+      <div class="shelf" id="shelf"></div>
     </div>
-    <div class="shelf" id="shelf"></div>
-    <div class="systems"><span>Connected through omadia core: ERP, CRM, HR, Maps, Drive, Mail, Mobile push and 27 more plugins.</span><span>Clickable mockup, fictional data. Press <b>?</b> for a short guide.</span></div>
   </div>`;
   renderHome();
   $('#cold').addEventListener('submit', (e) => { e.preventDefault(); submitPrompt($('#cold-in').value); });
@@ -910,19 +1205,13 @@ function buildHome() {
 }
 function renderHome() {
   const sugg = $('#sugg'); if (!sugg) return;
-  sugg.innerHTML = Object.entries(REQUESTS).map(([k, r]) => `<button class="chip" data-req="${k}"><span class="eyebrow">${r.area}</span><b>${esc(r.text)}</b><span>${esc(chipNote(k))}</span></button>`).join('');
+  sugg.innerHTML = Object.entries(REQUESTS).filter(([k]) => !S.pinned[k] && !S.live[k] && !S.inst[REQ_INST[k]]).map(([k, r]) => { return `<button class="chip" data-req="${k}" title="${esc(r.text)}"><b>${esc(r.label)}</b><span class="${r.warn ? 'flag' : ''}">${esc(r.meta)}</span></button>`; }).join('');
   const pins = Object.keys(S.pinned);
   const rec = S.recent.filter((id) => S.inst[id]);
-  $('#shelf').innerHTML = (pins.length ? `<section class="pane tools" data-ctx="tools">
-      <div class="pane-h"><h3>Your tools</h3><span class="sub">pinned by you, only you see them</span></div>
-      <div class="pane-b"><div class="tool-grid">${pins.map((k) => `<button class="tool" data-tool="${k}" data-ctx="tool:${k}"><span class="glyph">${GLYPH[GLYPHOF[k]]}</span><span><b>${esc(INSTDEF[REQ_INST[k]].short)}</b><span>${toolHint(k)}${S.pinned[k].shared ? `. Shared with ${esc(AUD[k][0])}` : ''}</span></span></button>`).join('')}</div></div>
-      <div class="xr tr"><b>Presets</b> in your profile<br>a pinned application is stored as data<br>opening it instantiates it on new data</div>
-    </section>` : '')
-    + (rec.length ? `<section class="pane tools" data-ctx="recent">
-      <div class="pane-h"><h3>Recent work</h3><span class="sub">closed Spaces, kept with every change</span></div>
-      <div class="pane-b"><div class="tool-grid">${rec.map((id) => { const I = S.inst[id]; const b = APPS[I.kind].badge(I.data); return `<button class="tool" data-recent="${id}" data-ctx="recent:${id}"><span class="glyph">${GLYPH[GLYPHOF[I.kind]]}</span><span><b>${esc(I.short)}</b><span>${esc(I.sub)}. <span class="${b.warn ? 'flag' : ''}">${esc(b.text)}</span></span></span></button>`; }).join('')}</div></div>
-      <div class="xr tr"><b>Instances</b> with their full state<br>reopening restores, nothing regenerates</div>
-    </section>` : '');
+  const group = (title, items) => `<div class="sgroup" data-ctx="${title === 'Tools' ? 'tools' : 'recent'}"><span class="sh">${title}</span>${items}</div>`;
+  $('#apps').innerHTML = pins.map((k) => { const badge = k === 'dispatch' && !(S.day || 0) && !S.inst['dispatch-tue'] ? '<i class="bdg" title="2 escalated">2</i>' : ''; return `<button class="appicon" data-tool="${k}" data-ctx="tool:${k}" title="Open with current data"><span class="ic">${GLYPH[GLYPHOF[k]]}${badge}</span><span class="nm">${esc(appName(k))}</span></button>`; }).join('');
+  $('#shelf').innerHTML = ''
+    + (rec.length ? group('Recent', rec.map((id) => { const I = S.inst[id]; const bd = APPS[I.kind].badge(I.data); return `<button class="tool" data-recent="${id}" data-ctx="recent:${id}" title="${esc(I.sub)}. ${esc(bd.text)}"><span class="glyph">${GLYPH[GLYPHOF[I.kind]]}</span>${esc(I.short)}${bd.warn ? '<i class="wdot"></i>' : ''}</button>`; }).join('')) : '');
 }
 async function typeAndRun(kind) {
   const inp = $('#cold-in');
@@ -939,14 +1228,14 @@ function route(text) {
   if (/kiosk|lobby|aura/.test(t)) return 'kiosk';
   if (/warm/.test(t)) return 'p:atelier';
   if (/cool|blue|petrol/.test(t)) return 'p:petrol';
-  if (/lagoon|default/.test(t)) return 'p:lagoon';
+  if (/lagoon|default|neutral/.test(t)) return 'p:lagoon';
   return null;
 }
 function submitPrompt(text) {
   text = (text || '').trim(); if (!text) return;
   const r = route(text);
   const hint = $('#cold-hint');
-  if (!r) { if (hint) hint.textContent = 'This mockup scripts three requests: service routes, the solar quote and the lobby kiosk. Pick one below.'; return; }
+  if (!r) { if (hint) hint.textContent = 'Try one of the suggestions below.'; return; }
   if (hint) hint.textContent = '';
   if ($('#cold-in')) $('#cold-in').value = '';
   if (r.startsWith('p:')) return setPalette(r.slice(2), text);
@@ -958,7 +1247,7 @@ function submitPrompt(text) {
    ========================================================================= */
 const STEPS = {
   dispatch: [
-    ['omadia', 'Understanding the request', 420],
+    ['idaria', 'Understanding the request', 420],
     ['ERP', '9 service orders for team north, 2 escalated overnight', 520],
     ['HR', 'Shifts and skills of 3 technicians', 380],
     ['Maps', 'Road network and tiles for the region', 420],
@@ -967,7 +1256,7 @@ const STEPS = {
     ['Grant', 'Read access granted. Publishing and texting ask you first', 380],
   ],
   solar: [
-    ['omadia', 'Understanding the request', 380],
+    ['idaria', 'Understanding the request', 380],
     ['CRM', 'Müller GmbH, Kronau. Site visit report from yesterday', 480],
     ['Drive', '14 roof photos. Roof measured at 31.2 x 13.6 m, 2 faces', 560],
     ['ERP', 'Price list 2026-11, stock for 3 module types', 420],
@@ -1016,39 +1305,53 @@ const AUD = {
   solar: ['Sales team', '5 people in sales'],
   kiosk: ['Marketing', '3 people in marketing'],
 };
-function pinLabel(kind) { return S.pinned[kind] ? 'Pinned' : 'Pin to my tools'; }
+function pinLabel(kind) { return S.pinned[kind] ? 'Saved as app' : 'Save as app'; }
 function pin(kind) {
-  const short = INSTDEF[REQ_INST[kind]].short;
-  if (S.pinned[kind]) { status(`<b>${esc(short)}</b> is already in your tools on Home.`); return; }
-  S.pinned[kind] = { at: nowHM(), shared: false };
-  $$(`[data-pin="${kind}"]`).forEach((b) => { b.textContent = pinLabel(kind); });
-  renderHome();
-  trace('Preset', `Pinned <b>${esc(short)}</b> to your tools. Stored as data in your profile, only you see it.`);
-  status(`Pinned to your tools on Home. Only you see it. Share it from its tool card when your team should have it.`);
+  if (S.pinned[kind]) { status(`<b>${esc(appName(kind))}</b> is already an app on Home.`); return; }
+  $('#appsave')?.remove();
+  const btn = $$(`[data-pin="${kind}"]`).find((x) => x.offsetParent); const r = btn.getBoundingClientRect();
+  const def = INSTDEF[REQ_INST[kind]].short;
+  const d = el(`<form id="appsave" autocomplete="off"><h4>Save as app</h4><input id="as-name" value="${esc(def)}" aria-label="App name"><p>Keeps the layout and its data queries. Opens with current data, no prompt needed.</p><div class="row"><button type="button" class="btn ghost sm" id="as-cancel">Cancel</button><button class="btn primary sm">Save app</button></div></form>`);
+  d.style.top = (r.bottom + 8) + 'px'; d.style.right = Math.max(8, innerWidth - r.right) + 'px';
+  document.body.appendChild(d);
+  const inp = $('#as-name', d); inp.select();
+  const out = (e) => { if (!e.target.closest('#appsave')) close(); };
+  const close = () => { d.remove(); document.removeEventListener('pointerdown', out, true); };
+  document.addEventListener('pointerdown', out, true);
+  $('#as-cancel', d).onclick = close;
+  d.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } });
+  d.onsubmit = (e) => {
+    e.preventDefault(); const name = inp.value.trim() || def; close();
+    S.pinned[kind] = { at: nowHM(), shared: false, name };
+    $$(`[data-pin="${kind}"]`).forEach((x) => { x.textContent = pinLabel(kind); });
+    renderHome();
+    trace('App', `Saved <b>${esc(name)}</b> as an app: layout, wires and data queries. Stored in your profile, only you see it.`);
+    status(`Saved as app <b>${esc(name)}</b>. It is on Home and opens with current data.`);
+  };
 }
 async function shareTool(kind) {
   const [who, people] = AUD[kind]; const short = INSTDEF[REQ_INST[kind]].short;
   if (S.pinned[kind]?.shared) { status(`<b>${esc(short)}</b> is already shared with ${esc(who)}.`); return; }
   const ok = await consent({
-    title: `Share the ${short} tool with ${who}?`,
-    text: 'They get the application as a tool. Each person opens it with their own data and permissions.',
+    title: `Share the ${appName(kind)} app with ${who}?`,
+    text: 'They get the app. Each person opens it with their own data and permissions.',
     items: [`Visible to ${people}`, 'Your open work and Recent work stay private', 'You can stop sharing at any time'],
     confirm: 'Share tool', verb: 'Sharing',
   });
   if (!ok) return;
   S.pinned[kind].shared = true; renderHome();
-  trace('External effect', `Shared the ${esc(short)} tool with ${esc(who)}. You confirmed.`);
-  status(`Shared with <b>${esc(who)}</b>. It appears in their tools.`);
+  trace('External effect', `Shared the ${esc(appName(kind))} app with ${esc(who)}. You confirmed.`);
+  status(`Shared with <b>${esc(who)}</b>. It appears in their apps.`);
 }
 function unshare(kind) { S.pinned[kind].shared = false; renderHome(); status(`Stopped sharing <b>${esc(INSTDEF[REQ_INST[kind]].short)}</b>. It is yours alone again.`); trace('Preset', `Stopped sharing ${esc(INSTDEF[REQ_INST[kind]].short)}.`); }
 function unpin(kind) {
-  delete S.pinned[kind]; renderHome();
+  const name = appName(kind); delete S.pinned[kind]; renderHome();
   $$(`[data-pin="${kind}"]`).forEach((b) => { b.textContent = pinLabel(kind); });
-  status(`Unpinned <b>${esc(INSTDEF[REQ_INST[kind]].short)}</b>. Your work in it stays where it is.`);
+  status(`Removed the app <b>${esc(name)}</b>. Your work in it stays where it is.`);
 }
 function originNote() {
   const I = S.inst[S.live[S.space]] || {};
-  return { generated: `Generated ${I.at}`, tool: `From your tool ${I.at}`, resumed: `Resumed ${I.openedAt}`, restored: `Restored ${I.openedAt}` }[I.origin] || '';
+  return { generated: `Generated ${I.at}`, tool: `From your app ${I.at}`, resumed: `Resumed ${I.openedAt}`, restored: `Restored ${I.openedAt}` }[I.origin] || '';
 }
 function stateLabel(node, text, dirty) { if (!node) return; node.textContent = text; node.classList.toggle('dirty', !!dirty); }
 
@@ -1173,7 +1476,7 @@ function dispatchBadge(d) {
 function dispatchBuild(cv) {
   cv.innerHTML = `<div class="app dispatch">
     <section class="pane apphead" data-ctx="kpis">
-      <div class="title"><b>Service day, team north</b><span>${esc(D.day)}. 3 technicians, depot Altstadt</span></div>
+      <div class="title"><b class="lit">Service day, team north</b><span>${esc(D.day)}. 3 technicians, depot Altstadt</span></div>
       <div class="kpis" id="d-kpis"></div>
       <div class="grow"></div>
       <span class="gen-note">${originNote()}</span>
@@ -1282,7 +1585,7 @@ function drawMapBase() {
     <filter id="glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
     <radialGradient id="lake" cx="0.5" cy="0.5" r="0.6"><stop offset="0" stop-color="#20414b"/><stop offset="1" stop-color="#18303a"/></radialGradient>
   </defs>
-  <rect x="-2000" y="-2000" width="5000" height="5000" fill="#191b21"/>
+  <rect x="-2000" y="-2000" width="5000" height="5000" fill="#0e0e10"/>
   <rect x="-2000" y="-2000" width="5000" height="5000" fill="url(#mgrid)"/>
   <g opacity="0.55" fill="#1f2a24">${[[90, 90, 70], [150, 60, 46], [360, 200, 60], [600, 240, 48], [740, 120, 52], [420, 420, 70], [90, 400, 60]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g>
   <path d="M -20 180 C 120 200, 220 300, 380 260 S 600 200, 760 260 S 860 300, 900 290" fill="none" stroke="#1d3a44" stroke-width="10" stroke-linecap="round"/>
@@ -1292,7 +1595,7 @@ function drawMapBase() {
   </g>
   <g font-family="Geist, sans-serif" font-size="12" fill="#888B95">${TOWNS.map(([n, x, y, lx, ly, a]) => `<circle cx="${x}" cy="${y}" r="3" fill="#5a5d68"/><text x="${lx}" y="${ly}" text-anchor="${a}">${n}</text>`).join('')}</g>
   <g id="routes"></g>
-  <g transform="translate(${DEPOT.x},${DEPOT.y})"><rect x="-11" y="-11" width="22" height="22" rx="6" fill="#23262F" stroke="var(--accent)" stroke-width="1.5"/><path d="M-5 2 L0 -4 L5 2 V6 H-5 Z" fill="var(--accent)"/><text x="0" y="28" text-anchor="middle" font-family="Geist, sans-serif" font-size="11.5" fill="#B6B9C3">Depot Altstadt</text></g>
+  <g transform="translate(${DEPOT.x},${DEPOT.y})"><rect x="-11" y="-11" width="22" height="22" rx="6" fill="#111113" stroke="var(--accent)" stroke-width="1.5"/><path d="M-5 2 L0 -4 L5 2 V6 H-5 Z" fill="var(--accent)"/><text x="0" y="28" text-anchor="middle" font-family="Geist, sans-serif" font-size="11.5" fill="#B6B9C3">Depot Altstadt</text></g>
   <g id="pins"></g>`;
   applyVB();
 }
@@ -1321,7 +1624,7 @@ function renderMapDyn() {
     const o = ORD[id]; const sel = D.sel === id; const dim = D.focus && tid !== D.focus ? 0.35 : 1;
     return `<g class="pin" data-order="${id}" data-ctx="order:${id}" transform="translate(${o.x},${o.y})" opacity="${dim}">
       ${sel ? `<circle r="20" fill="none" stroke="var(--accent)" stroke-width="1.5" opacity="0.8" filter="url(#glow)"/>` : ''}
-      <circle class="ring" r="${sel ? 13 : 11}" fill="#23262F" stroke="${c}" stroke-width="2" ${n ? '' : 'stroke-dasharray="3 3"'} ${sel ? 'filter="url(#glow)"' : ''}/>
+      <circle class="ring" r="${sel ? 13 : 11}" fill="#111113" stroke="${c}" stroke-width="2" ${n ? '' : 'stroke-dasharray="3 3"'} ${sel ? 'filter="url(#glow)"' : ''}/>
       <text text-anchor="middle" dy="4" font-family="Geist Mono, monospace" font-size="11" font-weight="600" fill="${n ? c : '#B6B9C3'}">${n ?? '+'}</text>
       ${o.esc ? `<circle cx="9" cy="-9" r="3.5" fill="#D6B468"/>` : ''}
     </g>`;
@@ -1445,7 +1748,7 @@ async function publishPlans() {
   if (!D.pub) {
     spec = {
       title: `Publish ${dayName()}’s plans to 3 technicians?`,
-      text: 'omadia sends each technician their route and orders, and updates the service orders in the ERP.',
+      text: 'idaria sends each technician their route and orders, and updates the service orders in the ERP.',
       items: [`Push message to ${TECHS.map((t) => first(t.id)).join(', ')}`, `${plural(assigned, 'ERP service order')} get a technician and a time slot`, ...escalationLines(),
         tot.open ? `${plural(tot.open, 'open order')} stay${tot.open === 1 ? 's' : ''} unassigned` : 'No order stays unassigned'],
       confirm: 'Publish', verb: 'Publishing',
@@ -1454,7 +1757,7 @@ async function publishPlans() {
     const ch = planChanges(D.pub.plan); const who = [...new Set(ch.flatMap((c) => c.techs))];
     spec = {
       title: `Publish ${plural(ch.length, 'change')} to the day plans?`,
-      text: `The plans went out at ${D.pub.at}. omadia sends an update only to the technicians affected and adjusts the ERP orders.`,
+      text: `The plans went out at ${D.pub.at}. idaria sends an update only to the technicians affected and adjusts the ERP orders.`,
       items: [who.length ? `Update to ${who.map(first).join(', ')}` : 'No technician is affected', ...ch.map((c) => c.text), ...escalationLines()],
       confirm: 'Publish changes', verb: 'Publishing',
     };
@@ -1535,7 +1838,7 @@ function solarBadge(d) {
 function solarBuild(cv) {
   cv.innerHTML = `<div class="app solar">
     <section class="pane apphead">
-      <div class="title"><b>Solar quote, Müller GmbH</b><span>Hallenstraße 12, Kronau. Logistics hall, 38,000 kWh per year. Roof from the site visit on 23 Nov</span></div>
+      <div class="title"><b class="lit">Solar quote, Müller GmbH</b><span>Hallenstraße 12, Kronau. Logistics hall, 38,000 kWh per year. Roof from the site visit on 23 Nov</span></div>
       <div class="grow"></div>
       <span class="gen-note">${originNote()}</span>
       <button class="btn ghost" data-pin="solar">${pinLabel('solar')}</button>
@@ -1549,7 +1852,7 @@ function solarBuild(cv) {
             <div class="seg" id="s-tool"><button data-tool="paint" title="Paint adds modules">Paint</button><button data-tool="erase" title="Erase removes modules">Erase</button></div>
             <button class="btn sm" id="s-fill">Fill south face</button><button class="btn sm ghost" id="s-clear">Clear</button></div></div>
         <div class="roofwrap" data-toolzone><svg id="s-roof" viewBox="0 0 784 420" preserveAspectRatio="xMidYMid meet"></svg></div>
-        <div class="xr"><b>Lumen</b> roof.editor, <b>scene</b> primitive, 112 cells<br>paint adds, erase removes, on this device<br>invariant: no panel on obstacles or margin<br>source: Drive photos, measured by omadia</div>
+        <div class="xr"><b>Lumen</b> roof.editor, <b>scene</b> primitive, 112 cells<br>paint adds, erase removes, on this device<br>invariant: no panel on obstacles or margin<br>source: Drive photos, measured by idaria</div>
       </section>
       <div class="sbottom">
         <section class="pane" data-ctx="chart">
@@ -1613,7 +1916,7 @@ function drawRoofBase() {
     <text x="${RX + 6}" y="${RY - 10}">North face, 640 kWh per kWp</text>
     <text x="${RX + W - 6}" y="${RY - 10}" text-anchor="end">Ridge 8.4 m</text>
   </g>
-  <g transform="translate(${RX + W + 34},${RY + 22})" pointer-events="none"><circle r="15" fill="#23262F" stroke="rgba(255,255,255,0.15)"/><path d="M0 -10 L5 4 L0 1 L-5 4 Z" fill="#EEEFF3"/><text y="28" text-anchor="middle" font-family="Geist, sans-serif" font-size="11" fill="#888B95">N</text></g>
+  <g transform="translate(${RX + W + 34},${RY + 22})" pointer-events="none"><circle r="15" fill="#111113" stroke="rgba(255,255,255,0.15)"/><path d="M0 -10 L5 4 L0 1 L-5 4 Z" fill="#EEEFF3"/><text y="28" text-anchor="middle" font-family="Geist, sans-serif" font-size="11" fill="#888B95">N</text></g>
   <g transform="translate(${RX},${RY + H + 52})" pointer-events="none"><rect width="100" height="3" fill="#B6B9C3"/><text x="106" y="5" font-family="Geist, sans-serif" font-size="11" fill="#888B95">5 m</text></g>
   <text x="${RX + W - 6}" y="${ridge + SROWS * CH - 8}" text-anchor="end" font-family="Geist, sans-serif" font-size="11" fill="#EEEFF3" opacity="0.75" pointer-events="none">South face, 980 kWh per kWp</text>`;
 }
@@ -1749,7 +2052,7 @@ async function sendQuote() {
   const rev = P.sent ? P.sent.rev + 1 : 1;
   const ok = await consent(rev === 1 ? {
     title: 'Send quote Q-2026-0412 to Müller GmbH?',
-    text: `${c.n} modules, ${num(c.kwp, 1)} kWp, ${eur(c.gross)} including VAT. omadia writes the PDF from this canvas.`,
+    text: `${c.n} modules, ${num(c.kwp, 1)} kWp, ${eur(c.gross)} including VAT. idaria writes the PDF from this canvas.`,
     items: ['Email with PDF to Anna Müller, purchasing', 'Offer created in the CRM, follow-up in 7 days', `${c.n} modules reserved in the ERP for 14 days`],
     confirm: 'Send quote', verb: 'Sending',
   } : {
@@ -1833,7 +2136,7 @@ function kioskBadge(d) {
 function kioskBuild(cv) {
   cv.innerHTML = `<div class="app kiosk">
     <section class="pane apphead">
-      <div class="title"><b>Lobby kiosk, AURA launch</b><span>Touch screen in the entrance hall. The Lumen shows AURA brand colours, omadia chrome stays Lume</span></div>
+      <div class="title"><b class="lit">Lobby kiosk, AURA launch</b><span>Touch screen in the entrance hall. The Lumen shows AURA brand colours, idaria chrome keeps its own light</span></div>
       <div class="grow"></div>
       <span class="gen-note">${originNote()}</span>
       <button class="btn" id="k-prev">Visitor preview</button>
@@ -1958,7 +2261,7 @@ function answerWhy(id, named) {
     if (alt) { const d = simulate(() => assign(id, alt.tid, alt.idx)).t.km - kmNow; html += d > 0.5 ? ` Moving it to ${first(alt.tid)} would add ${num(d)} km of driving.` : ` ${first(alt.tid)} would save ${num(-d)} km, see the suggestion above.`; }
     return ans(html, !has && alt ? { label: `Move to ${first(alt.tid)}`, run: () => { assign(id, alt.tid, alt.idx); D.sel = id; dispatchRender(); } } : null);
   }
-  if (!has) return ans(`${first(who)} lacks ${SKILL[o.skill]} skills, so omadia does not suggest ${first(who)} for ${esc(o.cust)}.`);
+  if (!has) return ans(`${first(who)} lacks ${SKILL[o.skill]} skills, so idaria does not suggest ${first(who)} for ${esc(o.cust)}.`);
   const b = bestFit(id, undefined); const idx = b && b.tid === who ? b.idx : null;
   const sim = simulate(() => assign(id, who, idx)); const st = sim.sched[who].stops.find((s) => s.id === id); const d = sim.t.km - kmNow;
   return ans(`${first(who)} has ${SKILL[o.skill]} skills and would arrive at ${hm(st.arrive)}, back at ${hm(sim.sched[who].finish)}. That changes the team’s driving by ${d >= 0 ? '+' : '−'}${num(Math.abs(d))} km.`,
@@ -2075,14 +2378,14 @@ function ctxSpec(ctx) {
       intents: [[/german|deutsch/, () => (K.langs.includes('de') ? (K.lang = 'de', kioskRender()) : addGerman())], [/english/, () => { K.lang = 'en'; kioskRender(); }], [/preview|visitor/, openVisitor]] };
   }
   if (kind === 'tool') {
-    const short = INSTDEF[REQ_INST[id]].short;
-    return { title: short, sub: `pinned ${S.pinned[id].at}${S.pinned[id].shared ? `, shared with ${AUD[id][0]}` : ', only you see it'}`,
-      direct: [{ label: toolHint(id), run: () => openTool(id) }, ...(S.pinned[id].shared ? [{ label: 'Stop sharing', run: () => unshare(id) }] : []), { label: 'Unpin', run: () => unpin(id) }],
-      sugg: S.pinned[id].shared ? [] : [{ label: `Share with ${AUD[id][0]}…`, ext: true, run: () => shareTool(id) }],
-      hints: S.pinned[id].shared ? [] : ['Share this tool with my team'], intents: [[/share/, () => shareTool(id)], [/unpin|remove/, () => unpin(id)]] };
+    const ap = S.pinned[id];
+    return { title: appName(id), sub: `App, saved ${ap.at}${ap.shared ? `, shared with ${AUD[id][0]}` : ', only you see it'}`,
+      direct: [{ label: 'Open with current data', run: () => openTool(id) }, ...(ap.shared ? [{ label: 'Stop sharing', run: () => unshare(id) }] : []), { label: 'Remove app', run: () => unpin(id) }],
+      sugg: ap.shared ? [] : [{ label: `Share with ${AUD[id][0]}…`, ext: true, run: () => shareTool(id) }],
+      hints: ap.shared ? [] : ['Share this app with my team'], intents: [[/share/, () => shareTool(id)], [/unpin|remove|delete/, () => unpin(id)]] };
   }
-  if (kind === 'tools') return { title: 'Your tools', sub: `${plural(Object.keys(S.pinned).length, 'tool')}, only you see them`, direct: [], sugg: [], hints: ['What can I pin here?'],
-    intents: [[/pin|what/, () => ans('Any application omadia generated for you. Pinning stores it as data in your profile. Only you see it until you share it from its tool card, and opening it starts it on new data without generating anything.')]] };
+  if (kind === 'apps') return { title: 'Your apps', sub: `${plural(Object.keys(S.pinned).length, 'app')}, only you see them`, direct: [], sugg: [], hints: ['What is an app?'],
+    intents: [[/app|what/, () => ans('An app is an application idaria generated for you, saved with its layout, wires and data queries. Opening it runs the queries again on current data. Nothing is generated and no prompt is needed. Only you see it until you share it.')]] };
   if (kind === 'recent') {
     if (!id) return { title: 'Recent work', sub: `${plural(S.recent.length, 'item')}`, direct: [], sugg: [], hints: [], intents: [] };
     const I = S.inst[id]; const b = APPS[I.kind].badge(I.data);
@@ -2109,8 +2412,8 @@ function openPanel(target, at) {
   const p = el(`<div id="panel" role="dialog" aria-label="Actions for ${esc(spec.title)}">
     <div class="ph"><b>${esc(spec.title)}</b><span>${esc(spec.sub || '')}</span></div>
     ${spec.direct.length ? `<div class="zone"><div class="eyebrow">Direct <em>on this device</em></div>${spec.direct.map((a, i) => `<button class="act" data-d="${i}"><span>${esc(a.label)}</span></button>`).join('')}</div>` : ''}
-    ${spec.sugg.length ? `<div class="zone"><div class="eyebrow">Suggested by omadia <em>prepared with this view</em></div>${spec.sugg.map((a, i) => `<button class="act" data-s="${i}"><span>${esc(a.label)}</span><span class="fx${a.ext ? ' ext' : ''}">${a.ext ? 'asks first' : ''}</span></button>`).join('')}</div>` : ''}
-    <form class="beam" autocomplete="off"><input placeholder="Ask or change something here…" aria-label="Beam omadia about ${esc(spec.title)}" /><button class="btn primary sm" type="submit">Beam</button></form>
+    ${spec.sugg.length ? `<div class="zone"><div class="eyebrow">Suggested by idaria <em>prepared with this view</em></div>${spec.sugg.map((a, i) => `<button class="act" data-s="${i}"><span>${esc(a.label)}</span><span class="fx${a.ext ? ' ext' : ''}">${a.ext ? 'asks first' : ''}</span></button>`).join('')}</div>` : ''}
+    <form class="beam" autocomplete="off"><input placeholder="Ask or change something here…" aria-label="Beam idaria about ${esc(spec.title)}" /><button class="btn primary sm" type="submit">Beam</button></form>
     ${spec.hints.length ? `<div class="bhints">${spec.hints.map((h, i) => `<button class="bhint" type="button" data-h="${i}">Try “${esc(h)}”</button>`).join('')}</div>` : '<div style="height:6px"></div>'}
   </div>`);
   document.body.appendChild(p);
@@ -2142,7 +2445,7 @@ async function beam(target, spec, text) {
   trace('Beam', `<b>${esc(spec.title)}</b>: “${esc(text)}”`);
   target.classList.add('beaming');
   const r = target.getBoundingClientRect();
-  const chip = el(`<div class="beamchip">omadia is on it: “${esc(text.length > 46 ? text.slice(0, 44) + '…' : text)}”</div>`);
+  const chip = el(`<div class="beamchip">idaria is on it: “${esc(text.length > 46 ? text.slice(0, 44) + '…' : text)}”</div>`);
   chip.style.left = Math.max(8, Math.min(r.left, innerWidth - 380)) + 'px'; chip.style.top = Math.max(50, r.top - 36) + 'px';
   document.body.appendChild(chip);
   await wait(1100);
@@ -2151,7 +2454,7 @@ async function beam(target, spec, text) {
   const hit = spec.intents.find(([re]) => re.test(t));
   if (!hit) {
     const tries = spec.hints.map((h) => `“${esc(h)}”`).join(' or ');
-    showAnswer(target, spec.title, text, `In the product, omadia answers any question about ${esc(spec.title)} and patches it when you ask for a change. This mockup scripts a few requests${tries ? `, for example ${tries}` : ''}.`, null, 'Not scripted in this mockup');
+    showAnswer(target, spec.title, text, `In the product, idaria answers any question about ${esc(spec.title)} and patches it when you ask for a change. This mockup scripts a few requests${tries ? `, for example ${tries}` : ''}.`, null, 'Not scripted in this mockup');
     status('That request is not scripted in this mockup. Nothing changed.');
     return;
   }
@@ -2159,7 +2462,7 @@ async function beam(target, spec, text) {
   if (res && res.answer) {
     showAnswer(target, spec.title, text, res.answer, res.follow);
     trace('Answer', `${esc(spec.title)}: answered “${esc(text)}”. Nothing changed.`);
-    status('omadia answered next to the element. Nothing changed.');
+    status('idaria answered next to the element. Nothing changed.');
   }
 }
 document.addEventListener('contextmenu', (e) => {
@@ -2212,24 +2515,21 @@ function consent({ title, text, items, confirm, verb }) {
    Command layer (Cmd/Ctrl+K)
    ========================================================================= */
 const CMDS = () => [
+  ...Object.keys(S.pinned).map((k) => ({ label: appName(k), hint: 'app, current data', run: () => openTool(k) })),
   ...Object.entries(REQUESTS).map(([k, r]) => { const id = REQ_INST[k]; return { label: r.text, hint: S.live[k] === id ? 'open' : S.inst[id] ? 'resume' : 'generate', run: () => openRequest(k, r.text) }; }),
   ...(S.space === 'dispatch' && D ? [{ label: D.showTravel ? 'Hide the travel times' : 'Show travel time on each stop', hint: 'patch timeline', run: () => setTravel(!D.showTravel) }] : []),
   ...(S.space === 'kiosk' && K ? [{ label: 'Open the visitor preview', hint: 'kiosk', run: openVisitor }] : []),
-  { label: 'Make it warmer', hint: 'palette Atelier', run: () => setPalette('atelier', 'Make it warmer') },
-  { label: 'Make it cooler', hint: 'palette Petrol', run: () => setPalette('petrol', 'Make it cooler') },
-  { label: 'Back to Lagoon', hint: 'default palette', run: () => setPalette('lagoon', 'Back to Lagoon') },
-  { label: 'Show what this canvas is made of', hint: 'X-ray', run: () => toggleXray() },
+  { label: 'Make it warmer', hint: 'warm light', run: () => setPalette('atelier', 'Make it warmer') },
+  { label: 'Make it cooler', hint: 'cool light', run: () => setPalette('petrol', 'Make it cooler') },
+  { label: 'Neutral light', hint: 'default', run: () => setPalette('lagoon', 'Neutral light') },
   { label: 'Open the Trace', hint: 'history', run: () => toggleTrace(true) },
   { label: 'Go to Home', hint: 'space', run: () => switchTo('home') },
-  { label: 'Open the guide', hint: 'about this mockup', run: openGuide },
-  { label: 'Replay the boot', hint: 'keeps your work', run: () => { saveNow(); location.reload(); } },
-  { label: 'Reset the demo', hint: 'clears everything', run: resetDemo },
 ];
 let cmdSel = 0;
 function openCmdk() {
   if ($('#cmdk')) return; closePanel(); closeAnswer();
   const scrim = el('<div class="scrim" id="cmdk-scrim" style="background:rgba(10,24,30,.35)"></div>');
-  const box = el('<div id="cmdk" role="dialog" aria-label="Command layer"><input placeholder="Ask omadia or run a command" aria-label="Ask omadia or run a command" /><ul></ul></div>');
+  const box = el('<div id="cmdk" role="dialog" aria-label="Command layer"><input placeholder="Ask idaria or run a command" aria-label="Ask idaria or run a command" /><ul></ul></div>');
   document.body.append(scrim, box);
   const inp = $('input', box); inp.focus();
   const list = () => { const q = inp.value.toLowerCase(); return CMDS().filter((c) => !q || c.label.toLowerCase().includes(q) || c.hint.includes(q)); };
@@ -2255,18 +2555,154 @@ document.addEventListener('keydown', (e) => {
   if (e.key === '?' && !e.target.closest('input, textarea')) { $('#guide') ? closeGuide() : openGuide(); }
 });
 
+/* Avatar, tray status menus, mockup bar */
+const AVA = '<img class="ava" alt="" src="data:image/jpeg;base64,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">';
+const POPS = {
+  core: () => `<h4>idaria core</h4><p class="pk"><span class="okdot"></span>Connected, 34 plugins</p><p>Tenant byte5-demo</p><p>Round trip 18 ms</p>`,
+  wifi: () => `<h4>Wi-Fi</h4><ul class="pl"><li class="on">byte5-office<small>connected</small></li><li>byte5-guest</li><li>Lobby-Kiosk</li></ul>`,
+  vol: () => `<h4>Sound</h4><input type="range" min="0" max="100" value="${SOUND}" id="p-vol" aria-label="Volume"><p>Desk speakers</p>`,
+  cal: () => { calOff = 0; return calHTML(); },
+  bat: () => `<h4>Battery</h4><p class="pk">82 %</p><p>About 6 h 10 min left</p><p>Power source: battery</p>`,
+};
+let SOUND = 60, calOff = 0;
+function calHTML() {
+  const today = new Date(2026, 10, 24 + (S.day || 0));
+  const first = new Date(today.getFullYear(), today.getMonth() + calOff, 1);
+  const y = first.getFullYear(), m = first.getMonth(), days = new Date(y, m + 1, 0).getDate();
+  const lead = (first.getDay() + 6) % 7;
+  const cells = [];
+  for (let i = 0; i < lead; i++) cells.push('<span></span>');
+  for (let d = 1; d <= days; d++) {
+    const t = calOff === 0 && d === today.getDate();
+    const we = (lead + d - 1) % 7 >= 5;
+    cells.push(`<span class="${t ? 'td' : ''}${we ? ' we' : ''}">${d}</span>`);
+  }
+  const mon = first.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  return `<div class="cal-today">${today.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
+    <div class="cal-h"><b>${mon}</b><span><button data-cal="-1" aria-label="Previous month">‹</button><button data-cal="1" aria-label="Next month">›</button></span></div>
+    <div class="cal-g"><i>Mo</i><i>Tu</i><i>We</i><i>Th</i><i>Fr</i><i>Sa</i><i>Su</i>${cells.join('')}</div>`;
+}
+function setVolIcon() { const b = $('#t-vol'); b.classList.toggle('mute', SOUND === 0); b.classList.toggle('low', SOUND > 0 && SOUND < 45); }
+function closePop() { $('#tpop')?.remove(); $$('[data-pop][aria-expanded]').forEach((b) => b.removeAttribute('aria-expanded')); document.removeEventListener('pointerdown', popOutside, true); }
+function popOutside(e) { if (!e.target.closest('#tpop, [data-pop]')) closePop(); }
+$$('[data-pop]').forEach((b) => b.addEventListener('click', () => {
+  const was = b.getAttribute('aria-expanded'); closePop(); closeSys(); if (was) return;
+  const r = b.getBoundingClientRect();
+  const p = el(`<div id="tpop" role="dialog">${POPS[b.dataset.pop]()}</div>`);
+  p.style.right = Math.max(8, innerWidth - r.right - 8) + 'px';
+  document.body.appendChild(p); b.setAttribute('aria-expanded', 'true');
+  document.addEventListener('pointerdown', popOutside, true);
+  const v = $('#p-vol', p); if (v) v.oninput = () => { SOUND = +v.value; setVolIcon(); };
+  if (b.dataset.pop === 'cal') { p.classList.add('cal'); p.addEventListener('click', (e) => { const n = e.target.closest('[data-cal]'); if (n) { calOff += +n.dataset.cal; p.innerHTML = calHTML(); } }); }
+}));
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#tpop')) { e.stopPropagation(); closePop(); } }, true);
+const CAL = [{ s: 'Tue 24 Nov', l: 'Tuesday, 24 November' }, { s: 'Wed 25 Nov', l: 'Wednesday, 25 November' }];
+function applyDay() { const d = CAL[S.day || 0]; $('#cdate').textContent = d.s; $('#clock').title = d.l + ' 2026'; $('#m-day').textContent = S.day ? 'Back to Tuesday' : 'Next day'; }
+$('#m-day').onclick = () => { S.day = S.day ? 0 : 1; saveNow(); location.replace(location.pathname); };
+$('#m-replay').onclick = () => { saveNow(); location.replace(location.pathname); };
+$('#m-reset').onclick = () => resetDemo();
+
+/* =========================================================================
+   System menu: the idaria mark opens profile and session actions
+   ========================================================================= */
+const USER = { name: 'Lea Sommer', ini: 'LS', role: 'Operations, team north', tenant: 'byte5-demo' };
+const OTHERS = [{ name: 'Tom Berger', ini: 'TB', role: 'Sales' }, { name: 'Guest', ini: 'G', role: 'No profile, nothing is kept' }];
+const SYS = [
+  { id: 'lock', label: 'Lock screen' },
+  { id: 'switch', label: 'Switch user' },
+  { id: 'signout', label: 'Sign out' },
+  null,
+  { id: 'restart', label: 'Restart' },
+  { id: 'shutdown', label: 'Shut down' },
+];
+const longDate = () => CAL[S.day || 0].l;
+const powerOn = () => location.replace(location.pathname);
+function openSys() {
+  if ($('#sysmenu')) { closeSys(); return; }
+  closePanel(); closeAnswer(); closeCmdk(); closeGuide(); closePop();
+  const m = el(`<div id="sysmenu" role="menu" aria-label="System">
+    <div class="sm-user"><div class="sm-av photo">${AVA}</div><div><b>${USER.name}</b><span>${USER.role}</span></div></div>
+    ${SYS.map((it) => (it ? `<button role="menuitem" data-sys="${it.id}"><span>${it.label}</span>${it.hint ? `<small>${it.hint}</small>` : ''}</button>` : '<hr>')).join('')}
+  </div>`);
+  document.body.appendChild(m);
+  $('#sysbtn').setAttribute('aria-expanded', 'true');
+  m.addEventListener('click', (e) => { const b = e.target.closest('[data-sys]'); if (b) { closeSys(); SYSRUN[b.dataset.sys](); } });
+  document.addEventListener('pointerdown', sysOutside, true);
+  $('button', m).focus();
+}
+function sysOutside(e) { if (!e.target.closest('#sysmenu, #sysbtn')) closeSys(); }
+function closeSys() { $('#sysmenu')?.remove(); $('#sysbtn').setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', sysOutside, true); }
+$('#sysbtn').onclick = openSys;
+document.addEventListener('keydown', (e) => {
+  const m = $('#sysmenu'); if (!m) return;
+  const items = $$('[data-sys]', m), i = items.indexOf(document.activeElement);
+  if (e.key === 'Escape') { e.stopPropagation(); closeSys(); $('#sysbtn').focus(); }
+  else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus(); }
+}, true);
+
+let sessTick = null;
+function closeSession() { clearInterval(sessTick); $('#session')?.remove(); }
+function sessionScreen(mode) {
+  closeSession();
+  const top = `<div class="ss-top"><span id="ss-t">${nowHM()}</span> ${longDate()}</div>`;
+  const users = (leaNote) => `<div class="ss-users">
+      <button class="ss-user" data-u="lea"><div class="sm-av big photo">${AVA}</div>${USER.name}<small>${leaNote}</small></button>
+      ${OTHERS.map((u, k) => `<button class="ss-user" data-u="${k}"><div class="sm-av big">${u.ini}</div>${u.name}<small>${u.role}</small></button>`).join('')}
+    </div><div class="ss-note" id="ss-note"></div>`;
+  const body = {
+    lock: `<div class="ss-center"><div class="ss-time lit" id="ss-t">${nowHM()}</div><div class="ss-date">${longDate()}</div></div>
+      <div class="ss-foot"><div class="sm-av big photo">${AVA}</div><b>${USER.name}</b><span>Locked. Click or press any key to unlock.</span></div>`,
+    switch: `${top}<div class="ss-center"><div class="ss-h">Who is using this desk?</div>${users('Session open')}</div>`,
+    signedout: `${top}<div class="ss-center"><div class="ss-h">Signed out</div>${users('Your Spaces wait in your profile')}</div>`,
+    restart: `<div class="ss-center"><svg class="ss-logo" aria-hidden="true" viewBox="0 32 150 150"><path d="M24.14 82.49A47 47 0 1 1 24.14 132.31" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round"/><circle cx="64" cy="107.4" r="11.5" fill="currentColor"/></svg><div class="ss-date">Restarting</div></div>`,
+    off: `<div class="ss-center ss-off"><span>The thin client is off.</span><button class="btn" id="ss-on">Power on</button></div>`,
+  }[mode];
+  const o = el(`<div id="session" class="sess-${mode}" role="dialog" aria-modal="true" aria-label="Session">${body}</div>`);
+  document.body.appendChild(o);
+  sessTick = setInterval(() => { const t = $('#ss-t'); if (t) t.textContent = nowHM(); }, 1000);
+  if (mode === 'lock') o.addEventListener('click', unlock);
+  if (mode === 'off') o.addEventListener('click', () => powerOn());
+  o.addEventListener('click', (e) => {
+    const u = e.target.closest('[data-u]'); if (!u) return;
+    if (u.dataset.u === 'lea') {
+      if (mode === 'signedout') { powerOn(); return; }
+      closeSession(); trace('Session', 'Back to your session. Nothing changed while the user picker was open.');
+      status('Back to your session.');
+      return;
+    }
+    const who = OTHERS[+u.dataset.u];
+    $('#ss-note').textContent = `${who.name} would sign in here with a badge or passkey. This mockup only holds the desktop of ${USER.name}.`;
+  });
+  ($('.ss-user', o) || $('#ss-on', o))?.focus();
+}
+function unlock() { closeSession(); trace('Session', `Unlocked at ${nowHM()}.`); status('Unlocked. Everything is as you left it.'); }
+document.addEventListener('keydown', (e) => {
+  const o = $('#session'); if (!o) return;
+  if (['Shift', 'Control', 'Alt', 'Meta', 'Tab'].includes(e.key)) { if (e.key !== 'Tab') e.stopPropagation(); return; }
+  e.stopPropagation();
+  if (o.classList.contains('sess-lock')) { e.preventDefault(); unlock(); }
+  else if (o.classList.contains('sess-switch') && e.key === 'Escape') { closeSession(); }
+}, true);
+const SYSRUN = {
+  lock: () => { trace('Session', `Screen locked at ${nowHM()}. Spaces keep running.`); saveNow(); sessionScreen('lock'); },
+  switch: () => { trace('Session', 'User picker opened. Your session stays open behind it.'); saveNow(); sessionScreen('switch'); },
+  signout: () => { trace('Session', `Signed out at ${nowHM()}. Spaces, Recent work and apps stay in your profile.`); saveNow(); sessionScreen('signedout'); },
+  restart: () => { saveNow(); sessionScreen('restart'); setTimeout(() => powerOn(), RM ? 200 : 1400); },
+  shutdown: () => { saveNow(); sessionScreen('off'); },
+};
+
 /* =========================================================================
    X-ray: what the canvas is made of, and where this instance came from
    ========================================================================= */
 const XBASE = {
-  dispatch: '2 Lumens (map, schedule), 9 primitives, 3 wires. Data comes through omadia core from the ERP, HR and Maps plugins. Dragging, panning and selecting run on this device without a server round trip. Writing back asks you first.',
+  dispatch: '2 Lumens (map, schedule), 9 primitives, 3 wires. Data comes through idaria core from the ERP, HR and Maps plugins. Dragging, panning and selecting run on this device without a server round trip. Writing back asks you first.',
   solar: 'A roof editor, a configurator and a quote: 1 Lumen with 112 paintable cells, 14 primitives, 4 wires into yield, price and quote. CRM, Drive and ERP plugins deliver the data. Sending writes to CRM and ERP, after your OK.',
-  kiosk: 'The same runtime drives a public kiosk. The Lumen uses the AURA brand colours for its own content (colorMode brand), omadia chrome stays Lume. Dashed tags show the render cadence: static, reactive, tick. A gas budget stops a faulty Lumen cleanly, so an always-on screen never freezes.',
+  kiosk: 'The same runtime drives a public kiosk. The Lumen uses the AURA brand colours for its own content (colorMode brand), idaria chrome keeps its own light. Dashed tags show the render cadence: static, reactive, tick. A gas budget stops a faulty Lumen cleanly, so an always-on screen never freezes.',
 };
 function originSentence(I) {
   return {
     generated: `<b>Generated at ${I.at} for your request.</b> This application did not exist before.`,
-    tool: `<b>Started from your pinned tool at ${I.at}.</b> The stored application opened on new data, nothing was generated.`,
+    tool: `<b>Opened from your app at ${I.at}.</b> Saved layout and wires; the data queries ran again on current data. Nothing was generated.`,
     resumed: `<b>Resumed from Recent work at ${I.openedAt}.</b> Same application, same state, nothing regenerated.`,
     restored: `<b>Restored at ${I.openedAt} after a restart.</b> Your profile kept the application and its state.`,
   }[I.origin] || '';
@@ -2274,7 +2710,7 @@ function originSentence(I) {
 function renderXbar() {
   const x = $('#xbar');
   x.innerHTML = S.space === 'home'
-    ? '<b>Home</b> is the only screen the thin client runs: no start menu, no installed applications. Your tools and Recent work are applications omadia generated, stored as data in your profile. Host: omadia thin client.'
+    ? '<b>Home</b> is the only screen the thin client runs: no start menu, no installed applications. Your apps and Recent work are applications idaria generated, stored as data in your profile. An app keeps layout, wires and data queries, so it opens on current data. Host: idaria thin client.'
     : `${originSentence(liveInst(S.space) || {})} ${XBASE[S.space] || ''}`;
   requestAnimationFrame(() => {
     document.documentElement.style.setProperty('--xbar-h', S.xray ? (x.offsetHeight + 10) + 'px' : '0px');
@@ -2292,6 +2728,7 @@ addEventListener('resize', () => { if (D && S.space === 'dispatch') renderCallou
 /* go */
 restored = restore();
 applyPalette(S.palette);
+applyDay();
 const params = new URLSearchParams(location.search);
 if (params.has('noboot')) { bootSkip = true; finishBoot(); } else boot();
 })();
