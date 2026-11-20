@@ -18,7 +18,7 @@ const KERNEL_DIRECTORY = {
     { slug: 'mira', display_name: 'Mira Schneider', short_description: 'Vertrieb', avatar_url: '/avatars/mira.png', archetype: 'standard' },
     { slug: 'ben', display_name: 'Ben', short_description: null, avatar_url: null, archetype: null },
   ],
-  default_agent: { slug: 'mira' },
+  defaultAgent: { slug: 'mira' },
 };
 
 describe('agentDirectoryView', () => {

@@ -56,18 +56,18 @@ export interface AgentDirectoryEntryWire {
 }
 
 /** What an unaddressed message reaches here: the default agent, or none (the
- *  notice code says why). Kernel form of `default_agent`. */
+ *  notice code says why). The kernel's `default_agent`, camelCase on this wire. */
 export type DefaultAgentWire = { slug: string } | { slug: null; notice?: string };
 
 /** server → client: the agents available to this user in this channel (after
  *  the handshake, and as the answer to `agents_get`). Mirrors the kernel's
- *  directory `{channel, agents, default_agent}`. */
+ *  directory `{channel, agents, default_agent}` (`defaultAgent` here). */
 export interface AgentsMsg {
   type: 'agents';
   agents: AgentDirectoryEntryWire[];
   /** the agent the picker preselects; the user can still choose another
    *  before the first turn */
-  default_agent?: DefaultAgentWire;
+  defaultAgent?: DefaultAgentWire;
 }
 
 /** Why the management layer spoke — the kernel's `SYSTEM_NOTICE_CODES`

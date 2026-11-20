@@ -376,7 +376,7 @@ export function applyServerMessage(
           ...state,
           agents: agentDirectoryView(msg.agents),
           agentsLoaded: true,
-          defaultAgent: defaultAgentSlug(msg.default_agent),
+          defaultAgent: defaultAgentSlug(msg.defaultAgent),
         },
         resync: false,
       };

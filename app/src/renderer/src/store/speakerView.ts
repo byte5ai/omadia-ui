@@ -93,7 +93,7 @@ export function agentDirectoryView(raw: unknown): AgentDirectoryEntry[] {
   return out;
 }
 
-/** The slug of the default agent (`default_agent: {slug}`), or `null` when
+/** The slug of the default agent (`defaultAgent: {slug}`), or `null` when
  *  there is none (`{slug: null, notice}`) or the field is absent/malformed. */
 export function defaultAgentSlug(raw: unknown): string | null {
   if (typeof raw !== 'object' || raw === null) return null;

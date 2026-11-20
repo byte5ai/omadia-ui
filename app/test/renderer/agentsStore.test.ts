@@ -15,15 +15,15 @@ describe('agents on the canvas state', () => {
     const r = applyServerMessage(initialCanvasState, {
       type: 'agents',
       agents: [{ slug: 'mira', display_name: 'Mira' }],
-      default_agent: { slug: 'mira' },
+      defaultAgent: { slug: 'mira' },
     });
     expect(r.state.agents).toEqual([{ id: 'mira', slug: 'mira', displayName: 'Mira' }]);
     expect(r.state.defaultAgent).toBe('mira');
   });
 
   it('a directory without default clears the previous default', () => {
-    const a = applyServerMessage(initialCanvasState, { type: 'agents', agents: [], default_agent: { slug: 'x' } });
-    const b = applyServerMessage(a.state, { type: 'agents', agents: [], default_agent: { slug: null, notice: 'no_agent' } });
+    const a = applyServerMessage(initialCanvasState, { type: 'agents', agents: [], defaultAgent: { slug: 'x' } });
+    const b = applyServerMessage(a.state, { type: 'agents', agents: [], defaultAgent: { slug: null, notice: 'no_agent' } });
     expect(b.state.defaultAgent).toBeNull();
   });
 });
