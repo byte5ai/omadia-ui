@@ -6,6 +6,10 @@ export interface HandshakeConfig {
   opsCatalogVersions: string[];
   /** the ops-catalog subset this build actually implements (Class-B routing truth) */
   localOperations: string[];
+  /** optional protocol features this client implements (`agents`, issue #52) */
+  clientFeatures?: string[];
+  /** UI language, for the server's `system` notices */
+  locale?: string;
   /** persisted across reconnects to resume a canvas */
   canvasSessionId?: string;
 }
@@ -37,6 +41,8 @@ export function createHandshake(config: HandshakeConfig): {
       protocolVersion,
       opsCatalogVersion,
       localOperations: config.localOperations,
+      ...(config.clientFeatures ? { clientFeatures: config.clientFeatures } : {}),
+      ...(config.locale ? { locale: config.locale } : {}),
       ...(config.canvasSessionId ? { canvasSessionId: config.canvasSessionId } : {}),
     };
   };

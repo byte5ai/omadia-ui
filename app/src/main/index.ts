@@ -211,6 +211,9 @@ ipcMain.on(IPC.abort, (_e, slotKey: string, forTurn: string) =>
   sockets.get(slotKey)?.sendMessage({ type: 'turn_abort', forTurn }),
 );
 ipcMain.on(IPC.resync, (_e, slotKey: string) => sockets.get(slotKey)?.resync());
+ipcMain.on(IPC.agentsGet, (_e, slotKey: string) =>
+  sockets.get(slotKey)?.sendMessage({ type: 'agents_get' }),
+);
 ipcMain.on(IPC.canvasListGet, (_e, slotKey: string) =>
   sockets.get(slotKey)?.sendMessage({ type: 'canvas_list_get' }),
 );

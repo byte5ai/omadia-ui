@@ -3,9 +3,14 @@ import type { AppSettings, ConnectOptions, ConnectionStatus } from '../../shared
 import {
   goBack,
   initialCanvasState,
+  startTurn,
   TURN_INTERRUPTED_MESSAGE,
   type CanvasState,
 } from './store/canvasStore.js';
+import type { AgentDirectoryEntry, ClientTurn } from '../../shared/protocol.js';
+import { AgentBadge, AgentPicker, AnswerSpeaker } from './AgentUi.js';
+import { SystemNotice } from './SystemNotice.js';
+import { localSystemNotice, speakerOfEntry } from './store/speakerView.js';
 import { extractRootMenu, loadStoredMenu, storeMenu } from './store/canvasMenu.js';
 import { interruptSlotTurn, routeServerMessage } from './store/slotRouting.js';
 import { syncNamespace } from './store/prefsNamespace.js';
@@ -284,12 +289,16 @@ export function App() {
                     ...existing,
                     title: localFresher ? existing.title : e.title || existing.title,
                     color: e.color,
+                    // the agent of a canvas is fixed once chosen: a local choice
+                    // stays, an install that never chose adopts the registry's
+                    ...(existing.agentId === undefined && e.agentId ? { agentId: e.agentId } : {}),
                   }
                 : {
                     slotId: crypto.randomUUID(),
                     title: e.title || 'Canvas',
                     color: e.color,
                     sessionId: e.sessionId,
+                    ...(e.agentId ? { agentId: e.agentId } : {}),
                   };
               // materialise the canvas from its persisted snapshot — only if
               // nothing live exists yet, and only when the tree passes the
@@ -471,6 +480,7 @@ export function App() {
           sessionId: s.sessionId as string,
           title: s.title,
           color: s.color,
+          ...(s.agentId ? { agentId: s.agentId } : {}),
           ...(tree ? { tree, ...(st?.revision ? { revision: st.revision } : {}) } : {}),
         };
       });
@@ -814,6 +824,53 @@ export function App() {
     }
   };
 
+  // ── agents (issue #52, spec 2042 §5.3) ──────────────────────────────────
+  // The agent of a canvas is chosen by the user and fixed per canvas: every
+  // turn carries it, the server refuses a turn without one and never picks
+  // another. The directory (who may be chosen) is the server's.
+  const serverUrl = settings?.serverUrl;
+  const activeAgentId = slots.find((s) => s.slotId === activeSlotId)?.agentId;
+  const agentOf = (st: CanvasState, agentId: string | undefined): AgentDirectoryEntry | undefined =>
+    agentId === undefined ? undefined : st.agents.find((a) => a.id === agentId);
+
+  const chooseAgent = (slotId: string, agent: AgentDirectoryEntry) =>
+    setSlots((prev) => prev.map((s) => (s.slotId === slotId ? { ...s, agentId: agent.id } : s)));
+
+  /** No agent chosen: nothing is sent, a notice of the client says why. */
+  const rejectWithoutAgent = () =>
+    setCanvas((c) => ({
+      ...c,
+      systemNotice: localSystemNotice('no_agent', 'Wähle zuerst einen Agenten für dieses Gespräch.'),
+    }));
+
+  // a canvas without an agent yet asks the server who is available whenever
+  // its start screen shows (the directory can change while the app runs)
+  useEffect(() => {
+    if (canvas.tree === null && status.state === 'ready') {
+      window.omadiaCanvas.requestAgents(activeSlotId);
+    }
+  }, [activeSlotId, status.state, canvas.tree === null]);
+
+  // exactly one agent available and none chosen: it is the choice (visible as
+  // the selected card; the user can still pick another before the first turn)
+  useEffect(() => {
+    const only = canvas.agents.length === 1 ? canvas.agents[0] : undefined;
+    const slot = slots.find((s) => s.slotId === activeSlotId);
+    if (only && canvas.tree === null && slot && slot.agentId === undefined) chooseAgent(activeSlotId, only);
+  }, [canvas.agents, canvas.tree === null, activeSlotId, slots]);
+
+  /** Send a turn of the focused canvas to ITS agent. False → not sent. */
+  const sendAgentTurn = (turn: ClientTurn): boolean => {
+    const agentId = slotsRef.current.find((s) => s.slotId === activeSlotIdRef.current)?.agentId;
+    if (!agentId) {
+      rejectWithoutAgent();
+      return false;
+    }
+    if (turn.turnId) pendingTurnIds.current.set(activeSlotId, turn.turnId);
+    window.omadiaCanvas.sendTurn(activeSlotId, { ...turn, agentId });
+    return true;
+  };
+
   /** Deterministic refresh (issue #5): same canvas, same query, newer data —
    *  no new view is composed. The client sends its current tree + revision;
    *  the server re-resolves the data and answers with patches that REPLACE
@@ -821,16 +878,19 @@ export function App() {
   const refreshCanvas = (scope?: string) => {
     if (!canvas.tree || canvas.revision === null || canvas.turnPending) return;
     if ((canvas.tree as { id?: string }).id === 'local-pending') return;
+    const agentId = activeAgentId;
+    if (!agentId) return rejectWithoutAgent();
     const turnId = crypto.randomUUID();
     pendingTurnIds.current.set(activeSlotId, turnId);
     window.omadiaCanvas.refreshCanvas(activeSlotId, {
       type: 'canvas_refresh',
       turnId,
+      agentId,
       basedOnRevision: canvas.revision,
       currentTree: canvas.tree,
       ...(scope ? { scope } : {}),
     });
-    setCanvas((c) => ({ ...c, turnPending: true, turnError: null, prose: '', decision: null }));
+    setCanvas((c) => startTurn(c));
   };
 
   /** PR-9b-3: on an ACTION turn, hand the server our live tree + revision so it
@@ -849,14 +909,9 @@ export function App() {
     // asking turns a chooser pane into a real canvas
     chooserSlots.current.delete(activeSlotId);
     const turnId = crypto.randomUUID();
-    pendingTurnIds.current.set(activeSlotId, turnId);
-    window.omadiaCanvas.sendTurn(activeSlotId, { type: 'turn', turnId, text });
+    if (!sendAgentTurn({ type: 'turn', turnId, text })) return;
     setCanvas((c) => ({
-      ...c,
-      turnPending: true,
-      turnError: null,
-      prose: '',
-      decision: null,
+      ...startTurn(c),
       // jump to the canvas immediately on cold start — local skeleton, no wait
       ...(c.tree === null ? { tree: LOCAL_PENDING_TREE } : {}),
     }));
@@ -876,8 +931,7 @@ export function App() {
     setRowMenu(null);
     setBeamDraft('');
     const turnId = crypto.randomUUID();
-    pendingTurnIds.current.set(activeSlotId, turnId);
-    window.omadiaCanvas.sendTurn(activeSlotId, {
+    const sent = sendAgentTurn({
       type: 'turn',
       turnId,
       text,
@@ -885,14 +939,14 @@ export function App() {
       ...(action ? { action } : {}),
       ...(extra ?? {}),
     });
+    if (!sent) return;
     setBeam({ containerId: menu.tableId, rowKey: menu.rowKey, x: menu.x, y: menu.y });
-    setCanvas((c) => ({ ...c, turnPending: true, turnError: null, prose: '', decision: null }));
+    setCanvas((c) => startTurn(c));
   };
 
   const onAction = (action: PrimitiveAction) => {
     const turnId = crypto.randomUUID();
-    pendingTurnIds.current.set(activeSlotId, turnId);
-    window.omadiaCanvas.sendTurn(activeSlotId, {
+    sendAgentTurn({
       type: 'turn',
       turnId,
       action: { type: action.type, payload: action.payload },
@@ -958,6 +1012,35 @@ export function App() {
   if (canvas.turnPending) busySlots.add(activeSlotId);
   else busySlots.delete(activeSlotId);
 
+  const slotAgent = (slotId: string): string | undefined =>
+    slots.find((s) => s.slotId === slotId)?.agentId;
+  const askPlaceholder = (slotId: string, st: CanvasState): string => {
+    const agent = agentOf(st, slotAgent(slotId));
+    if (agent) return `Frag ${agent.displayName} …`;
+    return slotAgent(slotId) ? 'Frag den Agenten …' : 'Wähle zuerst einen Agenten';
+  };
+  /** The agent picker of a canvas that has not had its first turn yet. */
+  const agentPicker = (slotId: string, st: CanvasState): ReactNode => (
+    <AgentPicker
+      agents={st.agents}
+      loaded={st.agentsLoaded}
+      selectedId={slotAgent(slotId)}
+      serverUrl={serverUrl}
+      onSelect={(agent) => chooseAgent(slotId, agent)}
+    />
+  );
+  /** Who answered and, when a turn was refused or failed, the `system`
+   *  notice — attached to the pane they belong to. */
+  const paneOverlays = (slotId: string, st: CanvasState, focused: boolean): ReactNode => (
+    <div className="lume-pane-overlays">
+      <AnswerSpeaker speaker={st.speaker} serverUrl={serverUrl} />
+      <SystemNotice
+        notice={st.systemNotice}
+        {...(focused ? { onDismiss: () => setCanvas((c) => ({ ...c, systemNotice: null })) } : {})}
+      />
+    </div>
+  );
+
   // One pane = one independent canvas. The focused pane renders the live
   // `canvas` state; background panes their (still streaming) parked state.
   const renderPane = (slotId: string): ReactNode => {
@@ -974,12 +1057,13 @@ export function App() {
       if (isChooser && candidates.length > 0) {
         return (
           <div className="lume-pane-chooser">
+            {agentPicker(slotId, st)}
             <input
               ref={promptRef}
               className="lume-input lume-spotlight-input"
               autoFocus
-              placeholder="Ask omadia…"
-              disabled={status.state !== 'ready'}
+              placeholder={askPlaceholder(slotId, st)}
+              disabled={status.state !== 'ready' || !slotAgent(slotId)}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && submitPrompt()}
@@ -1031,12 +1115,13 @@ export function App() {
         // Cold-start: a canvas is never empty (concept §Interaction Model).
         // Spotlight treatment per visual-spec §5.3 — the stage itself glows.
         <div className="lume-spotlight">
+          {agentPicker(slotId, st)}
           <input
             ref={promptRef}
             className="lume-input lume-spotlight-input"
             autoFocus
-            placeholder="Ask omadia…"
-            disabled={status.state !== 'ready'}
+            placeholder={askPlaceholder(slotId, st)}
+            disabled={status.state !== 'ready' || !slotAgent(slotId)}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && submitPrompt()}
@@ -1064,6 +1149,7 @@ export function App() {
               </button>
             </div>
           )}
+          {paneOverlays(slotId, st, focused)}
         </div>
       );
     }
@@ -1103,6 +1189,7 @@ export function App() {
             beamTarget={focused ? beam : null}
           />
         </div>
+        {paneOverlays(slotId, st, focused)}
       </>
     );
   };
@@ -1188,6 +1275,18 @@ export function App() {
           busySlotIds={busySlots}
           canClose={layout.kind === 'split'}
           paneTitle={(id) => slots.find((s) => s.slotId === id)?.title ?? 'Canvas'}
+          paneBarLead={(id) => {
+            const st = id === activeSlotId ? canvas : (slotStates.current.get(id) ?? initialCanvasState);
+            const agent = agentOf(st, slotAgent(id));
+            return agent ? (
+              <AgentBadge
+                displayName={agent.displayName}
+                avatarUrl={agent.avatarUrl}
+                serverUrl={serverUrl}
+                title={`Dieses Gespräch führst du mit ${agent.displayName}. Für einen anderen Agenten: neuer Canvas.`}
+              />
+            ) : null;
+          }}
           paneBarExtras={paneBarNav}
           renderPane={renderPane}
           onFocus={focusSlot}
@@ -1293,8 +1392,8 @@ export function App() {
             <input
               className="lume-input lume-spotlight-input"
               autoFocus
-              placeholder="Ask omadia…"
-              disabled={canvas.turnPending || status.state !== 'ready'}
+              placeholder={askPlaceholder(activeSlotId, canvas)}
+              disabled={canvas.turnPending || status.state !== 'ready' || !slotAgent(activeSlotId)}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
@@ -1342,15 +1441,14 @@ export function App() {
           // ACTIVE canvas; the notification is dismissed alongside.
           if (n.action) {
             const turnId = crypto.randomUUID();
-            pendingTurnIds.current.set(activeSlotId, turnId);
-            window.omadiaCanvas.sendTurn(activeSlotId, {
+            const sent = sendAgentTurn({
               type: 'turn',
               turnId,
               action: { type: n.action.type, payload: n.action.payload },
               // PR-9b-3: patch in place when a live tree is rendered.
               ...(inPlaceCanvasState() ?? {}),
             });
-            setCanvas((c) => ({ ...c, turnPending: true, turnError: null, prose: '', decision: null }));
+            if (sent) setCanvas((c) => startTurn(c));
           }
           setNotifications((l) => dismissNotification(l, n.id));
           window.omadiaCanvas.ackNotification(n.slotKey, n.id);

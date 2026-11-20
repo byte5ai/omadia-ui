@@ -14,6 +14,9 @@ export interface CanvasSlotMeta {
   color: number;
   /** server-acked canvasSessionId — absent until the slot first connected */
   sessionId?: string;
+  /** the agent of this canvas (issue #52): chosen by the user, fixed once the
+   *  first turn is sent; every turn of the canvas carries it */
+  agentId?: string;
 }
 
 const STORAGE_KEY = 'omadia.ui-prefs.canvases';

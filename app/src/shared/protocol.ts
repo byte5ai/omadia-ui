@@ -4,6 +4,60 @@
  * Where this file and docs/protocol/schema/ disagree, the schema wins.
  */
 
+// ── agents (omadia-canvas-protocol/1.1 additive, issue #52) ──
+// Wire copies of the server's `AgentSpeaker` / `SystemSpeaker`
+// (omadia-ui-support `@omadia/ui-channel` protocol.ts, from `@omadia/plugin-api`
+// speaker.ts). The server stamps the speaker; the client only renders it.
+
+/** Feature id negotiated in `serverFeatures` / `clientFeatures`. */
+export const AGENTS_FEATURE = 'agents';
+
+/** An agent speaking as itself. */
+export interface AgentSpeaker {
+  kind: 'agent';
+  agentId: string;
+  slug: string;
+  displayName: string;
+  avatarUrl?: string;
+}
+
+/** The management layer — a notice, never an agent. */
+export interface SystemSpeaker {
+  kind: 'system';
+}
+
+export type Speaker = AgentSpeaker | SystemSpeaker;
+
+/** One agent of the directory the user may address here. */
+export interface AgentDirectoryEntry {
+  id: string;
+  slug: string;
+  displayName: string;
+  avatarUrl?: string;
+  description?: string;
+  archetype?: string;
+}
+
+/** server → client: the agents available to this user in this channel (after
+ *  the handshake, and as the answer to `agents_get`). */
+export interface AgentsMsg {
+  type: 'agents';
+  agents: AgentDirectoryEntry[];
+}
+
+/** Why the management layer spoke. The server adds codes additively: an
+ *  unknown code is still rendered through its `text`. */
+export type SystemNoticeCode = 'no_agent' | 'agent_not_available' | 'agent_error';
+
+/** A management-layer notice naming the agent it is about. Untrusted input —
+ *  read through `speakerView.systemNoticeView`. */
+export interface SystemNoticeWire {
+  code: string;
+  text: string;
+  locale?: string;
+  agent?: { slug?: string; displayName?: string; agentId?: string };
+}
+
 // ── server → client ──
 export interface HandshakeOffer {
   type: 'handshake_offer';
@@ -34,11 +88,15 @@ export interface AgentTextDelta {
   type: 'agent_text_delta';
   forTurn: string;
   text: string;
+  /** who the text is from — absent on servers that predate agents; untrusted,
+   *  read through `speakerView` */
+  speaker?: Speaker;
 }
 
 export interface TurnComplete {
   type: 'turn_complete';
   forTurn: string;
+  speaker?: Speaker;
   /** what a decision model (TypeSafe Jev, …) decided for the turn. Absent
    *  when none decided; untrusted — read through `decisionView`. */
   decision?: TurnDecision;
@@ -64,6 +122,12 @@ export interface TurnError {
   type: 'turn_error';
   forTurn?: string;
   message: string;
+  /** `system` for a refused or failed turn */
+  speaker?: Speaker;
+  /** typed reason when the management layer refused or failed the turn */
+  code?: string;
+  /** the notice naming the agent (rendered, localized) */
+  systemNotice?: SystemNoticeWire;
 }
 
 /** One entry of the per-user canvas registry (multi-canvas sidebar sync).
@@ -75,6 +139,9 @@ export interface CanvasListEntry {
   color: number;
   tree?: unknown;
   revision?: string;
+  /** the agent of this canvas, fixed when it was chosen — travels with the
+   *  registry so every install of the user talks to the same agent */
+  agentId?: string;
 }
 
 /** server → client: the user's persisted canvas list (answer to canvas_list_get). */
@@ -93,6 +160,8 @@ export type NotificationSeverity = 'info' | 'success' | 'warning' | 'error';
  *  (persists until dismissed); everything lands in the bell history. */
 export interface NotificationMsg {
   type: 'notification';
+  /** `system` — a notification is the management layer, never an agent */
+  speaker?: Speaker;
   id: string;
   severity: NotificationSeverity;
   title: string;
@@ -149,6 +218,7 @@ export type ServerMessage =
   | CanvasListMsg
   | NotificationMsg
   | DesktopListMsg
+  | AgentsMsg
   | SurfaceEvent;
 
 // ── client → server ──
@@ -159,12 +229,18 @@ export interface HandshakeSelect {
   opsCatalogVersion: string;
   clientFeatures?: string[];
   localOperations?: string[];
+  /** UI language of this client — the language of the server's `system`
+   *  notices */
+  locale?: string;
   canvasSessionId?: string;
 }
 
 export interface ClientTurn {
   type: 'turn';
   turnId?: string;
+  /** the agent of this canvas, chosen by the user and fixed per canvas. The
+   *  server refuses a turn without it (`no_agent`) — it never picks one. */
+  agentId?: string;
   text?: string;
   /** structured UI action (button click, choice pick, row-click). Carried to
    *  Tier 2 via IncomingTurn.metadata.action and threaded into the typed
@@ -227,6 +303,8 @@ export interface ClientDesktopListPut {
 export interface ClientCanvasRefresh {
   type: 'canvas_refresh';
   turnId?: string;
+  /** the agent of the canvas (see `ClientTurn.agentId`) */
+  agentId?: string;
   /** the revision the client's tree is at — refresh patches build on it */
   basedOnRevision: string;
   /** the client's current canvas tree (Tier 2 is stateless across turns) */
@@ -243,6 +321,11 @@ export interface ClientTurnAbort {
   forTurn: string;
 }
 
+/** client → server: fetch the agent directory again (the picker opens). */
+export interface ClientAgentsGet {
+  type: 'agents_get';
+}
+
 export type ClientMessage =
   | HandshakeSelect
   | ClientTurn
@@ -252,7 +335,8 @@ export type ClientMessage =
   | ClientTurnAbort
   | ClientNotificationAck
   | ClientDesktopListGet
-  | ClientDesktopListPut;
+  | ClientDesktopListPut
+  | ClientAgentsGet;
 
 const NON_SURFACE_SERVER_TYPES: ReadonlySet<string> = new Set([
   'handshake_offer',
@@ -264,6 +348,7 @@ const NON_SURFACE_SERVER_TYPES: ReadonlySet<string> = new Set([
   'canvas_list',
   'notification',
   'desktop_list',
+  'agents',
 ]);
 
 /** Tolerant parse of a raw server frame; null for non-JSON / unknown type. */

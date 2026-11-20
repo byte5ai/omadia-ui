@@ -1,6 +1,7 @@
 import WebSocket from 'ws';
 import type { ConnectionStatus } from '../shared/ipc.js';
 import {
+  AGENTS_FEATURE,
   parseServerMessage,
   type ClientMessage,
   type ClientTurn,
@@ -95,6 +96,10 @@ export class CanvasSocket {
       protocolVersions: ['1.0'],
       opsCatalogVersions: ['1.0'],
       localOperations: this.opts.localOperations,
+      // issue #52: this client names an agent per turn and renders speakers
+      clientFeatures: [AGENTS_FEATURE],
+      // the host UI is written in German; the server's `system` notices follow
+      locale: 'de',
       canvasSessionId: this.opts.session.load(),
     });
 
