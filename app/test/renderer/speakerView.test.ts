@@ -11,21 +11,28 @@ import {
 } from '../../src/renderer/src/store/speakerView.js';
 
 // The kernel's `GET /api/v1/agents/directory?channel=web` body (S1 contract,
-// middleware/src/routes/managementLayer.ts): snake_case, no `id`.
+// middleware/src/routes/managementLayer.ts, kernel main 4ff997d20): snake_case,
+// with the agent's `id`.
 const KERNEL_DIRECTORY = {
   channel: 'web',
   agents: [
-    { slug: 'mira', display_name: 'Mira Schneider', short_description: 'Vertrieb', avatar_url: '/avatars/mira.png', archetype: 'standard' },
-    { slug: 'ben', display_name: 'Ben', short_description: null, avatar_url: null, archetype: null },
+    { id: '6f1c0d52-8a3e-4c1b-9d57-2b0e4a7f1c33', slug: 'mira', display_name: 'Mira Schneider', short_description: 'Vertrieb', avatar_url: '/avatars/mira.png', archetype: 'standard' },
+    { id: '0b9a7e14-55d2-4f0a-8c36-91d4e2a7b8c5', slug: 'ben', display_name: 'Ben', short_description: null, avatar_url: null, archetype: null },
   ],
   defaultAgent: { slug: 'mira' },
 };
 
 describe('agentDirectoryView', () => {
-  it('reads the kernel directory entries; the slug is the agent reference', () => {
+  it('reads the kernel directory entries; the agent id is the agent reference', () => {
     expect(agentDirectoryView(KERNEL_DIRECTORY.agents)).toEqual([
-      { id: 'mira', slug: 'mira', displayName: 'Mira Schneider', avatarUrl: '/avatars/mira.png', description: 'Vertrieb', archetype: 'standard' },
-      { id: 'ben', slug: 'ben', displayName: 'Ben' },
+      { id: '6f1c0d52-8a3e-4c1b-9d57-2b0e4a7f1c33', slug: 'mira', displayName: 'Mira Schneider', avatarUrl: '/avatars/mira.png', description: 'Vertrieb', archetype: 'standard' },
+      { id: '0b9a7e14-55d2-4f0a-8c36-91d4e2a7b8c5', slug: 'ben', displayName: 'Ben' },
+    ]);
+  });
+
+  it('falls back to the slug only for a kernel that sends no id', () => {
+    expect(agentDirectoryView([{ slug: 'mira', display_name: 'Mira' }])).toEqual([
+      { id: 'mira', slug: 'mira', displayName: 'Mira' },
     ]);
   });
 

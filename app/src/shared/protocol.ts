@@ -41,7 +41,8 @@ export interface AgentDirectoryEntry {
 
 /** An agent as it arrives on the wire. The canvas channel sends the camelCase
  *  form above; the kernel's `GET /api/v1/agents/directory?channel=web` sends
- *  snake_case without an `id`. Untrusted — read through
+ *  snake_case with the agent's `id` (kernel main 4ff997d20; earlier kernels
+ *  sent none, the slug then stands in). Untrusted — read through
  *  `speakerView.agentDirectoryView`. */
 export interface AgentDirectoryEntryWire {
   id?: string;

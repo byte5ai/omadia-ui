@@ -61,9 +61,10 @@ export function initialsOf(name: string): string {
  *
  * Two wire shapes are read: the canvas channel's camelCase entry (`id`,
  * `displayName`, `description`, `avatarUrl`) and the kernel's directory entry
- * (`slug`, `display_name`, `short_description`, `avatar_url`, `archetype`).
- * The kernel entry has no `id` of its own; the slug then names the agent in
- * `agentId` (a slug is unique), so a turn still addresses exactly this agent.
+ * (`id`, `slug`, `display_name`, `short_description`, `avatar_url`, `archetype`).
+ * `agentId` of a turn is the entry's `id`. Only a kernel that predates the
+ * `id` in the directory sends none; the slug (unique) then names the agent, so
+ * a turn still addresses exactly this one.
  */
 export function agentDirectoryView(raw: unknown): AgentDirectoryEntry[] {
   if (!Array.isArray(raw)) return [];
