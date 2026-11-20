@@ -11,6 +11,7 @@ import { extractRootMenu, type MenuNode } from './canvasMenu.js';
 import { decisionView, type DecisionView } from './decisionView.js';
 import {
   agentDirectoryView,
+  defaultAgentSlug,
   speakerView,
   systemNoticeView,
   type SystemNoticeView,
@@ -64,6 +65,8 @@ export interface CanvasState {
    *  tells "nobody is available" from "the directory has not arrived yet" */
   agents: readonly AgentDirectoryEntry[];
   agentsLoaded: boolean;
+  /** slug of the directory's default agent — the picker preselects it */
+  defaultAgent: string | null;
   /** who the last answer on this canvas is from, as the server stamped it —
    *  never guessed; null until something arrived */
   speaker: Speaker | null;
@@ -91,6 +94,7 @@ export const initialCanvasState: CanvasState = {
   decision: null,
   agents: [],
   agentsLoaded: false,
+  defaultAgent: null,
   speaker: null,
   systemNotice: null,
 };
@@ -368,11 +372,32 @@ export function applyServerMessage(
   switch (msg.type) {
     case 'agents':
       return {
-        state: { ...state, agents: agentDirectoryView(msg.agents), agentsLoaded: true },
+        state: {
+          ...state,
+          agents: agentDirectoryView(msg.agents),
+          agentsLoaded: true,
+          defaultAgent: defaultAgentSlug(msg.default_agent),
+        },
         resync: false,
       };
     case 'agent_text_delta': {
       const speaker = speakerView(msg.speaker);
+      if (speaker?.kind === 'system') {
+        // words of the management layer are never prose of an agent: they
+        // accumulate into the set-apart `system` notice (INV-6/7)
+        const prior = state.systemNotice;
+        return {
+          state: {
+            ...state,
+            systemNotice: {
+              code: prior?.code ?? 'system',
+              text: (prior?.text ?? '') + msg.text,
+              ...(prior?.agentName !== undefined ? { agentName: prior.agentName } : {}),
+            },
+          },
+          resync: false,
+        };
+      }
       return {
         state: {
           ...state,

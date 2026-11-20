@@ -28,7 +28,8 @@ export interface SystemSpeaker {
 
 export type Speaker = AgentSpeaker | SystemSpeaker;
 
-/** One agent of the directory the user may address here. */
+/** One agent of the directory the user may address here, as the client uses
+ *  it. `id` is what a turn carries as `agentId`. */
 export interface AgentDirectoryEntry {
   id: string;
   slug: string;
@@ -38,19 +39,58 @@ export interface AgentDirectoryEntry {
   archetype?: string;
 }
 
-/** server → client: the agents available to this user in this channel (after
- *  the handshake, and as the answer to `agents_get`). */
-export interface AgentsMsg {
-  type: 'agents';
-  agents: AgentDirectoryEntry[];
+/** An agent as it arrives on the wire. The canvas channel sends the camelCase
+ *  form above; the kernel's `GET /api/v1/agents/directory?channel=web` sends
+ *  snake_case without an `id`. Untrusted — read through
+ *  `speakerView.agentDirectoryView`. */
+export interface AgentDirectoryEntryWire {
+  id?: string;
+  slug?: string;
+  displayName?: string;
+  display_name?: string;
+  avatarUrl?: string | null;
+  avatar_url?: string | null;
+  description?: string | null;
+  short_description?: string | null;
+  archetype?: string | null;
 }
 
-/** Why the management layer spoke. The server adds codes additively: an
- *  unknown code is still rendered through its `text`. */
-export type SystemNoticeCode = 'no_agent' | 'agent_not_available' | 'agent_error';
+/** What an unaddressed message reaches here: the default agent, or none (the
+ *  notice code says why). Kernel form of `default_agent`. */
+export type DefaultAgentWire = { slug: string } | { slug: null; notice?: string };
 
-/** A management-layer notice naming the agent it is about. Untrusted input —
- *  read through `speakerView.systemNoticeView`. */
+/** server → client: the agents available to this user in this channel (after
+ *  the handshake, and as the answer to `agents_get`). Mirrors the kernel's
+ *  directory `{channel, agents, default_agent}`. */
+export interface AgentsMsg {
+  type: 'agents';
+  agents: AgentDirectoryEntryWire[];
+  /** the agent the picker preselects; the user can still choose another
+   *  before the first turn */
+  default_agent?: DefaultAgentWire;
+}
+
+/** Why the management layer spoke — the kernel's `SYSTEM_NOTICE_CODES`
+ *  (`@omadia/plugin-api` speaker.ts). The kernel adds codes additively: an
+ *  unknown code is still rendered through its `text`. */
+export type SystemNoticeCode =
+  | 'agent_disabled'
+  | 'agent_deleted'
+  | 'agent_unknown'
+  | 'agent_not_available'
+  | 'no_agent'
+  | 'agent_selected'
+  | 'agent_selection_cleared'
+  | 'agent_directory'
+  | 'agent_error'
+  | 'missing_grant'
+  | 'quota_exceeded'
+  | 'identity_guard_blocked'
+  | 'identity_guard_unavailable';
+
+/** A management-layer notice naming the agent it is about (kernel
+ *  `SystemNotice`). Untrusted input — read through
+ *  `speakerView.systemNoticeView`. */
 export interface SystemNoticeWire {
   code: string;
   text: string;

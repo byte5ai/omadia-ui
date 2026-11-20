@@ -10,7 +10,7 @@ import {
 import type { AgentDirectoryEntry, ClientTurn } from '../../shared/protocol.js';
 import { AgentBadge, AgentPicker, AnswerSpeaker } from './AgentUi.js';
 import { SystemNotice } from './SystemNotice.js';
-import { localSystemNotice, speakerOfEntry } from './store/speakerView.js';
+import { localSystemNotice, preselectedAgent } from './store/speakerView.js';
 import { extractRootMenu, loadStoredMenu, storeMenu } from './store/canvasMenu.js';
 import { interruptSlotTurn, routeServerMessage } from './store/slotRouting.js';
 import { syncNamespace } from './store/prefsNamespace.js';
@@ -851,13 +851,16 @@ export function App() {
     }
   }, [activeSlotId, status.state, canvas.tree === null]);
 
-  // exactly one agent available and none chosen: it is the choice (visible as
-  // the selected card; the user can still pick another before the first turn)
+  // none chosen yet: the directory's default agent, or the only agent there is,
+  // is preselected (visible as the selected card; the user can still pick
+  // another before the first turn)
   useEffect(() => {
-    const only = canvas.agents.length === 1 ? canvas.agents[0] : undefined;
+    const preselected = preselectedAgent(canvas.agents, canvas.defaultAgent);
     const slot = slots.find((s) => s.slotId === activeSlotId);
-    if (only && canvas.tree === null && slot && slot.agentId === undefined) chooseAgent(activeSlotId, only);
-  }, [canvas.agents, canvas.tree === null, activeSlotId, slots]);
+    if (preselected && canvas.tree === null && slot && slot.agentId === undefined) {
+      chooseAgent(activeSlotId, preselected);
+    }
+  }, [canvas.agents, canvas.defaultAgent, canvas.tree === null, activeSlotId, slots]);
 
   /** Send a turn of the focused canvas to ITS agent. False → not sent. */
   const sendAgentTurn = (turn: ClientTurn): boolean => {

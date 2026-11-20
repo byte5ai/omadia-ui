@@ -9,7 +9,6 @@
 import type {
   AgentDirectoryEntry,
   Speaker,
-  AgentSpeaker,
   SystemNoticeWire,
 } from '../../../shared/protocol.js';
 
@@ -56,8 +55,16 @@ export function initialsOf(name: string): string {
   return letters.join('').toUpperCase() || '?';
 }
 
-/** The directory as the server sent it, reduced to complete entries: one per
- *  id, known fields only, bounded. A malformed entry is dropped. */
+/**
+ * The directory as the server sent it, reduced to complete entries: one per
+ * id, known fields only, bounded. A malformed entry is dropped.
+ *
+ * Two wire shapes are read: the canvas channel's camelCase entry (`id`,
+ * `displayName`, `description`, `avatarUrl`) and the kernel's directory entry
+ * (`slug`, `display_name`, `short_description`, `avatar_url`, `archetype`).
+ * The kernel entry has no `id` of its own; the slug then names the agent in
+ * `agentId` (a slug is unique), so a turn still addresses exactly this agent.
+ */
 export function agentDirectoryView(raw: unknown): AgentDirectoryEntry[] {
   if (!Array.isArray(raw)) return [];
   const seen = new Set<string>();
@@ -65,13 +72,13 @@ export function agentDirectoryView(raw: unknown): AgentDirectoryEntry[] {
   for (const item of raw) {
     if (typeof item !== 'object' || item === null) continue;
     const e = item as Record<string, unknown>;
-    const id = text(e['id'], MAX_ID);
     const slug = text(e['slug'], MAX_ID);
-    const displayName = text(e['displayName'], MAX_NAME);
+    const id = text(e['id'], MAX_ID) ?? slug;
+    const displayName = text(e['displayName'], MAX_NAME) ?? text(e['display_name'], MAX_NAME);
     if (id === undefined || slug === undefined || displayName === undefined || seen.has(id)) continue;
     seen.add(id);
-    const avatarUrl = text(e['avatarUrl'], MAX_URL);
-    const description = text(e['description'], MAX_TEXT);
+    const avatarUrl = text(e['avatarUrl'], MAX_URL) ?? text(e['avatar_url'], MAX_URL);
+    const description = text(e['description'], MAX_TEXT) ?? text(e['short_description'], MAX_TEXT);
     const archetype = text(e['archetype'], MAX_ID);
     out.push({
       id,
@@ -84,6 +91,27 @@ export function agentDirectoryView(raw: unknown): AgentDirectoryEntry[] {
     if (out.length >= MAX_AGENTS) break;
   }
   return out;
+}
+
+/** The slug of the default agent (`default_agent: {slug}`), or `null` when
+ *  there is none (`{slug: null, notice}`) or the field is absent/malformed. */
+export function defaultAgentSlug(raw: unknown): string | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  return text((raw as Record<string, unknown>)['slug'], MAX_ID) ?? null;
+}
+
+/** The agent a canvas without a choice starts on: the directory's default
+ *  agent when it is listed, else the only agent there is, else none — the
+ *  client never picks among several. */
+export function preselectedAgent(
+  agents: readonly AgentDirectoryEntry[],
+  defaultSlug: string | null,
+): AgentDirectoryEntry | undefined {
+  if (defaultSlug !== null) {
+    const listed = agents.find((a) => a.slug === defaultSlug);
+    if (listed !== undefined) return listed;
+  }
+  return agents.length === 1 ? agents[0] : undefined;
 }
 
 /** A speaker from the wire, or `null` when absent or malformed (a server that
@@ -99,18 +127,6 @@ export function speakerView(raw: unknown): Speaker | null {
   if (agentId === undefined || slug === undefined || displayName === undefined) return null;
   const avatarUrl = text(s['avatarUrl'], MAX_URL);
   return { kind: 'agent', agentId, slug, displayName, ...(avatarUrl !== undefined ? { avatarUrl } : {}) };
-}
-
-/** The directory entry as a speaker — what the client shows for a canvas
- *  whose agent is chosen but has not answered yet. */
-export function speakerOfEntry(entry: AgentDirectoryEntry): AgentSpeaker {
-  return {
-    kind: 'agent',
-    agentId: entry.id,
-    slug: entry.slug,
-    displayName: entry.displayName,
-    ...(entry.avatarUrl !== undefined ? { avatarUrl: entry.avatarUrl } : {}),
-  };
 }
 
 /** What a `system` notice shows: its text, set apart from every agent message. */
