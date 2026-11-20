@@ -1,8 +1,21 @@
-import { SURFACE_EVENT_TYPES, type ServerMessage, type SurfaceEvent } from '../../../shared/protocol.js';
+import {
+  SURFACE_EVENT_TYPES,
+  type AgentDirectoryEntry,
+  type ServerMessage,
+  type Speaker,
+  type SurfaceEvent,
+} from '../../../shared/protocol.js';
 import { applyTreePatches } from '../../../shared/treePatch.js';
 import { validateSurfaceEvent, validateTree } from '../validate/validator.js';
 import { extractRootMenu, type MenuNode } from './canvasMenu.js';
 import { decisionView, type DecisionView } from './decisionView.js';
+import {
+  agentDirectoryView,
+  defaultAgentSlug,
+  speakerView,
+  systemNoticeView,
+  type SystemNoticeView,
+} from './speakerView.js';
 
 /** How the current tree arrived — drives the visual-spec §6.1 motion split:
  *  snapshot → full-canvas crossfade; patch → condensation on changed nodes. */
@@ -48,6 +61,18 @@ export interface CanvasState {
   /** what the decision model (Jev) decided for the last finished turn —
    *  the Jev chip bottom-left; cleared when a new turn starts */
   decision: DecisionView | null;
+  /** the agents available to this user here (issue #52); `agentsLoaded`
+   *  tells "nobody is available" from "the directory has not arrived yet" */
+  agents: readonly AgentDirectoryEntry[];
+  agentsLoaded: boolean;
+  /** slug of the directory's default agent — the picker preselects it */
+  defaultAgent: string | null;
+  /** who the last answer on this canvas is from, as the server stamped it —
+   *  never guessed; null until something arrived */
+  speaker: Speaker | null;
+  /** the `system` notice of the last turn (refused / failed), shown set apart
+   *  from agent messages; cleared when a new turn starts */
+  systemNotice: SystemNoticeView | null;
 }
 
 export const initialCanvasState: CanvasState = {
@@ -67,7 +92,25 @@ export const initialCanvasState: CanvasState = {
   menu: null,
   interruptedTurns: [],
   decision: null,
+  agents: [],
+  agentsLoaded: false,
+  defaultAgent: null,
+  speaker: null,
+  systemNotice: null,
 };
+
+/** A turn starts: pending, last error/notice/prose/decision cleared. The one
+ *  place that says what "a fresh turn" resets. */
+export function startTurn(state: CanvasState): CanvasState {
+  return {
+    ...state,
+    turnPending: true,
+    turnError: null,
+    systemNotice: null,
+    prose: '',
+    decision: null,
+  };
+}
 
 const nodeId = (n: unknown): string | undefined => {
   if (typeof n !== 'object' || n === null) return undefined;
@@ -133,7 +176,13 @@ const noticed = (state: CanvasState, notice: string): CanvasState => ({
   notices: [...state.notices.slice(-19), notice],
 });
 
-function applySurfaceEvent(state: CanvasState, ev: SurfaceEvent, now: number): ApplyResult {
+function applySurfaceEvent(state: CanvasState, wire: SurfaceEvent, now: number): ApplyResult {
+  // `speaker` is transport stamping the server adds to every answer frame
+  // (issue #52); the surface-event schema does not list it, so it is taken
+  // off before validation and kept as the canvas's current speaker.
+  const { speaker: wireSpeaker, ...bare } = wire;
+  const ev = bare as SurfaceEvent;
+  const stamped = speakerView(wireSpeaker);
   const valid = validateSurfaceEvent(ev);
   if (!valid.ok) {
     return { state: noticed(state, `surface event rejected: ${valid.errors}`), resync: false };
@@ -163,7 +212,11 @@ function applySurfaceEvent(state: CanvasState, ev: SurfaceEvent, now: number): A
       resync: true,
     };
   }
-  const seen = { ...state, lastSurfaceSeq: ev.surfaceSeq };
+  const seen = {
+    ...state,
+    lastSurfaceSeq: ev.surfaceSeq,
+    ...(stamped !== null ? { speaker: stamped } : {}),
+  };
 
   switch (ev.type) {
     case 'surface_snapshot': {
@@ -317,9 +370,45 @@ export function applyServerMessage(
     };
   }
   switch (msg.type) {
-    case 'agent_text_delta':
-      return { state: { ...state, prose: state.prose + msg.text }, resync: false };
-    case 'turn_complete':
+    case 'agents':
+      return {
+        state: {
+          ...state,
+          agents: agentDirectoryView(msg.agents),
+          agentsLoaded: true,
+          defaultAgent: defaultAgentSlug(msg.defaultAgent),
+        },
+        resync: false,
+      };
+    case 'agent_text_delta': {
+      const speaker = speakerView(msg.speaker);
+      if (speaker?.kind === 'system') {
+        // words of the management layer are never prose of an agent: they
+        // accumulate into the set-apart `system` notice (INV-6/7)
+        const prior = state.systemNotice;
+        return {
+          state: {
+            ...state,
+            systemNotice: {
+              code: prior?.code ?? 'system',
+              text: (prior?.text ?? '') + msg.text,
+              ...(prior?.agentName !== undefined ? { agentName: prior.agentName } : {}),
+            },
+          },
+          resync: false,
+        };
+      }
+      return {
+        state: {
+          ...state,
+          prose: state.prose + msg.text,
+          ...(speaker !== null ? { speaker } : {}),
+        },
+        resync: false,
+      };
+    }
+    case 'turn_complete': {
+      const speaker = speakerView(msg.speaker);
       return {
         // revision === null → the tree is only the client-local pending
         // skeleton (no server snapshot arrived); drop it back to cold start
@@ -329,21 +418,29 @@ export function applyServerMessage(
           turnPending: false,
           turnError: null,
           decision: decisionView(msg.decision),
+          ...(speaker !== null ? { speaker } : {}),
           ...(state.revision === null ? { tree: null } : {}),
         },
         resync: false,
       };
-    case 'turn_error':
+    }
+    case 'turn_error': {
+      // a refused or failed turn is a `system` notice naming the agent
+      // (INV-7), set apart from agent messages; its text also feeds the
+      // inline beam chip instead of the raw reason
+      const notice = systemNoticeView(msg.systemNotice);
       return {
         state: {
           ...noticed(state, `turn_error: ${msg.message}`),
           turnPending: false,
-          turnError: msg.message,
+          turnError: notice?.text ?? msg.message,
+          systemNotice: notice,
           decision: null,
           ...(state.revision === null ? { tree: null } : {}),
         },
         resync: false,
       };
+    }
     default:
       return { state, resync: false }; // handshake frames are the socket layer's business
   }

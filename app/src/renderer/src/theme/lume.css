@@ -2456,3 +2456,161 @@ textarea.lume-input:disabled {
 .lume-instance-active .lume-instance-dot {
   background: var(--lume-accent);
 }
+
+/* ── agents (issue #52, spec 2042 §5.3/INV-4) ─────────────────────────────
+   Every agent is a name with an avatar. A `system` notice is set apart:
+   dashed frame, its own label, no avatar. */
+.lume-agent-avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: var(--lume-radius-pill);
+  background: var(--lume-accent-subtle);
+  color: var(--lume-accent);
+  font-family: var(--lume-font-structural);
+  font-weight: 600;
+  border: 1px solid var(--lume-border-subtle-top);
+}
+.lume-agent-avatar-sm {
+  width: 18px;
+  height: 18px;
+  font-size: 9px;
+}
+.lume-agent-avatar-md {
+  width: 36px;
+  height: 36px;
+  font-size: 14px;
+}
+.lume-agent-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.lume-agent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.lume-agent-badge-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lume-text-secondary);
+}
+.lume-pane-bar .lume-agent-badge {
+  margin-right: var(--lume-space-2);
+}
+/* zero-height anchor at the bottom of the scrollport: the speaker and the
+   notice stay in view while a tall canvas scrolls */
+.lume-pane-overlays {
+  position: sticky;
+  bottom: 0;
+  height: 0;
+  overflow: visible;
+  z-index: 24;
+}
+.lume-answer-speaker {
+  position: absolute;
+  right: 12px;
+  bottom: 34px;
+  z-index: 24;
+  padding: 3px 9px 3px 4px;
+  border-radius: var(--lume-radius-pill);
+  border: 1px solid var(--lume-border-subtle-top);
+  background: var(--lume-surface);
+}
+.lume-agent-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--lume-space-3);
+  max-width: 640px;
+  margin-bottom: var(--lume-space-4);
+}
+.lume-agent-picker-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--lume-text-tertiary);
+}
+.lume-agent-picker-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--lume-space-2);
+}
+.lume-agent-card {
+  display: flex;
+  align-items: center;
+  gap: var(--lume-space-3);
+  min-width: 180px;
+  max-width: 260px;
+  padding: var(--lume-space-2) var(--lume-space-3);
+  text-align: left;
+  color: var(--lume-text);
+  font-family: var(--lume-font-structural);
+  border-radius: var(--lume-radius-md);
+  border: 1px solid var(--lume-border-subtle-top);
+  background: linear-gradient(180deg, var(--lume-surface-top) 0%, var(--lume-surface-btm) 100%);
+  cursor: pointer;
+  transition: border-color var(--lume-motion-quick) var(--lume-ease-standard);
+}
+.lume-agent-card:hover,
+.lume-agent-card:focus-visible {
+  border-color: var(--lume-accent);
+  outline: none;
+}
+.lume-agent-card-selected {
+  border-color: var(--lume-accent);
+  box-shadow: 0 0 0 2px var(--lume-accent-subtle);
+}
+.lume-agent-card-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.lume-agent-card-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+.lume-agent-card-desc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--lume-text-tertiary);
+}
+.lume-system-notice {
+  position: absolute;
+  left: 50%;
+  bottom: 40px;
+  z-index: 26;
+  display: flex;
+  align-items: baseline;
+  gap: var(--lume-space-2);
+  max-width: min(560px, 90%);
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--lume-text-secondary);
+  border-radius: var(--lume-radius-sm);
+  border: 1px dashed var(--lume-warning-fg);
+  background: var(--lume-sunken-top);
+}
+.lume-system-notice-label {
+  flex: none;
+  font-family: var(--lume-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lume-warning-fg);
+}
+.lume-system-notice-close {
+  flex: none;
+  color: var(--lume-text-tertiary);
+  cursor: pointer;
+}

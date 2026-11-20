@@ -8,6 +8,9 @@ interface Props {
   /** false when the layout is a single leaf — the last pane cannot close */
   canClose: boolean;
   paneTitle: (slotId: string) => string;
+  /** the agent of the pane's canvas (issue #52) — name and avatar, before the
+   *  title, so every pane says whom it talks to */
+  paneBarLead?: (slotId: string) => ReactNode;
   /** chrome budget §2.14: per-pane navigation (back/refresh) lives IN the
    *  pane-bar — one chrome row per pane, never a second row in the body */
   paneBarExtras?: (slotId: string) => ReactNode;
@@ -39,6 +42,7 @@ function Node({ node, path, ...props }: Props & { node: WorkspaceNode; path: str
         }}
       >
         <header className="lume-pane-bar">
+          {props.paneBarLead?.(slotId)}
           <span
             className={`lume-pane-bar-title${
               props.busySlotIds.has(slotId) ? ' lume-pane-bar-busy' : ''

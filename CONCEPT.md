@@ -4,6 +4,8 @@
 
 Version 0.15 — closes the two residual blockers Codex flagged on v0.14: revision notation in the Security Surface confirmation-pattern example moved to opaque `Rn` / `Rm`; `suggestedActions.validUntilRevision` retyped from `number` to `RevisionId` (opaque). `TargetRef.timeRange` extended with optional `trackId` and `clipId` so timeline-scrub on `timeline` primitives is fully addressable. v0.14 — closes Codex v0.13 blockers (three remaining): Beam target fields collapsed into the unified `TargetRef` (the v0.13 unification only reached three of four call sites — Beam was missed). `selection` cross-cutting trait removed (fourth selection-ownership collision site that escaped the v0.13 pass). Revision notation in the event grammar table moved from `N` / `N+1` integer-arithmetic style to `R0` / `R1` opaque-identifier style, restoring the equality-only contract. Plus optional fixes: `TargetRef` now ten variants (added `timeRange` for media/timeline operations; corrected count); mixed-`dataClass` container guidance; `viewState`-budget heuristic changed from "drop smallest first" to "drop non-referenced + non-selection-bearing first" with budget numbers explicitly marked as spike-tunable initial defaults. v0.13 — closes the remaining Codex blockers and cheap-wins on v0.12. **`TargetRef` as concrete discriminated union**, used everywhere the older "TargetRef" stub appeared. **Write-tool capability contract** — concrete schema convention for how a Tier-3 sub-agent tool declares its write capabilities so Tier 2 can derive `editable` / `canAddItems` / `canRemoveItems` / `canReorder` deterministically. **Selection ownership reconciled** as client view-state across all sections (State Model + Authority Split + Local Operations Catalog now agree). Region addressing pinned to `bufferContentHash` + coordinate space; textrange anchoring escaped from fragile numeric offsets via content-hash + segment anchors. Class-D / Beam **same-target arbitration** rule. `viewState` token budget with changed-containers-only and truncation fallback. `surface_mutation_resolved` lifted into the canonical Event Grammar table. `basedOnRevision` typed as opaque `RevisionId` consistent with v0.5. `surface_mutation_resolved` reserves `originAuthor` / `originSession` for v2 multi-user conflict provenance. v0.12 — closes Codex review on v0.10+v0.11 (authority/state-boundary blocker, stable-reference blocker) and adds the fourth interaction class. Major additions: **Authority Model & Stable References** (LLM owns UI structure + which data was delivered; client owns view-state; stable IDs are the lingua franca for every datapoint). **Direct Data Mutation (Class D)** — inline edit/delete/draw with optimistic UI, mutability-capabilities declared per field by the agent, async resolve via new `_pendingMutation` sentinel and `surface_mutation_resolved` event. **Async Architecture & Element-Locking** — UI never freezes during LLM work; locks scope to the smallest element that could be inconsistent, not the whole canvas. Naming: **Beam** replaces "annotation-as-prompt" (active, gestural, fits Lume's light vocabulary), **Trace** replaces session-history / audit log. Reserves Flare and Spark in a documented light-vocabulary discipline so future concepts don't trigger naming round-trips. Plus six Codex quick-wins: state-boundary table per affordance, `suggestedActions` schema with revision-basis validity, long-press arbitration rules. v0.11 — interaction model defined: intent is spatial, not locked in a text box. Inherent affordances live client-side (hard rule, extends local-ops catalog to data-structure standard ops). Context-invoke gesture (long-press primary, right-click desktop shortcut, hover dropped, double-click stays edit). First-class action panel (deterministic affordances + agent-pre-supplied `suggestedActions` + beam field, no turn on open). Beam-as-prompt with target granularity; trace as a standard element, screen otherwise noise-free. No persistent bottom prompt bar in v1 (⌘K command layer + cold-start field instead); persistent bar documented as fallback. v0.10 — input model made explicit: three prompt-input classes (canvas-level prompt · container-internal inputs · container-scoped prompt), `targetContainerId` added to `IncomingTurn`, routing rules in Tier 2. v0.9 — typography architecture locked at the concept level: three registers (structural / prose / mono), bound to three families in `docs/visual-spec.md` v0.3 (Geist · Source Serif 4 · Geist Mono). UI Skill gains a `prose-vs-structure protocol` alongside the palette-binding protocol; `style` trait extends to carry `"prose"` and `"mono"` register markers. v0.8: material identity (Lume) named and locked; accent slot becomes user-bindable across three curated palettes (Petrol / Atelier / Lagoon, Lagoon default), bound via the existing context-aware prefs model. UI Skill gained a `palette-binding protocol`. Visual specification carved out to [`docs/visual-spec.md`](docs/visual-spec.md) v0.2. v0.7 baseline: DataRef lifecycle (content-addressed, buffer ownership, GC), per-mutation mutex semantics, sub-agent cancellation, Tier-2 data cache between turns, external-effect action classification with confirmation pattern, `canvas-activate` action type, Tier-2 statelessness wrt active canvas, referential-continuity contract. v0.6: direct-gesture vs. routed-local-op split, canonical `DataRef` shape, concrete boot handshake, editor-primitive required fields, preview-vs-durable ops, contextKey per canvas, sentinel mechanism, server-assigned `surfaceSeq`. v0.5: forward-compat hooks for shared canvases. v0.4: 2D architecture, editor primitives, local ops catalog, multiple canvases, context-aware prefs, protocol versioning.
 
+> **Update 2026-11 (omadia#2042, omadia-ui#52) — agents on the canvas.** A canvas belongs to **exactly one agent**, chosen by the user and fixed once its first turn is sent. Tier 2 is no longer a UI orchestrator that decides in front of the agents: it is the **presentation helper of that agent** (an internal helper in the agent's envelope, in the sense of `docs/terminology.md`). See [Agents on the canvas](#agents-on-the-canvas). Package and plugin ids (`omadia-ui-orchestrator`, `canvasChatAgent@1`) keep their historical names.
+
 ---
 
 ## Vision
@@ -28,8 +30,8 @@ UI work is split across two orthogonal dimensions:
 | | **Client** (user's machine) | **Server** (omadia core) |
 |---|---|---|
 | **Tier 1 — Surface** *(deterministic, no LLM, instant)* | **Canvas Host App** (Omadia UI)<br>• renders primitive tree<br>• holds local state (selections, scroll, drag, brush buffer, …)<br>• **local operations catalog** (brush, blur, curves, audio-trim, video-cut, …)<br>• schema-validate + style-normalise | **`omadia-ui-channel`** *(kind: channel)*<br>• WebSocket endpoint + auth<br>• `IncomingTurn` forming<br>• stream forwarding<br>• no LLM logic |
-| **Tier 2 — UI Orchestrator** *(small/fast LLM, sub-second)* | — | **`omadia-ui-orchestrator`** *(kind: extension)*<br>• UI Skill (composition-idiom library)<br>• Haiku-class LLM (configurable)<br>• primitive selection + composition<br>• action routing (local Tier-1 vs Tier-3)<br>• canvas-state + user-prefs store<br>• per-session turn serialisation |
-| **Tier 3 — Content / Tools** *(heavy LLM + slow tools OK)* | — | **Existing omadia plugins** *(kind: agent / tool / integration)*<br>• Sonnet, Opus, GPT, Gemini, …<br>• Jira, ERP, HR, AI-background-removal, …<br>• long-running operations |
+| **Tier 2 — Presentation helper of the agent** *(small/fast LLM, sub-second)* | — | **`omadia-ui-orchestrator`** *(kind: system-module)*<br>• resolves the canvas's agent envelope first, without a model; runs inside it, parallel to the agent<br>• UI Skill (composition-idiom library)<br>• Haiku-class LLM (configurable)<br>• primitive selection + composition<br>• action routing (local Tier-1 vs Tier-3)<br>• canvas-state + user-prefs store<br>• per-session turn serialisation |
+| **Tier 3 — Content / Tools** *(heavy LLM + slow tools OK)* | — | **The selected agent** and the capabilities it is given *(plugins of kind: agent / tool / integration)*<br>• Sonnet, Opus, GPT, Gemini, …<br>• Jira, ERP, HR, AI-background-removal, …<br>• long-running operations |
 
 ```mermaid
 flowchart TB
@@ -40,8 +42,8 @@ flowchart TB
     HOST <-->|"WebSocket<br/>turns + surface_* events"| CHAN
   end
 
-  subgraph T2["Tier 2 — UI Orchestrator · fast LLM · sub-second"]
-    ORCH["<b>Server only</b><br/>omadia-ui-orchestrator<br/><i>kind: extension</i><br/>UI Skill · Haiku-class LLM<br/>primitive selection + composition<br/>canvas-state + user-prefs<br/>action routing"]
+  subgraph T2["Tier 2 — Presentation helper of the agent · fast LLM · sub-second"]
+    ORCH["<b>Server only</b><br/>omadia-ui-orchestrator<br/><i>kind: system-module</i><br/>runs in the agent's envelope<br/>UI Skill · Haiku-class LLM<br/>primitive selection + composition<br/>canvas-state + user-prefs<br/>action routing"]
   end
 
   subgraph T3["Tier 3 — Content / Tools · heavy LLM · slow OK"]
@@ -237,22 +239,39 @@ Thin server-side counterpart to the Host App. Server-hosted plugin under `middle
 - Authenticate the user (reuses omadia core auth — local + OIDC).
 - Form `IncomingTurn` from client events (`channelId`, `tenantId`, `userId`, `conversationId`, `canvasSessionId`, payload).
 - Forward the stream of surface events from Tier 2 back to the client. No transformation, no LLM, no domain logic.
+- Carry the canvas's agent: `turn.agentId` → `IncomingTurn.metadata.agentId`; stamp every outgoing message with the speaker the kernel's routing decision names; answer the agent directory (`agents`). It never chooses an agent. See [Agents on the canvas](#agents-on-the-canvas).
 - Honour the `dispatchService` field — wire its `TurnDispatcher` to `canvasChatAgent@1`.
 
 The channel is intentionally thin — if a second Canvas surface ever ships (web-PWA, mobile, …), it ships as a separate channel plugin against the same Tier-2 API.
 
 ---
 
-## Tier 2 — UI Orchestrator (extension plugin)
+## Agents on the canvas
 
-Server-side. New plugin under `middleware/packages/omadia-ui-orchestrator/`, kind `extension`, publishes `canvasChatAgent@1`.
+Spec: `specs/2042-agents-as-virtual-employees/spec.md` §5.3, §5.14 (in `byte5ai/omadia`); words as in `docs/terminology.md`.
+
+- **One agent per canvas.** The user chooses the agent when a canvas starts (picker with name and avatar; the directory's default agent, or the only agent there is, is preselected). The choice is fixed once the first turn is sent and travels with the per-user canvas registry (`CanvasListEntry.agentId`), so every install talks to the same agent. For another agent, open another canvas. There is no automatic switching and no hidden fallback agent.
+- **Every turn names its agent**: `turn.agentId` (and `canvas_refresh.agentId`); the channel carries it as `IncomingTurn.metadata.agentId`. The kernel resolves it like any routing target (enabled, not deleted, available to this user in this channel) or refuses with a typed `system` notice. It never picks another agent, and no model sits in front of it.
+- **Every message carries its speaker**: `{kind:'agent', agentId, slug, displayName, avatarUrl?}` or `{kind:'system'}`. The server stamps it from the routing decision; the client only renders it and never invents one. The pane bar shows the canvas's agent, every answer shows who it is from.
+- **`system` notices are set apart** (INV-6/7): a refused or failed turn (`turn_error` with `speaker: system`, `code`, `systemNotice`) and any text of the `system` speaker render as a notice with its own label and frame, without avatar or name of an agent, and the notice names the agent it is about. The text is rendered and localized by the server (the client announces its language in `handshake_select.locale`).
+- **Directory**: the agents a user may address here. Kernel form `GET /api/v1/agents/directory?channel=web` → `{channel, agents:[{slug, display_name, short_description, avatar_url, archetype}], default_agent:{slug}|{slug:null, notice}}`. The canvas channel forwards it as the `agents` message (the default agent as `defaultAgent`) (after the handshake to a client that declared the `agents` feature, and as the answer to `agents_get`); the client reads both the kernel's snake_case entry (with the agent's `id`, sent as `agentId`) and the channel's camelCase entry. An empty directory means: nobody is available to this user here.
+
+Protocol summary: [`docs/protocol/1.0.md`](docs/protocol/1.0.md) §13.
+
+---
+
+## Tier 2 — Presentation helper of the agent (system-module plugin)
+
+Server-side. Plugin `omadia-ui-orchestrator` (the id is historical; it ships from `byte5ai/omadia-ui-support`), kind `system-module` (before: `extension`), publishes `canvasChatAgent@1`.
+
+**It is not a decider in front of the agents.** A canvas turn names its agent (`agentId`). Tier 2 resolves that agent's envelope first, deterministically and without a model call, and only then works — inside the envelope and **in parallel** with the agent's content work (skeleton while the agent works, then the agent's data into the layout), never in series in front of it. Without an agent or for an unavailable agent the turn ends in a typed error before any model runs; no other agent answers in its place.
 
 **Plugin manifest sketch:**
 
 ```yaml
 identity:
-  kind: extension
-  id: omadia-ui-orchestrator
+  kind: system-module
+  id: omadia-ui-orchestrator   # historical id; a presentation helper of the selected agent
 provides: ["canvasChatAgent@1"]
 requires: ["chatAgent@1", "memoryStore@1", "crossChannelConversationMemory@1"]
 permissions:

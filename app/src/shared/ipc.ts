@@ -134,6 +134,9 @@ export interface OmadiaCanvasApi {
   /** abort the in-flight turn (issue #13) — answered with turn_error 'aborted' */
   abortTurn(slotKey: string, forTurn: string): void;
   requestResync(slotKey: string): void;
+  /** the agents available to this user here (issue #52) — answered with an
+   *  `agents` message; the picker asks again each time it opens */
+  requestAgents(slotKey: string): void;
   /** per-user canvas registry sync (multi-canvas sidebar) */
   requestCanvasList(slotKey: string): void;
   saveCanvasList(slotKey: string, canvases: CanvasListEntry[]): void;
@@ -176,6 +179,7 @@ export const IPC = {
   refresh: 'canvas:refresh',
   abort: 'canvas:abort',
   resync: 'canvas:resync',
+  agentsGet: 'canvas:agents-get',
   canvasListGet: 'canvas:list-get',
   canvasListPut: 'canvas:list-put',
   notificationAck: 'canvas:notification-ack',
