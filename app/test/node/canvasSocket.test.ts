@@ -145,3 +145,51 @@ describe('CanvasSocket session end (#1262 close codes)', () => {
     await srv.close();
   });
 });
+
+describe('CanvasSocket turn frame (spec 2042 criterion 1)', () => {
+  it('puts the turn on the wire with its agentId unchanged', async () => {
+    const wss = new WebSocketServer({ port: 0 });
+    await new Promise<void>((resolve) => wss.once('listening', () => resolve()));
+    const frames: Record<string, unknown>[] = [];
+    wss.on('connection', (ws) => {
+      ws.send(
+        JSON.stringify({ type: 'handshake_offer', handshakeId: 'h1', protocolVersions: ['1.0'], opsCatalogVersions: ['1.0'] }),
+      );
+      ws.on('message', (data) => {
+        const frame = JSON.parse(String(data)) as Record<string, unknown>;
+        frames.push(frame);
+        if (frame['type'] === 'handshake_select') {
+          ws.send(JSON.stringify({ type: 'handshake_ack', handshakeId: 'h1', canvasSessionId: 'c1' }));
+        }
+      });
+    });
+    const statuses: ConnectionStatus[] = [];
+    const socket = new CanvasSocket({
+      url: `ws://127.0.0.1:${(wss.address() as AddressInfo).port}/omadia-ui/canvas`,
+      localOperations: [],
+      session: { load: () => undefined, save: () => undefined },
+      onMessage: () => undefined,
+      onStatus: (s) => statuses.push(s),
+    });
+    socket.connect();
+    await waitFor(() => statuses.some((s) => s.state === 'ready'));
+    socket.sendTurn({ type: 'turn', turnId: 't1', text: 'Umsatz?', agentId: 'agent-strategist' });
+    await waitFor(() => frames.some((f) => f['type'] === 'turn'));
+    expect(frames.find((f) => f['type'] === 'turn')).toEqual({
+      type: 'turn',
+      turnId: 't1',
+      text: 'Umsatz?',
+      agentId: 'agent-strategist',
+    });
+    socket.close();
+    await new Promise<void>((resolve) => wss.close(() => resolve()));
+  });
+});
+
+async function waitFor(check: () => boolean, timeoutMs = 5000): Promise<void> {
+  const started = Date.now();
+  while (!check()) {
+    if (Date.now() - started > timeoutMs) throw new Error('timed out');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+}

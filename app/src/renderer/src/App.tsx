@@ -42,6 +42,7 @@ import {
   loadSlots,
   newSlot,
   saveSlots,
+  turnForSlot,
   type CanvasSlotMeta,
 } from './store/canvasSlots.js';
 import {
@@ -864,13 +865,13 @@ export function App() {
 
   /** Send a turn of the focused canvas to ITS agent. False → not sent. */
   const sendAgentTurn = (turn: ClientTurn): boolean => {
-    const agentId = slotsRef.current.find((s) => s.slotId === activeSlotIdRef.current)?.agentId;
-    if (!agentId) {
+    const addressed = turnForSlot(turn, slotsRef.current, activeSlotIdRef.current);
+    if (!addressed) {
       rejectWithoutAgent();
       return false;
     }
     if (turn.turnId) pendingTurnIds.current.set(activeSlotId, turn.turnId);
-    window.omadiaCanvas.sendTurn(activeSlotId, { ...turn, agentId });
+    window.omadiaCanvas.sendTurn(activeSlotId, addressed);
     return true;
   };
 
