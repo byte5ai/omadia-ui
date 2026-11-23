@@ -3,6 +3,7 @@
  *  in memory only — a restarted app re-snapshots on the next turn against the
  *  same server-side canvasSessionId. */
 
+import type { ClientTurn } from '../../../shared/protocol.js';
 import { prefsKey } from './prefsNamespace.js';
 
 export interface CanvasSlotMeta {
@@ -80,4 +81,17 @@ export function autoTitle(tree: unknown): string | null {
     }
   }
   return null;
+}
+
+/** The turn frame a canvas sends: always addressed to ITS agent (spec 2042
+ *  criterion 1). `null` when the canvas has no agent yet — the turn is not
+ *  sent, the server never picks one. Any `agentId` the caller set is
+ *  replaced by the slot's. */
+export function turnForSlot(
+  turn: ClientTurn,
+  slots: readonly CanvasSlotMeta[],
+  slotId: string,
+): ClientTurn | null {
+  const agentId = slots.find((s) => s.slotId === slotId)?.agentId;
+  return agentId ? { ...turn, agentId } : null;
 }
