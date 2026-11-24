@@ -102,6 +102,12 @@ describe('late frames of an interrupted turn', () => {
     expect(r.state).toBe(before);
   });
 
+  it('a late retract does not trim the new turn', () => {
+    const before = resent();
+    const r = applyServerMessage(before, { type: 'agent_text_retract', forTurn: 't1', chars: 2 });
+    expect(r.state).toBe(before);
+  });
+
   it('frames of the NEW turn still apply', () => {
     let s = applyServerMessage(resent(), { type: 'agent_text_delta', forTurn: 't2', text: 'neu' }).state;
     s = applyServerMessage(s, { type: 'turn_complete', forTurn: 't2' }).state;
