@@ -422,6 +422,9 @@ export function applyServerMessage(
       };
     }
     case 'agent_text_retract':
+      // the system speaker's words live in `systemNotice`, never in the
+      // agent's prose: a retract in its name must not trim that prose
+      if (speakerView(msg.speaker)?.kind === 'system') return { state, resync: false };
       return { state: { ...state, prose: retractProse(state.prose, msg.chars) }, resync: false };
     case 'turn_complete': {
       const speaker = speakerView(msg.speaker);

@@ -132,6 +132,17 @@ describe('applyServerMessage', () => {
     expect(r.state.prose).toBe('');
   });
 
+  it('a retract in the name of the system speaker leaves the agent prose alone', () => {
+    const start = applyServerMessage(initialCanvasState, { type: 'agent_text_delta', forTurn: 't1', text: 'keep' }).state;
+    const r = applyServerMessage(start, {
+      type: 'agent_text_retract',
+      forTurn: 't1',
+      chars: 4,
+      speaker: { kind: 'system' },
+    });
+    expect(r.state.prose).toBe('keep');
+  });
+
   it('ignores a retract whose count is not a finite positive number', () => {
     const start = applyServerMessage(initialCanvasState, { type: 'agent_text_delta', forTurn: 't1', text: 'keep' }).state;
     for (const chars of [0, -3, Number.NaN, Number.POSITIVE_INFINITY, '4' as unknown as number]) {
