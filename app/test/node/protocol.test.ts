@@ -22,6 +22,11 @@ describe('parseServerMessage', () => {
     }
   });
 
+  it('parses an agent_text_retract', () => {
+    const msg = parseServerMessage(JSON.stringify({ type: 'agent_text_retract', forTurn: 't1', chars: 5 }));
+    expect(msg).toEqual({ type: 'agent_text_retract', forTurn: 't1', chars: 5 });
+  });
+
   it('rejects non-JSON, non-object, and unknown types', () => {
     expect(parseServerMessage('not json')).toBeNull();
     expect(parseServerMessage('42')).toBeNull();

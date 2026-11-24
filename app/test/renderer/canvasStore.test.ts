@@ -109,6 +109,49 @@ describe('applyServerMessage', () => {
     expect(r.state.turnPending).toBe(false);
   });
 
+  it('takes back streamed prose on agent_text_retract (withheld answer)', () => {
+    const delta = (text: string): ServerMessage => ({ type: 'agent_text_delta', forTurn: 't1', text });
+    let r = applyServerMessage(initialCanvasState, delta('Draft '));
+    r = applyServerMessage(r.state, delta('über Anna'));
+    r = applyServerMessage(r.state, { type: 'agent_text_retract', forTurn: 't1', chars: 'Draft über Anna'.length });
+    r = applyServerMessage(r.state, { type: 'turn_complete', forTurn: 't1' });
+    expect(r.state.prose).toBe('');
+    expect(r.state.prose).not.toContain('Draft');
+    expect(r.state.turnPending).toBe(false);
+  });
+
+  it('retracts only the tail and clamps a count beyond the prose', () => {
+    let r = applyServerMessage(initialCanvasState, {
+      type: 'agent_text_delta',
+      forTurn: 't1',
+      text: 'Answer. Let me check.',
+    });
+    r = applyServerMessage(r.state, { type: 'agent_text_retract', forTurn: 't1', chars: ' Let me check.'.length });
+    expect(r.state.prose).toBe('Answer.');
+    r = applyServerMessage(r.state, { type: 'agent_text_retract', forTurn: 't1', chars: 1000 });
+    expect(r.state.prose).toBe('');
+  });
+
+  it('a retract in the name of the system speaker leaves the agent prose alone', () => {
+    const start = applyServerMessage(initialCanvasState, { type: 'agent_text_delta', forTurn: 't1', text: 'keep' }).state;
+    const r = applyServerMessage(start, {
+      type: 'agent_text_retract',
+      forTurn: 't1',
+      chars: 4,
+      speaker: { kind: 'system' },
+    });
+    expect(r.state.prose).toBe('keep');
+  });
+
+  it('ignores a retract whose count is not a finite positive number', () => {
+    const start = applyServerMessage(initialCanvasState, { type: 'agent_text_delta', forTurn: 't1', text: 'keep' }).state;
+    for (const chars of [0, -3, Number.NaN, Number.POSITIVE_INFINITY, '4' as unknown as number]) {
+      const r = applyServerMessage(start, { type: 'agent_text_retract', forTurn: 't1', chars });
+      expect(r.state.prose).toBe('keep');
+      expect(r.resync).toBe(false);
+    }
+  });
+
   it('surfaces turn_error as a notice', () => {
     const r = applyServerMessage(initialCanvasState, { type: 'turn_error', forTurn: 't1', message: 'boom' });
     expect(r.state.notices.some((n) => n.includes('boom'))).toBe(true);

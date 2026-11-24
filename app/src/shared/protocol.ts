@@ -134,6 +134,18 @@ export interface AgentTextDelta {
   speaker?: Speaker;
 }
 
+/** The kernel took back the last `chars` characters of the streamed prose
+ *  (`text_retract`: a withheld answer, a sentence-gate preamble). Counted in
+ *  UTF-16 code units like `String.length`; untrusted — a count that is not a
+ *  finite positive number is ignored. Server: `AgentTextRetract` in
+ *  omadia-ui-channel protocol.ts (ui-channel 0.4.0). */
+export interface AgentTextRetract {
+  type: 'agent_text_retract';
+  forTurn: string;
+  chars: number;
+  speaker?: Speaker;
+}
+
 export interface TurnComplete {
   type: 'turn_complete';
   forTurn: string;
@@ -254,6 +266,7 @@ export type ServerMessage =
   | HandshakeErrorMsg
   | HandshakeAck
   | AgentTextDelta
+  | AgentTextRetract
   | TurnComplete
   | TurnError
   | CanvasListMsg
@@ -384,6 +397,7 @@ const NON_SURFACE_SERVER_TYPES: ReadonlySet<string> = new Set([
   'handshake_error',
   'handshake_ack',
   'agent_text_delta',
+  'agent_text_retract',
   'turn_complete',
   'turn_error',
   'canvas_list',

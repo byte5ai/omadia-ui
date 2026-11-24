@@ -56,7 +56,8 @@ export interface CanvasState {
    *  revisions, so an error tree without a toolbar never strands the user */
   menu: MenuNode | null;
   /** turnIds cut off by a socket drop (newest last, bounded) — their late
-   *  agent_text_delta / turn_complete / turn_error frames are ignored */
+   *  agent_text_delta / agent_text_retract / turn_complete / turn_error
+   *  frames are ignored */
   interruptedTurns: readonly string[];
   /** what the decision model (Jev) decided for the last finished turn —
    *  the Jev chip bottom-left; cleared when a new turn starts */
@@ -347,9 +348,19 @@ export function interruptTurn(state: CanvasState, turnId?: string): CanvasState 
 
 /** a turn-scoped frame (prose / completion) for a turn already interrupted */
 const isLateTurnFrame = (state: CanvasState, msg: ServerMessage): boolean =>
-  (msg.type === 'agent_text_delta' || msg.type === 'turn_complete' || msg.type === 'turn_error') &&
+  (msg.type === 'agent_text_delta' ||
+    msg.type === 'agent_text_retract' ||
+    msg.type === 'turn_complete' ||
+    msg.type === 'turn_error') &&
   typeof msg.forTurn === 'string' &&
   state.interruptedTurns.includes(msg.forTurn);
+
+/** Drops the last `chars` characters of `prose` (the kernel's
+ *  `text_retract`). A count that is not a finite positive number is ignored. */
+function retractProse(prose: string, chars: unknown): string {
+  if (typeof chars !== 'number' || !Number.isFinite(chars) || chars <= 0) return prose;
+  return prose.slice(0, Math.max(0, prose.length - Math.floor(chars)));
+}
 
 export function applyServerMessage(
   state: CanvasState,
@@ -365,7 +376,10 @@ export function applyServerMessage(
   // surfaceSeq guards above already make a stale one harmless (drop + resync).
   if (isLateTurnFrame(state, msg)) {
     return {
-      state: msg.type === 'agent_text_delta' ? state : noticed(state, `ignored late ${msg.type}`),
+      state:
+        msg.type === 'agent_text_delta' || msg.type === 'agent_text_retract'
+          ? state
+          : noticed(state, `ignored late ${msg.type}`),
       resync: false,
     };
   }
@@ -407,6 +421,11 @@ export function applyServerMessage(
         resync: false,
       };
     }
+    case 'agent_text_retract':
+      // the system speaker's words live in `systemNotice`, never in the
+      // agent's prose: a retract in its name must not trim that prose
+      if (speakerView(msg.speaker)?.kind === 'system') return { state, resync: false };
+      return { state: { ...state, prose: retractProse(state.prose, msg.chars) }, resync: false };
     case 'turn_complete': {
       const speaker = speakerView(msg.speaker);
       return {
